@@ -14,4 +14,6 @@ export * from './run-pipeline';
 export * from './clout';
 export * from './newswire';
 export * from './ledger';
+export * from './evidence';
+export * from './district-kind';
 export * from './env';

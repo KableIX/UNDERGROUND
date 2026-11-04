@@ -1,6 +1,9 @@
-# Monterey District — draft territories
+# Monterey District — production candidate (draft)
 
-All seeded routes are **draft** placeholder LineStrings. They are not reviewed road-following geometries and must not accept production captures.
+Monterey is the **second production candidate** district (`kind=production_candidate`).  
+All seeded routes remain **draft** placeholder LineStrings until reviewed. They must not accept production captures while `status=draft`.
+
+Silicon Valley (`silicon-valley-dev`) is the **development** district — see `docs/DISTRICTS.md`.
 
 | Slug | Name | Weight |
 |------|------|--------|

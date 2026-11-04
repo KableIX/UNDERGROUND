@@ -4,6 +4,8 @@ import { getHealth } from './routes/health';
 import { planFounderProvision } from './routes/founder';
 import { postChallenge } from './routes/challenge-http';
 import { createRunStore, handleRunTransition } from './routes/runs';
+import { handleEvidenceReview } from './routes/evidence';
+import { handleClubInviteAction } from './routes/clubs';
 
 const env = loadEnv();
 const health = getHealth(env);
@@ -56,6 +58,22 @@ const server = createServer(async (req, res) => {
     if (req.url === '/v1/runs/transition' && req.method === 'POST') {
       const body = await readJsonBody(req);
       const result = handleRunTransition({ env, store: runStore, raw: body });
+      res.writeHead(result.ok ? 200 : 409, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(result));
+      return;
+    }
+
+    if (req.url === '/v1/runs/evidence/review' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = handleEvidenceReview(body);
+      res.writeHead(result.ok ? 200 : 422, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(result));
+      return;
+    }
+
+    if (req.url === '/v1/clubs/invitations/action' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = handleClubInviteAction(body);
       res.writeHead(result.ok ? 200 : 409, { 'content-type': 'application/json' });
       res.end(JSON.stringify(result));
       return;
