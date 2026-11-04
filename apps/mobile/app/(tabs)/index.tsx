@@ -1,39 +1,50 @@
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { GoldRule, Screen, Text } from '@underground/ui';
+import { newswireStoryFixtures } from '../../src/data/newswire';
 import { shell } from '../../src/theme/shell';
 
 /**
- * Newswire shell — stories generate from capture_accepted_v1 templates
- * when runs reach ACCEPTED on the production evidence path.
+ * Newswire feed renders deterministic capture_accepted_v1 fixtures only.
+ * Live stories appear only after server ACCEPTED on production evidence.
  */
 export default function NewswireScreen() {
   return (
-    <Screen>
-      <Text variant="brand" gold>
-        UNDERGROUND
-      </Text>
-      <Text variant="caption" style={styles.tagline}>
-        OWNERSHIP IS THE ENTRY.
-      </Text>
-      <GoldRule />
-      <Text variant="title">Newswire</Text>
-      <Text style={styles.body}>
-        Event-driven stories use deterministic template `capture_accepted_v1` on verified ACCEPTED
-        runs. No fabricated achievements — CLOUT deltas come from the ledger stub.
-      </Text>
-      <View style={styles.placeholder}>
-        <Text variant="caption" gold>
-          NO STORIES YET
+    <Screen padded={false}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text variant="brand" gold>
+          UNDERGROUND
         </Text>
-        <Text variant="caption" style={styles.meta}>
-          TEMPLATE READY · AWAITING ACCEPTED RUNS
+        <Text variant="caption" style={styles.tagline}>
+          OWNERSHIP IS THE ENTRY.
         </Text>
-      </View>
+        <GoldRule />
+        <Text variant="title">Newswire</Text>
+        <Text style={styles.body}>
+          Template `capture_accepted_v1` only — no fabricated achievements. Fixture feed until
+          production ACCEPTED runs persist.
+        </Text>
+        {newswireStoryFixtures.map((story) => (
+          <View key={story.id} style={styles.story}>
+            <Text variant="caption" gold>
+              {story.templateId.toUpperCase()} · CLOUT +{story.cloutDelta}
+            </Text>
+            <Text variant="title" style={styles.headline}>
+              {story.headline}
+            </Text>
+            <Text style={styles.body}>{story.body}</Text>
+          </View>
+        ))}
+      </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 40,
+  },
   tagline: {
     marginTop: 8,
     color: shell.muted,
@@ -42,15 +53,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: shell.muted,
   },
-  placeholder: {
-    marginTop: 32,
-    paddingVertical: 48,
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(197,165,114,0.35)',
+  story: {
+    marginTop: 24,
+    paddingBottom: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(197,165,114,0.25)',
   },
-  meta: {
-    color: shell.muted,
+  headline: {
+    marginTop: 8,
   },
 });
