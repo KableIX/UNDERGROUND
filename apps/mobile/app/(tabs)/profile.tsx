@@ -3,6 +3,8 @@ import { FOUNDER_DISPLAY_NAME, FOUNDER_MEMBER_NUMBER } from '@underground/domain
 import { GoldRule, Screen, Text } from '@underground/ui';
 import { shell } from '../../src/theme/shell';
 
+const TOP_EIGHT_SLOTS = Array.from({ length: 8 }, (_, i) => i);
+
 export default function ProfileScreen() {
   return (
     <Screen>
@@ -14,13 +16,26 @@ export default function ProfileScreen() {
       </Text>
       <GoldRule />
       <Text style={styles.body}>
-        Profile fields, Top 8, and audited provisioning bind in Milestone B once Supabase
-        credentials exist.
+        Audited provisioning binds auth user → member {FOUNDER_MEMBER_NUMBER}. Persist via
+        supabase/seed/founder_000001.sql when Supabase credentials exist. Feature-preview
+        entitlement does not grant admin role.
       </Text>
       <View style={styles.row}>
-        <Stat label="FRIENDS" value="—" />
-        <Stat label="FOLLOWERS" value="—" />
+        <Stat label="FRIENDS" value="0" />
+        <Stat label="FOLLOWERS" value="0" />
         <Stat label="TOP 8" value="0/8" />
+      </View>
+      <Text variant="caption" gold style={styles.section}>
+        TOP 8
+      </Text>
+      <View style={styles.topEight}>
+        {TOP_EIGHT_SLOTS.map((slot) => (
+          <View key={slot} style={styles.slot}>
+            <Text variant="caption" style={styles.slotLabel}>
+              {slot + 1}
+            </Text>
+          </View>
+        ))}
       </View>
     </Screen>
   );
@@ -52,5 +67,25 @@ const styles = StyleSheet.create({
   },
   stat: {
     gap: 6,
+  },
+  section: {
+    marginTop: 28,
+    marginBottom: 12,
+  },
+  topEight: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  slot: {
+    width: 64,
+    height: 64,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(197,165,114,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotLabel: {
+    color: shell.muted,
   },
 });
