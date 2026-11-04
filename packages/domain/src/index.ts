@@ -7,4 +7,7 @@ export * from './territory';
 export * from './ownership';
 export * from './run';
 export * from './run-pipeline';
+export * from './clout';
+export * from './newswire';
+export * from './ledger';
 export * from './env';

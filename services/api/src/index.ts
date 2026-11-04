@@ -3,9 +3,11 @@ import { loadEnv } from './env';
 import { getHealth } from './routes/health';
 import { planFounderProvision } from './routes/founder';
 import { postChallenge } from './routes/challenge-http';
+import { createRunStore, handleRunTransition } from './routes/runs';
 
 const env = loadEnv();
 const health = getHealth(env);
+const runStore = createRunStore();
 
 console.info(
   JSON.stringify({
@@ -14,6 +16,14 @@ console.info(
     health,
   }),
 );
+
+async function readJsonBody(req: import('node:http').IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+}
 
 /**
  * Minimal HTTP surface without pulling a framework yet.
@@ -26,47 +36,38 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  if (req.url === '/v1/founder/provision' && req.method === 'POST') {
-    const chunks: Buffer[] = [];
-    for await (const chunk of req) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    }
-    try {
-      const body: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+  try {
+    if (req.url === '/v1/founder/provision' && req.method === 'POST') {
+      const body = await readJsonBody(req);
       const plan = planFounderProvision(body);
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify(plan));
-    } catch (error) {
-      res.writeHead(400, { 'content-type': 'application/json' });
-      res.end(
-        JSON.stringify({
-          ok: false,
-          error: error instanceof Error ? error.message : 'invalid_request',
-        }),
-      );
+      return;
     }
-    return;
-  }
 
-  if (req.url === '/v1/territories/challenge' && req.method === 'POST') {
-    const chunks: Buffer[] = [];
-    for await (const chunk of req) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    }
-    try {
-      const body: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+    if (req.url === '/v1/territories/challenge' && req.method === 'POST') {
+      const body = await readJsonBody(req);
       const result = postChallenge(env, body);
       res.writeHead(result.ok ? 200 : 409, { 'content-type': 'application/json' });
       res.end(JSON.stringify(result));
-    } catch (error) {
-      res.writeHead(400, { 'content-type': 'application/json' });
-      res.end(
-        JSON.stringify({
-          ok: false,
-          error: error instanceof Error ? error.message : 'invalid_request',
-        }),
-      );
+      return;
     }
+
+    if (req.url === '/v1/runs/transition' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = handleRunTransition({ env, store: runStore, raw: body });
+      res.writeHead(result.ok ? 200 : 409, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(result));
+      return;
+    }
+  } catch (error) {
+    res.writeHead(400, { 'content-type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        ok: false,
+        error: error instanceof Error ? error.message : 'invalid_request',
+      }),
+    );
     return;
   }
 
@@ -80,4 +81,4 @@ if (process.env.UNDERGROUND_API_AUTOSTART !== '0') {
   });
 }
 
-export { server, env };
+export { server, env, runStore };
