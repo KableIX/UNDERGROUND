@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "UNDERGROUND",
+    "slug": "underground",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "underground",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "vip.theunderground.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "UNDERGROUND uses your location to verify territory runs you start.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "UNDERGROUND may record background GPS only during an active verified run."
+      }
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WHEN_EAS_PROJECT_LINKED"
+      },
+      "router": {
+        "origin": false
+      }
+    }
+  }
+}
