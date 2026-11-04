@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { loadEnv } from './env';
 import { getHealth } from './routes/health';
 import { planFounderProvision } from './routes/founder';
+import { postChallenge } from './routes/challenge-http';
 
 const env = loadEnv();
 const health = getHealth(env);
@@ -35,6 +36,28 @@ const server = createServer(async (req, res) => {
       const plan = planFounderProvision(body);
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify(plan));
+    } catch (error) {
+      res.writeHead(400, { 'content-type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          ok: false,
+          error: error instanceof Error ? error.message : 'invalid_request',
+        }),
+      );
+    }
+    return;
+  }
+
+  if (req.url === '/v1/territories/challenge' && req.method === 'POST') {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    try {
+      const body: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+      const result = postChallenge(env, body);
+      res.writeHead(result.ok ? 200 : 409, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(result));
     } catch (error) {
       res.writeHead(400, { 'content-type': 'application/json' });
       res.end(

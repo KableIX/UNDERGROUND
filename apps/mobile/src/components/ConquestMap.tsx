@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@underground/ui';
 import { draftMontereyTerritories } from '../data/monterey-draft';
+import { previewChallenge } from '../lib/challenge';
 import { mapboxConfigured } from '../lib/env';
 import { shell } from '../theme/shell';
 
@@ -9,19 +10,44 @@ type Track = 'solo' | 'club';
 
 /**
  * Interactive Conquest map shell.
- * When Mapbox token is present, a native Mapbox surface will mount (dev-build only).
- * Without a token: dark fallback canvas with glowing draft route placeholders — no hex carpet.
+ * Mapbox mounts when token present (dev-build); otherwise dark fallback.
+ * Illuminated draft routes + glowing nodes — no hex carpet.
  */
 export function ConquestMap() {
   const [track, setTrack] = useState<Track>('solo');
   const [selectedSlug, setSelectedSlug] = useState<string | null>(
     draftMontereyTerritories[0]?.slug ?? null,
   );
+  const [lastPreview, setLastPreview] = useState<string>('No challenge preview yet.');
 
   const selected = useMemo(
     () => draftMontereyTerritories.find((t) => t.slug === selectedSlug) ?? null,
     [selectedSlug],
   );
+
+  function onChallenge(isSimulation: boolean) {
+    if (!selected) return;
+    const preview = previewChallenge({
+      territoryDefinitionId: selected.id,
+      track,
+      challengerId: 'local-preview-member',
+      points: 10,
+      isSimulation,
+    });
+    if (!preview.capture.ok) {
+      setLastPreview(
+        `BLOCKED (${preview.capture.error}) · crown ${
+          preview.crown.isNeutral ? 'NEUTRAL' : preview.crown.crownOwnerId
+        }`,
+      );
+      return;
+    }
+    setLastPreview(
+      `${preview.capture.kind.toUpperCase()} · owner ${preview.capture.ownerId} · crown ${
+        preview.crown.isNeutral ? 'NEUTRAL' : preview.crown.crownOwnerId
+      }`,
+    );
+  }
 
   return (
     <View style={styles.root}>
@@ -73,15 +99,24 @@ export function ConquestMap() {
           {selected?.eligibleWeight ?? '—'}
         </Text>
         <Text style={styles.body}>
-          Ownership panel wires to engine contracts. Draft territories reject production captures.
-          Challenge actions call the API challenge contract; sim evidence cannot write production
-          ownership.
+          Ownership panel calls territory-engine contracts. Draft territories reject production
+          captures. Sim evidence cannot write production ownership.
         </Text>
-        <Pressable style={styles.cta} onPress={() => undefined}>
-          <Text variant="caption" gold>
-            CHALLENGE (ENGINE CONTRACT)
-          </Text>
-        </Pressable>
+        <Text variant="caption" style={styles.preview}>
+          {lastPreview}
+        </Text>
+        <View style={styles.actions}>
+          <Pressable style={styles.cta} onPress={() => onChallenge(false)}>
+            <Text variant="caption" gold>
+              CHALLENGE (ENGINE)
+            </Text>
+          </Pressable>
+          <Pressable style={styles.ctaMuted} onPress={() => onChallenge(true)}>
+            <Text variant="caption" gold>
+              SIM CAPTURE (GATED)
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -117,8 +152,6 @@ const styles = StyleSheet.create({
   atmosphere: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#071018',
-    // Subtle vertical depth — not a flat single color, not a hex carpet.
-    opacity: 1,
   },
   mapBadge: {
     position: 'absolute',
@@ -205,11 +238,24 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: shell.muted,
   },
+  preview: {
+    marginTop: 12,
+    color: shell.accent,
+  },
+  actions: {
+    marginTop: 16,
+    gap: 10,
+  },
   cta: {
-    marginTop: 20,
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: shell.accent,
+  },
+  ctaMuted: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(197,165,114,0.35)',
   },
 });

@@ -6,4 +6,5 @@ export * from './vehicle';
 export * from './territory';
 export * from './ownership';
 export * from './run';
+export * from './run-pipeline';
 export * from './env';
