@@ -7,3 +7,4 @@ export * from './accepted-run';
 export * from './gps-recovery';
 export * from './server-run';
 export * from './district-gate';
+export * from './sim-newswire-workflow';
