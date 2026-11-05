@@ -12,7 +12,7 @@ import {
   territoriesToFeatureCollection,
 } from '../../lib/territory-geojson';
 import { shell } from '../../theme/shell';
-import { TacticalMapPlane } from '../TacticalMapPlane';
+import { WorldMapFallback } from './WorldMapFallback';
 
 type Camera = { longitude: number; latitude: number; zoom: number };
 
@@ -23,6 +23,8 @@ type Props = {
   camera: Camera;
   badge: string;
   forceFallback?: boolean;
+  showTerritories?: boolean;
+  followUser?: boolean;
 };
 
 type LoadState =
@@ -37,6 +39,7 @@ type MapboxMod = {
   ShapeSource: ComponentType<Record<string, unknown>>;
   LineLayer: ComponentType<Record<string, unknown>>;
   CircleLayer: ComponentType<Record<string, unknown>>;
+  UserLocation?: ComponentType<Record<string, unknown>>;
   StyleURL?: Record<string, string>;
 };
 
@@ -52,6 +55,8 @@ export function MapboxTerritoryMap({
   camera,
   badge,
   forceFallback,
+  showTerritories = true,
+  followUser = false,
 }: Props) {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
   const [MapboxMod, setMapboxMod] = useState<MapboxMod | null>(null);
@@ -83,6 +88,7 @@ export function MapboxTerritoryMap({
         ShapeSource: api.ShapeSource,
         LineLayer: api.LineLayer,
         CircleLayer: api.CircleLayer,
+        UserLocation: api.UserLocation,
         StyleURL: api.StyleURL,
       });
       setLoad({ status: 'ready', kind: 'native' });
@@ -122,14 +128,14 @@ export function MapboxTerritoryMap({
         <Text variant="caption" style={styles.muted}>
           {load.message}
         </Text>
-        <TacticalMapPlane
+        <WorldMapFallback
           territories={territories}
           selectedSlug={selectedSlug}
           onSelect={onSelect}
           camera={camera}
-          illuminated
           badge={badge}
-          disclaimer="FALLBACK AFTER MAP ERROR · DRAFT ROUTES"
+          showTerritories={showTerritories}
+          followUser={followUser}
         />
       </View>
     );
@@ -137,23 +143,19 @@ export function MapboxTerritoryMap({
 
   if (load.status === 'fallback' || !MapboxMod) {
     return (
-      <TacticalMapPlane
+      <WorldMapFallback
         territories={territories}
         selectedSlug={selectedSlug}
         onSelect={onSelect}
         camera={camera}
-        illuminated
         badge={badge}
-        disclaimer={
-          load.status === 'fallback'
-            ? `TACTICAL FALLBACK · ${load.reason.replaceAll('_', ' ').toUpperCase()}`
-            : 'TACTICAL FALLBACK'
-        }
+        showTerritories={showTerritories}
+        followUser={followUser}
       />
     );
   }
 
-  const { MapView, Camera, ShapeSource, LineLayer, CircleLayer, StyleURL } = MapboxMod;
+  const { MapView, Camera, ShapeSource, LineLayer, CircleLayer, UserLocation, StyleURL } = MapboxMod;
   const styleURL = StyleURL?.SatelliteStreet ?? StyleURL?.Satellite ?? 'mapbox://styles/mapbox/satellite-streets-v12';
 
   return (
@@ -176,7 +178,8 @@ export function MapboxTerritoryMap({
           animationMode="flyTo"
           animationDuration={600}
         />
-        <ShapeSource
+        {followUser && UserLocation ? <UserLocation visible /> : null}
+        {showTerritories ? <ShapeSource
           id="territories"
           shape={collection}
           onPress={(event: { features?: Array<{ properties?: { slug?: string } }> }) => {
@@ -199,8 +202,8 @@ export function MapboxTerritoryMap({
               lineJoin: 'round',
             }}
           />
-        </ShapeSource>
-        {endpoints ? (
+        </ShapeSource> : null}
+        {showTerritories && endpoints ? (
           <ShapeSource
             id="endpoints"
             shape={{

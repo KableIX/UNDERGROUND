@@ -29,7 +29,16 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: config.name ?? 'UNDERGROUND',
     slug: config.slug ?? 'underground',
-    plugins: [...(config.plugins ?? []), ...mapboxPlugins, 'expo-image-picker'],
+    plugins: [
+      ...(config.plugins ?? []),
+      ...mapboxPlugins,
+      'expo-image-picker',
+      ['expo-location', {
+        locationWhenInUsePermission: 'UNDERGROUND uses your location to show your position and record a drive only when you choose Start Drive.',
+        isIosBackgroundLocationEnabled: false,
+        isAndroidBackgroundLocationEnabled: false,
+      }],
+    ],
     extra: {
       ...(config.extra ?? {}),
       mapbox: {
