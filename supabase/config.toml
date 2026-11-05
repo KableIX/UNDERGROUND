@@ -1,0 +1,15 @@
+# Minimal Supabase CLI stub — cloud project not linked in this environment.
+# Prefer docker-compose.yml PostGIS for local persistence tests.
+
+project_id = "underground-local"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+major_version = 16
+
+[studio]
+enabled = false

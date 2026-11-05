@@ -1,7 +1,9 @@
 /**
- * Silicon Valley DEVELOPMENT district — Santa Clara test routes.
- * Clearly separated from production / production-candidate territories.
- * Never capturable as production ownership.
+ * Silicon Valley DEVELOPMENT district — Santa Clara / NVIDIA-area test routes.
+ *
+ * Landmark cameras use public venue/campus centroids.
+ * Route LineStrings are UNVERIFIED DRAFT corridors for UX/engine — NOT road-snapped
+ * GPS claiming production accuracy. Never capturable as production ownership.
  */
 import type { TerritoryDefinition } from '../../packages/domain/src/territory';
 import type { DistrictKind } from '../../packages/domain/src/district-kind';
@@ -13,62 +15,92 @@ export const siliconValleyDistrict = {
   kind: 'development' as DistrictKind,
 } as const;
 
-const CREATED = '2026-11-04T00:00:00.000Z';
+const CREATED = '2026-11-05T00:00:00.000Z';
+const GEOM = 'UNVERIFIED_DRAFT_CORRIDOR_NOT_ROAD_SNAPPED';
 
 function devRoute(
-  partial: Omit<TerritoryDefinition, 'status' | 'version' | 'createdAt' | 'geometryLabel' | 'districtSlug'>,
+  partial: Omit<
+    TerritoryDefinition,
+    'status' | 'version' | 'createdAt' | 'geometryLabel' | 'districtSlug'
+  >,
 ): TerritoryDefinition {
   return {
     ...partial,
     districtSlug: siliconValleyDistrict.slug,
-    version: 1,
+    version: 2,
     status: 'draft',
-    geometryLabel: 'DEV_ONLY_PLACEHOLDER_LINESTRING',
+    geometryLabel: GEOM,
     createdAt: CREATED,
   };
 }
 
-/** Coarse Santa Clara area placeholders — not production road traces. */
+/**
+ * Draft corridors anchored near public Santa Clara landmarks (NVIDIA campus area,
+ * Central Expressway, El Camino, Lawrence). Vertices are coarse placeholders —
+ * replace with Mapbox Directions / operator-reviewed centerlines before approval.
+ */
 export const siliconValleyDevTerritories: TerritoryDefinition[] = [
   devRoute({
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa01',
     slug: 'santa-clara-el-camino',
-    name: 'Santa Clara El Camino Test',
+    name: 'El Camino — Santa Clara',
     eligibleWeight: 10,
     geometry: {
       type: 'LineString',
       coordinates: [
-        [-121.96, 37.35],
-        [-121.94, 37.35],
-        [-121.92, 37.352],
+        [-121.99, 37.352],
+        [-121.975, 37.3525],
+        [-121.96, 37.353],
+        [-121.945, 37.352],
+        [-121.93, 37.351],
       ],
     },
   }),
   devRoute({
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa02',
     slug: 'santa-clara-central-expressway',
-    name: 'Santa Clara Central Expressway Test',
-    eligibleWeight: 10,
+    name: 'Central Expressway — NVIDIA corridor',
+    eligibleWeight: 12,
     geometry: {
       type: 'LineString',
       coordinates: [
-        [-121.98, 37.38],
-        [-121.95, 37.38],
-        [-121.92, 37.385],
+        [-121.995, 37.378],
+        [-121.98, 37.375],
+        [-121.9677, 37.3706],
+        [-121.95, 37.368],
+        [-121.935, 37.366],
       ],
     },
   }),
   devRoute({
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa03',
     slug: 'santa-clara-lawrence-loop',
-    name: 'Lawrence Expressway Loop Test',
+    name: 'Lawrence Expressway loop',
     eligibleWeight: 8,
     geometry: {
       type: 'LineString',
       coordinates: [
-        [-121.995, 37.37],
+        [-121.996, 37.36],
+        [-121.996, 37.375],
         [-121.995, 37.39],
-        [-121.99, 37.4],
+        [-121.985, 37.4],
+        [-121.975, 37.403],
+      ],
+    },
+  }),
+  devRoute({
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa04',
+    slug: 'san-tomas-expressway',
+    name: 'San Tomas Expressway',
+    eligibleWeight: 9,
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [-121.968, 37.35],
+        [-121.9677, 37.360],
+        [-121.9677, 37.3706],
+        [-121.9685, 37.385],
+        [-121.97, 37.4],
       ],
     },
   }),

@@ -15,10 +15,28 @@ type Props = {
   onPlanned?: (plan: GarageMediaUploadPlan) => void;
 };
 
+type PickerModule = {
+  requestMediaLibraryPermissionsAsync: () => Promise<{ granted: boolean }>;
+  launchImageLibraryAsync: (opts: {
+    mediaTypes: string;
+    quality: number;
+    allowsMultipleSelection: boolean;
+  }) => Promise<{ canceled: boolean; assets?: Array<{ uri: string }> }>;
+};
+
+function tryLoadImagePicker(): PickerModule | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('expo-image-picker') as PickerModule;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Founder garage photo upload UI.
- * Plans private storage uploads; placeholders when Supabase creds absent.
- * No proprietary binaries are committed — local URI is a client hint only.
+ * Prefers expo-image-picker when present in the native dev client;
+ * falls back to a marked placeholder URI when the module/permission is unavailable.
  */
 export function GaragePhotoUpload({ vehicleId, memberId, onPlanned }: Props) {
   const [lastPlan, setLastPlan] = useState<GarageMediaUploadPlan | null>(null);
@@ -46,11 +64,43 @@ export function GaragePhotoUpload({ vehicleId, memberId, onPlanned }: Props) {
     onPlanned?.(plan);
   }
 
-  function onAddPhoto() {
-    // Without expo-image-picker wired into a native build, simulate a local pick.
-    // Real device builds can replace this with ImagePicker.launchImageLibraryAsync.
-    const localUri = `file://local/garage/r8-upload-${Date.now()}.PLACEHOLDER.jpg`;
-    planFromLocalUri(localUri, 'Founder R8 garage upload (placeholder until licensed media)');
+  async function onAddPhoto() {
+    const ImagePicker = tryLoadImagePicker();
+    if (!ImagePicker) {
+      const localUri = `file://local/garage/r8-upload-${Date.now()}.PLACEHOLDER.jpg`;
+      planFromLocalUri(localUri, 'Founder R8 garage upload (picker module unavailable)');
+      return;
+    }
+
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setStatus('Photo library permission denied — using placeholder plan.');
+        planFromLocalUri(
+          `file://local/garage/r8-denied-${Date.now()}.PLACEHOLDER.jpg`,
+          'Permission denied placeholder',
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images',
+        quality: 0.85,
+        allowsMultipleSelection: false,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) {
+        setStatus('Picker canceled.');
+        return;
+      }
+
+      planFromLocalUri(result.assets[0].uri, 'Founder R8 garage upload');
+    } catch {
+      planFromLocalUri(
+        `file://local/garage/r8-upload-${Date.now()}.PLACEHOLDER.jpg`,
+        'Founder R8 garage upload (picker error fallback)',
+      );
+    }
   }
 
   return (
@@ -59,10 +109,10 @@ export function GaragePhotoUpload({ vehicleId, memberId, onPlanned }: Props) {
         PRIVATE STORAGE · GARAGE ORIGINALS
       </Text>
       <Text style={styles.body}>
-        Uploads target the private `garage-originals` bucket. Without Supabase credentials the
-        planner returns a marked PLACEHOLDER path — no binaries committed.
+        Uploads target the private garage-originals bucket. Without Supabase the planner returns a
+        marked PLACEHOLDER path — no binaries committed.
       </Text>
-      <Pressable style={styles.cta} onPress={onAddPhoto}>
+      <Pressable style={styles.cta} onPress={() => void onAddPhoto()}>
         <Text variant="caption" gold>
           ADD PHOTO
         </Text>

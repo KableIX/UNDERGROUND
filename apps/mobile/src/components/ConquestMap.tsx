@@ -1,27 +1,33 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { buildSimGpsReplay, checkpointsAlongReplay } from '@underground/territory-engine';
 import { Text } from '@underground/ui';
+import { ConquestBottomSheet } from './conquest/ConquestBottomSheet';
+import { MapboxTerritoryMap } from './conquest/MapboxTerritoryMap';
 import { draftMontereyTerritories } from '../data/monterey-draft';
 import {
   siliconValleyDevTerritories,
   siliconValleyDistrict,
 } from '../data/silicon-valley-dev';
+import {
+  MONTEREY_LANDMARK_CAMERA,
+  SV_LANDMARK_CAMERA,
+} from '../data/landmarks';
 import { previewChallenge } from '../lib/challenge';
 import { appendSimNewswireStory, runSimCaptureWorkflow } from '../lib/sim-workflow';
-import { MONTEREY_CAMERA, SV_DEV_CAMERA } from '../lib/mapbox-static';
 import { shell } from '../theme/shell';
-import { TacticalMapPlane } from './TacticalMapPlane';
 
 type Track = 'solo' | 'club';
 type DistrictMode = 'monterey' | 'silicon-valley-dev';
 
 /**
- * Interactive Conquest map shell.
- * Monterey = production_candidate (draft). Silicon Valley = development only.
- * Dev routes never write production ownership (engine + district gate).
- * Production captures stay disabled until geometry/verification validated.
+ * Conquest v2 — map-first tactical command surface.
+ * SV DEV default; Monterey = production_candidate DRAFT.
+ * Production captures blocked; sim → Newswire only on SV DEV (no CLOUT / ownership).
  */
 export function ConquestMap() {
+  const insets = useSafeAreaInsets();
   const [district, setDistrict] = useState<DistrictMode>('silicon-valley-dev');
   const [track, setTrack] = useState<Track>('solo');
   const territories =
@@ -29,7 +35,9 @@ export function ConquestMap() {
   const [selectedSlug, setSelectedSlug] = useState<string | null>(
     siliconValleyDevTerritories[0]?.slug ?? null,
   );
-  const [lastPreview, setLastPreview] = useState<string>('No challenge preview yet.');
+  const [previewMessage, setPreviewMessage] = useState(
+    'Select a route. Production captures disabled.',
+  );
 
   const selected = useMemo(
     () => territories.find((t) => t.slug === selectedSlug) ?? null,
@@ -37,31 +45,29 @@ export function ConquestMap() {
   );
 
   const isDevDistrict = district === 'silicon-valley-dev';
-  const camera = isDevDistrict ? SV_DEV_CAMERA : MONTEREY_CAMERA;
+  const camera = isDevDistrict ? SV_LANDMARK_CAMERA : MONTEREY_LANDMARK_CAMERA;
 
   function switchDistrict(next: DistrictMode) {
     setDistrict(next);
     const list = next === 'silicon-valley-dev' ? siliconValleyDevTerritories : draftMontereyTerritories;
     setSelectedSlug(list[0]?.slug ?? null);
-    setLastPreview('No challenge preview yet.');
+    setPreviewMessage('Select a route. Production captures disabled.');
   }
 
-  function onChallenge(isSimulation: boolean) {
+  function onProdChallenge() {
+    if (!selected) return;
+    setPreviewMessage(
+      isDevDistrict
+        ? 'Blocked — development district cannot take production ownership.'
+        : 'Blocked — draft geometry / production captures disabled.',
+    );
+  }
+
+  function onSimCapture() {
     if (!selected) return;
 
-    // Production captures hard-blocked for draft Monterey + all development districts.
-    if (!isSimulation) {
-      setLastPreview(
-        isDevDistrict
-          ? 'BLOCKED (development_district) · DEV ROUTES NEVER PRODUCTION-CAPTURABLE'
-          : 'BLOCKED (draft_territory / geometry unverified) · PRODUCTION CAPTURES DISABLED',
-      );
-      return;
-    }
-
-    // Sim workflow: SV DEV only for captures → Newswire (hard-gated).
     if (!isDevDistrict) {
-      setLastPreview('SIM CAPTURES LIMITED TO SILICON VALLEY DEV DISTRICT');
+      setPreviewMessage('Sim captures limited to Silicon Valley DEV.');
       return;
     }
 
@@ -74,11 +80,19 @@ export function ConquestMap() {
     });
 
     if (!workflow.ok) {
-      setLastPreview(`SIM BLOCKED (${workflow.error})`);
+      setPreviewMessage(`Sim blocked (${workflow.error}).`);
       return;
     }
 
     appendSimNewswireStory(workflow.story);
+
+    const replay = buildSimGpsReplay({
+      territorySlug: selected.slug,
+      coordinates: selected.geometry.coordinates as [number, number][],
+      startMs: Date.now(),
+      stepMs: 1000,
+    });
+    const cps = checkpointsAlongReplay(replay, 1);
 
     const preview = previewChallenge({
       territoryDefinitionId: selected.id,
@@ -91,37 +105,21 @@ export function ConquestMap() {
     });
     const engineNote =
       preview.capture.ok === false ? ` · engine ${preview.capture.error}` : '';
-    setLastPreview(
-      `SIM → NEWSWIRE · ${workflow.story.headline} · ownershipWrite=false${engineNote}`,
+
+    setPreviewMessage(
+      `Sim → Newswire · ${cps.length} checkpoints · ownership locked · CLOUT +0${engineNote}`,
     );
   }
 
   return (
     <View style={styles.root}>
-      <View style={styles.mapPlane}>
-        <TacticalMapPlane
-          territories={territories}
-          selectedSlug={selectedSlug}
-          onSelect={setSelectedSlug}
-          camera={camera}
-          illuminated
-          badge={
-            isDevDistrict
-              ? `${siliconValleyDistrict.name.toUpperCase()} · DEV ONLY`
-              : 'MONTEREY · PRODUCTION CANDIDATE (DRAFT)'
-          }
-          disclaimer={
-            isDevDistrict
-              ? 'SANTA CLARA TEST ROUTES — NEVER PRODUCTION OWNERSHIP · SIM → NEWSWIRE ONLY'
-              : 'PLACEHOLDER LINESTRINGS — PRODUCTION CAPTURES DISABLED UNTIL GEOMETRY VALIDATED'
-          }
-        />
-      </View>
-
-      <View style={styles.panel}>
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 8) }]}>
+        <Text variant="brand" gold>
+          UNDERGROUND
+        </Text>
         <View style={styles.modes}>
           <ModeChip
-            label="SV DEV"
+            label="SV"
             active={district === 'silicon-valley-dev'}
             onPress={() => switchDistrict('silicon-valley-dev')}
           />
@@ -131,39 +129,33 @@ export function ConquestMap() {
             onPress={() => switchDistrict('monterey')}
           />
         </View>
-        <View style={styles.modes}>
-          <ModeChip label="SOLO" active={track === 'solo'} onPress={() => setTrack('solo')} />
-          <ModeChip label="CLUB" active={track === 'club'} onPress={() => setTrack('club')} />
-        </View>
-        <Text variant="title" gold>
-          {selected?.name ?? 'Select a territory'}
-        </Text>
-        <Text variant="caption" style={styles.meta}>
-          {isDevDistrict ? 'KIND DEVELOPMENT' : 'KIND PRODUCTION_CANDIDATE'} · STATUS{' '}
-          {selected?.status.toUpperCase() ?? '—'} · TRACK {track.toUpperCase()} · WEIGHT{' '}
-          {selected?.eligibleWeight ?? '—'}
-        </Text>
-        <Text style={styles.body}>
-          {isDevDistrict
-            ? 'Development district for Santa Clara test loops. Production capture actions are hard-blocked in UI and engine. Use SIM CAPTURE to publish a sim Newswire story.'
-            : 'Monterey remains a production candidate with draft geometries. Production captures stay blocked while status=draft / unverified.'}
-        </Text>
-        <Text variant="caption" style={styles.preview}>
-          {lastPreview}
-        </Text>
-        <View style={styles.actions}>
-          <Pressable style={styles.cta} onPress={() => onChallenge(false)}>
-            <Text variant="caption" gold>
-              PROD CAPTURE (BLOCKED)
-            </Text>
-          </Pressable>
-          <Pressable style={styles.ctaMuted} onPress={() => onChallenge(true)}>
-            <Text variant="caption" gold>
-              {isDevDistrict ? 'SIM CAPTURE → NEWSWIRE' : 'SIM (SV DEV ONLY)'}
-            </Text>
-          </Pressable>
-        </View>
       </View>
+
+      <View style={styles.map}>
+        <MapboxTerritoryMap
+          territories={territories}
+          selectedSlug={selectedSlug}
+          onSelect={setSelectedSlug}
+          camera={camera}
+          badge={
+            isDevDistrict
+              ? `${siliconValleyDistrict.name.toUpperCase()} · DEV`
+              : 'MONTEREY · DRAFT CANDIDATE'
+          }
+        />
+      </View>
+
+      <ConquestBottomSheet
+        territory={selected}
+        districtLabel={isDevDistrict ? 'SILICON VALLEY' : 'MONTEREY'}
+        districtKind={isDevDistrict ? 'development' : 'production_candidate'}
+        track={track}
+        onTrackChange={setTrack}
+        ownershipLabel="Ownership — unclaimed (sim never writes production ledgers)"
+        previewMessage={previewMessage}
+        onProdChallenge={onProdChallenge}
+        onSimCapture={onSimCapture}
+      />
     </View>
   );
 }
@@ -189,61 +181,35 @@ function ModeChip({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-  },
-  mapPlane: {
-    flex: 1.35,
     backgroundColor: shell.mapVoid,
-    overflow: 'hidden',
-    minHeight: 260,
   },
-  panel: {
-    flex: 1,
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
     paddingHorizontal: 16,
-    paddingTop: 16,
-    backgroundColor: shell.background,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(197,165,114,0.3)',
+    paddingBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   modes: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 10,
+    gap: 8,
   },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(197,165,114,0.35)',
+    backgroundColor: 'rgba(5,7,12,0.65)',
   },
   chipActive: {
     borderColor: shell.accent,
   },
-  meta: {
-    marginTop: 8,
-    color: shell.muted,
-  },
-  body: {
-    marginTop: 10,
-    color: shell.muted,
-  },
-  preview: {
-    marginTop: 12,
-    color: shell.accent,
-  },
-  actions: {
-    marginTop: 16,
-    gap: 10,
-  },
-  cta: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: shell.accent,
-  },
-  ctaMuted: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(197,165,114,0.35)',
+  map: {
+    flex: 1,
   },
 });

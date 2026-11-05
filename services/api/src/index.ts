@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { MemoryStore } from '@underground/persistence';
 import { loadEnv } from './env';
 import { getHealth } from './routes/health';
 import { planFounderProvision } from './routes/founder';
@@ -8,16 +9,26 @@ import { handleEvidenceReview } from './routes/evidence';
 import { handleClubInviteAction } from './routes/clubs';
 import { handleGarageMediaUploadIntent } from './routes/garage-media';
 import { handleSimCapture } from './routes/sim-capture';
+import {
+  handleFriendshipAction,
+  handleTopEight,
+  handleGuestbook,
+  handleDm,
+} from './routes/social';
+import { handleCreateRoutePlan, handleRouteArchitecture } from './routes/route-plans';
+import { getPersistenceStatus } from './routes/persistence-status';
 
 const env = loadEnv();
 const health = getHealth(env);
 const runStore = createRunStore();
+const memoryStore = new MemoryStore();
 
 console.info(
   JSON.stringify({
     message: 'underground-api skeleton ready',
     listen: `${env.API_HOST}:${env.API_PORT}`,
     health,
+    persistence: getPersistenceStatus(process.env),
   }),
 );
 
@@ -36,7 +47,24 @@ async function readJsonBody(req: import('node:http').IncomingMessage): Promise<u
 const server = createServer(async (req, res) => {
   if (req.url === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify(getHealth(env)));
+    res.end(
+      JSON.stringify({
+        ...getHealth(env),
+        persistence: getPersistenceStatus(process.env),
+      }),
+    );
+    return;
+  }
+
+  if (req.url === '/v1/persistence/status' && req.method === 'GET') {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, ...getPersistenceStatus(process.env) }));
+    return;
+  }
+
+  if (req.url === '/v1/routes/architecture' && req.method === 'GET') {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(handleRouteArchitecture()));
     return;
   }
 
@@ -96,6 +124,46 @@ const server = createServer(async (req, res) => {
       res.end(JSON.stringify(result));
       return;
     }
+
+    if (req.url === '/v1/social/friendships/action' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = handleFriendshipAction(memoryStore, body);
+      res.writeHead(result.ok ? 200 : 409, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(result));
+      return;
+    }
+
+    if (req.url === '/v1/social/top8' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = handleTopEight(memoryStore, body);
+      res.writeHead(result.ok ? 200 : 422, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(result));
+      return;
+    }
+
+    if (req.url === '/v1/social/guestbook' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = handleGuestbook(memoryStore, body);
+      res.writeHead(result.ok ? 200 : 409, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(result));
+      return;
+    }
+
+    if (req.url === '/v1/social/dm' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = handleDm(memoryStore, body);
+      res.writeHead(result.ok ? 200 : 409, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(result));
+      return;
+    }
+
+    if (req.url === '/v1/routes/plans' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = handleCreateRoutePlan(memoryStore, body);
+      res.writeHead(result.ok ? 200 : 422, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(result));
+      return;
+    }
   } catch (error) {
     res.writeHead(400, { 'content-type': 'application/json' });
     res.end(
@@ -117,4 +185,4 @@ if (process.env.UNDERGROUND_API_AUTOSTART !== '0') {
   });
 }
 
-export { server, env, runStore };
+export { server, env, runStore, memoryStore };
