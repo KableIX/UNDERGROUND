@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "UNDERGROUND",
+    "slug": "underground",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "underground",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#05070C"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "vip.theunderground.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "UNDERGROUND uses your location to verify territory runs you start.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "UNDERGROUND may record background GPS only during an active verified run.",
+        "NSCameraUsageDescription": "UNDERGROUND uses the camera for verified-run evidence photos and private garage media you choose to upload.",
+        "NSPhotoLibraryUsageDescription": "UNDERGROUND accesses your photo library only when you add private garage media.",
+        "NSPhotoLibraryAddUsageDescription": "UNDERGROUND may save capture evidence you approve to your photo library.",
+        "UIBackgroundModes": ["location"],
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#05070C"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-dev-client",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#05070C",
+          "image": "./assets/splash.png",
+          "imageWidth": 200
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "fa7e7c16-cf9d-456b-83c9-4a1c985898c9"
+      }
+    },
+    "owner": "undergroundvps-team"
+  }
+}

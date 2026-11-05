@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Builds / caches
+dist/
+build/
+.expo/
+.expo-shared/
+web-build/
+.turbo/
+*.tsbuildinfo
+coverage/
+.cache/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Native / EAS
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+*.orig.*
+ios/Pods/
+android/.gradle/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test artifacts
+playwright-report/
+test-results/
