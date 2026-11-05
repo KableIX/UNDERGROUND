@@ -26,8 +26,12 @@ export default function GarageScreen() {
           {founderGarageSeed.displayName}
         </Text>
         <Text variant="caption" style={styles.meta}>
-          FOUNDER ≠ ADMIN · GARAGE {vehicle.visibility.toUpperCase()} ·{' '}
+          FOUNDER ≠ ADMIN ≠ RANKING PRIVILEGE · GARAGE {vehicle.visibility.toUpperCase()} ·{' '}
           {vehicle.verificationStatus.toUpperCase()}
+        </Text>
+        <Text variant="caption" style={styles.meta}>
+          TOP8 EMPTY · VISIT STATS 0 (PERSISTENCE MEMORY/POSTGIS READY) · PREVIEW ENTITLEMENTS
+          SCHEMA READY
         </Text>
         <GoldRule />
 
