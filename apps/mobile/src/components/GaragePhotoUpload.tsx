@@ -41,16 +41,15 @@ export function GaragePhotoUpload({ vehicleId, memberId, onPlanned }: Props) {
     setStatus(
       plan.mode === 'placeholder'
         ? `PLACEHOLDER PATH · ${plan.storagePath} · Supabase absent`
-        : `SIGNED UPLOAD READY · ${plan.storagePath}`,
+        : `UPLOAD PLAN CREATED · ${plan.storagePath} · transfer not implemented`,
     );
     onPlanned?.(plan);
   }
 
   function onAddPhoto() {
-    // Without expo-image-picker wired into a native build, simulate a local pick.
-    // Real device builds can replace this with ImagePicker.launchImageLibraryAsync.
-    const localUri = `file://local/garage/r8-upload-${Date.now()}.PLACEHOLDER.jpg`;
-    planFromLocalUri(localUri, 'Founder R8 garage upload (placeholder until licensed media)');
+    // The installed development client predates expo-image-picker.
+    // Do not import a missing native module until a new IPA is installed.
+    setStatus('Photo selection requires the next native development build.');
   }
 
   return (

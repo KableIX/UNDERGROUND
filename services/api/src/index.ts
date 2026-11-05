@@ -8,6 +8,7 @@ import { handleEvidenceReview } from './routes/evidence';
 import { handleClubInviteAction } from './routes/clubs';
 import { handleGarageMediaUploadIntent } from './routes/garage-media';
 import { handleSimCapture } from './routes/sim-capture';
+import { mutationGate } from './routes/mutation-gate';
 
 const env = loadEnv();
 const health = getHealth(env);
@@ -37,6 +38,13 @@ const server = createServer(async (req, res) => {
   if (req.url === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify(getHealth(env)));
+    return;
+  }
+
+  const gate = mutationGate({ method: req.method, pathname: req.url, appEnv: env.APP_ENV });
+  if (!gate.allowed) {
+    res.writeHead(gate.status, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: gate.error }));
     return;
   }
 
