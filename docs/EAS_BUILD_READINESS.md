@@ -39,8 +39,13 @@
 
 - [x] `development`: `developmentClient: true`, `distribution: internal`, `ios.simulator: false`
 - [x] Preview / production profiles present
+- [x] `expo-dev-client` dependency present (required by development profile)
+- [x] Icon / splash placeholders under `apps/mobile/assets/`
+- [x] iOS Info.plist usage strings: location, camera, photo library
+- [x] `expo-doctor` 18/18; `npx expo export --platform ios` bundles cleanly
 - [ ] Credentials source configured in Expo (after Apple ready)
 - [ ] Ad-hoc / enterprise provisioning for test iPhone
+- [ ] Device UDID registered + Apple Team ID available
 
 ## Pre-build commands (no secrets printed)
 
@@ -53,6 +58,20 @@ npx eas-cli project:info
 pnpm -C ../.. test
 pnpm -C ../.. typecheck
 pnpm -C ../.. lint
+npx expo-doctor
+npx expo export --platform ios --output-dir /tmp/ug-ios-export
+```
+
+## Exact first signed EAS commands (later — Apple ready only)
+
+```bash
+cd apps/mobile
+export EXPO_TOKEN="$expo_token"   # or inject uppercase EXPO_TOKEN; never print
+npx eas-cli whoami
+npx eas-cli project:info
+npx eas-cli device:create
+npx eas-cli build --platform ios --profile development
+# After build succeeds: install via EAS QR / link, trust developer cert, launch.
 ```
 
 ## Explicitly NOT run yet
