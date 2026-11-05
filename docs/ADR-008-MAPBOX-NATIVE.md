@@ -9,4 +9,5 @@
   - Private download token: `RNMAPBOX_MAPS_DOWNLOAD_TOKEN` (sk.*) — EAS secret only, never committed.
   - Graceful `TacticalMapPlane` fallback when token/native module missing.
   - **Requires a new custom development client** (Expo Go unsupported).
+  - Config plugin links **only when** `RNMAPBOX_MAPS_DOWNLOAD_TOKEN` is present in the build env; otherwise JS + tactical fallback ship (no native MapView binary).
 - **Consequences:** Rebuild iOS with EAS development profile after this change; Mapbox secrets must exist in EAS env; Linux Metro export uses fallback path.
