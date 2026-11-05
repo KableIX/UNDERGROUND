@@ -12,6 +12,8 @@ export default [
       '**/.expo/**',
       '**/coverage/**',
       'pnpm-lock.yaml',
+      // Metro config must stay CommonJS require() for Expo tooling.
+      '**/metro.config.js',
     ],
   },
   {
