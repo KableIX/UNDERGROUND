@@ -184,10 +184,10 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
           style={styles.locateButton}
         >
           <Text variant="caption" gold>
-            {mapLocation.position ? '◎ LOCATE ME'
-              : mapLocation.status === 'denied' ? 'LOCATION DENIED · SETTINGS'
-                : mapLocation.status === 'unavailable' ? 'LOCATION UNAVAILABLE'
-                  : '⌖ FINDING LOCATION'}
+            {mapLocation.status === 'denied' ? 'LOCATION OFF · SETTINGS'
+              : mapLocation.status === 'unavailable' ? 'GPS MODULE UNAVAILABLE · RETRY'
+                : mapLocation.position ? `◎ LOCATE ME · ${mapLocation.position.accuracyM == null ? 'GPS' : `±${Math.round(mapLocation.position.accuracyM)}m`}`
+                  : '⌖ WAITING FOR GPS FIX'}
           </Text>
         </Pressable>
         {showTerritories ? <View style={styles.districtModes}>
@@ -213,6 +213,7 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
           showTerritories={showTerritories}
           followUser={mapMode === 'drive' && drive.status === 'recording'}
           showUserLocation={mapLocation.status === 'granted'}
+          userPosition={mapLocation.position}
           cameraRevision={cameraRevision}
           badge={
             mapMode === 'explore' ? 'EXPLORE · WORLD MAP'
