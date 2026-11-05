@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@underground/ui';
 import { draftMontereyTerritories } from '../data/monterey-draft';
 import {
@@ -118,7 +118,7 @@ export function ConquestMap() {
         />
       </View>
 
-      <View style={styles.panel}>
+      <ScrollView style={styles.panel} contentContainerStyle={styles.panelContent} nestedScrollEnabled>
         <View style={styles.modes}>
           <ModeChip
             label="SV DEV"
@@ -163,7 +163,7 @@ export function ConquestMap() {
             </Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -191,18 +191,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mapPlane: {
-    flex: 1.35,
+    flex: 1.6,
     backgroundColor: shell.mapVoid,
     overflow: 'hidden',
     minHeight: 260,
   },
   panel: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 16,
     backgroundColor: shell.background,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(197,165,114,0.3)',
+  },
+  panelContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
   modes: {
     flexDirection: 'row',
