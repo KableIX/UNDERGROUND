@@ -1,13 +1,20 @@
+import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import type { GarageMediaUploadPlan } from '@underground/domain';
 import { GoldRule, Screen, Text } from '@underground/ui';
+import { GaragePhotoUpload } from '../../src/components/GaragePhotoUpload';
 import { VehicleViewerStub } from '../../src/components/VehicleViewerStub';
 import { founderGarageSeed } from '../../src/data/founder-garage';
 import { shell } from '../../src/theme/shell';
+
+const FOUNDER_MEMBER_ID = '33333333-3333-4333-8333-333333333301';
+const FOUNDER_VEHICLE_ID = '44444444-4444-4444-8444-444444444401';
 
 export default function GarageScreen() {
   const { vehicle, mods, media, profile } = founderGarageSeed;
   const installed = mods.filter((m) => m.status === 'installed');
   const pending = mods.filter((m) => m.status === 'pending');
+  const [plannedUploads, setPlannedUploads] = useState<GarageMediaUploadPlan[]>([]);
 
   return (
     <Screen padded={false}>
@@ -75,7 +82,27 @@ export default function GarageScreen() {
           MEDIA GALLERY
         </Text>
         <Text style={styles.body}>{profile.mediaNote}</Text>
+        <GaragePhotoUpload
+          vehicleId={FOUNDER_VEHICLE_ID}
+          memberId={FOUNDER_MEMBER_ID}
+          onPlanned={(plan) => setPlannedUploads((prev) => [plan, ...prev])}
+        />
         <View style={styles.gallery}>
+          {plannedUploads.map((plan) => (
+            <View key={`${plan.mode}:${plan.storagePath}`} style={styles.mediaCard}>
+              <View style={styles.mediaPlate}>
+                <Text variant="caption" gold>
+                  {plan.mode === 'placeholder' ? 'UPLOAD PLACEHOLDER' : 'SIGNED UPLOAD'}
+                </Text>
+              </View>
+              <Text variant="caption" style={styles.meta}>
+                {plan.bucket} · {plan.mode}
+              </Text>
+              <Text variant="caption" style={styles.path}>
+                {plan.storagePath}
+              </Text>
+            </View>
+          ))}
           {media.map((item) => (
             <View key={item.storagePath} style={styles.mediaCard}>
               <View style={styles.mediaPlate}>

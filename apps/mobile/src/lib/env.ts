@@ -15,4 +15,8 @@ export const publicEnv = readPublicEnv();
 
 export const mapboxConfigured = hasMapboxToken(publicEnv);
 
+export const supabaseConfigured = Boolean(
+  publicEnv.EXPO_PUBLIC_SUPABASE_URL && publicEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+);
+
 export const appExtra = Constants.expoConfig?.extra ?? {};

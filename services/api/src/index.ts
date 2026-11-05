@@ -6,6 +6,8 @@ import { postChallenge } from './routes/challenge-http';
 import { createRunStore, handleRunTransition } from './routes/runs';
 import { handleEvidenceReview } from './routes/evidence';
 import { handleClubInviteAction } from './routes/clubs';
+import { handleGarageMediaUploadIntent } from './routes/garage-media';
+import { handleSimCapture } from './routes/sim-capture';
 
 const env = loadEnv();
 const health = getHealth(env);
@@ -74,6 +76,22 @@ const server = createServer(async (req, res) => {
     if (req.url === '/v1/clubs/invitations/action' && req.method === 'POST') {
       const body = await readJsonBody(req);
       const result = handleClubInviteAction(body);
+      res.writeHead(result.ok ? 200 : 409, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(result));
+      return;
+    }
+
+    if (req.url === '/v1/garage/media/upload-intent' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = handleGarageMediaUploadIntent({ env, raw: body });
+      res.writeHead(result.ok ? 200 : 422, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(result));
+      return;
+    }
+
+    if (req.url === '/v1/sim/capture' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = handleSimCapture(body);
       res.writeHead(result.ok ? 200 : 409, { 'content-type': 'application/json' });
       res.end(JSON.stringify(result));
       return;
