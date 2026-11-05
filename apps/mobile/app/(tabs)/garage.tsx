@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import type { GarageMediaUploadPlan } from '@underground/domain';
 import { GoldRule, Screen, Text } from '@underground/ui';
 import { GaragePhotoUpload } from '../../src/components/GaragePhotoUpload';
+import { LiveGarage } from '../../src/components/LiveGarage';
+import { isLiveAuthConfigured } from '../../src/session/supabase-session';
 import { VehicleViewerStub } from '../../src/components/VehicleViewerStub';
 import { founderGarageSeed } from '../../src/data/founder-garage';
 import { shell } from '../../src/theme/shell';
@@ -16,6 +18,10 @@ const FOUNDER_VEHICLE_ID = '44444444-4444-4444-8444-444444444401';
  * Does not invent installed mods or verified achievements.
  */
 export default function GarageScreen() {
+  return isLiveAuthConfigured() ? <LiveGarage /> : <FixtureGarage />;
+}
+
+function FixtureGarage() {
   const router = useRouter();
   const { vehicle, mods, media, profile, displayName, memberNumber } = founderGarageSeed;
   const installed = mods.filter((m) => m.status === 'installed');
