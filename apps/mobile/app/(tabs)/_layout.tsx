@@ -1,21 +1,29 @@
-import { Pressable } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { Text } from '@underground/ui';
 import { shell } from '../../src/theme/shell';
 
-function AccountButton() {
+function HeaderActions() {
   const router = useRouter();
   return (
-    <Pressable
-      onPress={() => router.push('/(tabs)/profile')}
-      accessibilityRole="button"
-      accessibilityLabel="Open account profile"
-      style={{ paddingHorizontal: 12, paddingVertical: 8 }}
-    >
-      <Text variant="caption" gold>
-        ACCOUNT
-      </Text>
-    </Pressable>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Pressable
+        onPress={() => router.push('/newswire')}
+        accessibilityRole="button"
+        accessibilityLabel="Open Newswire activity"
+        style={{ paddingHorizontal: 10, paddingVertical: 8 }}
+      >
+        <Text variant="caption" gold>NEWS</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => router.push('/(tabs)/profile')}
+        accessibilityRole="button"
+        accessibilityLabel="Open member profile"
+        style={{ paddingHorizontal: 10, paddingVertical: 8 }}
+      >
+        <Text variant="caption" gold>PROFILE</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -32,7 +40,7 @@ export default function TabsLayout() {
           letterSpacing: 3,
           fontSize: 14,
         },
-        headerRight: () => <AccountButton />,
+        headerRight: () => <HeaderActions />,
         tabBarStyle: {
           backgroundColor: shell.tabBar,
           borderTopColor: 'rgba(197,165,114,0.25)',
@@ -54,9 +62,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'NEWSWIRE',
-          headerTitle: 'UNDERGROUND',
-          tabBarAccessibilityLabel: 'Newswire tab',
+          title: 'MAP',
+          headerTitle: 'WORLD MAP',
+          tabBarAccessibilityLabel: 'Map: explore every road',
         }}
       />
       <Tabs.Screen

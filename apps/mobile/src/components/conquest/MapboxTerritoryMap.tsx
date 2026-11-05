@@ -120,24 +120,18 @@ export function MapboxTerritoryMap({
   }
 
   if (load.status === 'error') {
+    // Do not wrap the fallback in center-aligned content: that can collapse
+    // the native map width to zero and leave the user with a blank screen.
     return (
-      <View style={styles.center}>
-        <Text variant="caption" gold>
-          Map unavailable
-        </Text>
-        <Text variant="caption" style={styles.muted}>
-          {load.message}
-        </Text>
-        <WorldMapFallback
-          territories={territories}
-          selectedSlug={selectedSlug}
-          onSelect={onSelect}
-          camera={camera}
-          badge={badge}
-          showTerritories={showTerritories}
-          followUser={followUser}
-        />
-      </View>
+      <WorldMapFallback
+        territories={territories}
+        selectedSlug={selectedSlug}
+        onSelect={onSelect}
+        camera={camera}
+        badge={`${badge} · APPLE MAP FALLBACK`}
+        showTerritories={showTerritories}
+        followUser={followUser}
+      />
     );
   }
 

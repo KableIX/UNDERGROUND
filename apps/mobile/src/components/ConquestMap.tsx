@@ -28,10 +28,10 @@ type DistrictMode = 'monterey' | 'silicon-valley-dev';
  * SV DEV default; Monterey = production_candidate DRAFT.
  * Production captures blocked; sim → Newswire only on SV DEV (no CLOUT / ownership).
  */
-export function ConquestMap() {
+export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMode }) {
   const insets = useSafeAreaInsets();
   const drive = useForegroundDrive();
-  const [mapMode, setMapMode] = useState<MapMode>('conquest');
+  const [mapMode, setMapMode] = useState<MapMode>(initialMode);
   const [district, setDistrict] = useState<DistrictMode>('silicon-valley-dev');
   const [track, setTrack] = useState<Track>('solo');
   const territories =

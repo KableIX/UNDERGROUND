@@ -4,6 +4,10 @@
 
 The geographic map covers the entire world, independently of the hand-curated territory dataset. No hex-grid ownership and no road-level automatic territory claims.
 
+## Primary navigation
+
+The first bottom tab is **MAP** and opens Explore by default. **PLAY** is the second tab and opens Conquest with the curated territory overlays. **MY GARAGE**, **FRIENDS**, and **RANKINGS** complete the bottom navigation. Newswire remains available from **NEWS** in the top navigation, and member profiles from **PROFILE**. The Map tab is not the same as the Play tab.
+
 ## Modes
 
 - **Explore:** Global pan/zoom/rotate on a geographic basemap, no conquest overlays. Does not request location access.
