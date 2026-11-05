@@ -70,9 +70,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="garage"
         options={{
-          title: 'MY CAR',
+          title: 'MY GARAGE',
           headerTitle: 'MY GARAGE',
-          tabBarAccessibilityLabel: 'My Car: open your garage',
+          tabBarAccessibilityLabel: 'My Garage: open your garage',
         }}
       />
       <Tabs.Screen
