@@ -44,7 +44,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       'expo-image-picker',
       'expo-sqlite',
       ['expo-location', {
-        locationWhenInUsePermission: 'UNDERGROUND uses your location to show your position and record a drive only when you choose Start Drive.',
+        locationWhenInUsePermission: 'UNDERGROUND uses your location to show your position on the map and, when you choose Start Drive, record your trip.',
         // Foreground tracking first — do not silently enable background GPS here.
         isIosBackgroundLocationEnabled: false,
         isAndroidBackgroundLocationEnabled: false,
