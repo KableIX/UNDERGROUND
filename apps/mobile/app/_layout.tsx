@@ -4,6 +4,8 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Cinzel_600SemiBold } from '@expo-google-fonts/cinzel';
 import { DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold } from '@expo-google-fonts/dm-sans';
+import { BarlowCondensed_500Medium, BarlowCondensed_600SemiBold, BarlowCondensed_700Bold } from '@expo-google-fonts/barlow-condensed';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { SessionProvider, useSession } from '../src/session/SessionContext';
 import { shell } from '../src/theme/shell';
 
@@ -34,6 +36,12 @@ function RootNavigator() {
     DMSans_400Regular,
     DMSans_500Medium,
     DMSans_600SemiBold,
+    BarlowCondensed_500Medium,
+    BarlowCondensed_600SemiBold,
+    BarlowCondensed_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
   });
 
   if (!fontsLoaded) {

@@ -36,6 +36,7 @@ export function useMapLocation() {
   const startWatching = useCallback(async () => {
     stopWatching();
     const generation = generationRef.current;
+    setStatus('requesting');
     try {
       // Guard against an older installed iOS development binary without expo-location.
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -56,7 +57,9 @@ export function useMapLocation() {
           accuracyM: fix.coords.accuracy,
           timestamp: fix.timestamp,
         };
-        if (validPosition(next) && (next.accuracyM == null || next.accuracyM <= 200)) {
+        // A low-accuracy fix is still preferable to an unrelated default-city camera.
+        // Display its accuracy separately; never use these fixes for conquest adjudication.
+        if (validPosition(next)) {
           setPosition(previous => previous && next.timestamp < previous.timestamp ? previous : next);
         }
       };
@@ -64,8 +67,8 @@ export function useMapLocation() {
       // Last known position speeds up initial centering; must be recent and accurate.
       try {
         const lastKnown = await Location.getLastKnownPositionAsync({
-          maxAge: 120_000,
-          requiredAccuracy: 200,
+          maxAge: 90_000,
+          requiredAccuracy: 1000,
         });
         if (lastKnown) accept(lastKnown);
       } catch { /* A cache miss cannot prevent live positioning. */ }

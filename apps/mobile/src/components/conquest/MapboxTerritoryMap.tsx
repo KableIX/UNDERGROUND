@@ -26,6 +26,7 @@ type Props = {
   showTerritories?: boolean;
   followUser?: boolean;
   showUserLocation?: boolean;
+  userPosition?: { longitude: number; latitude: number; accuracyM: number | null } | null;
   cameraRevision?: number;
 };
 
@@ -61,6 +62,7 @@ export function MapboxTerritoryMap({
   showTerritories = true,
   followUser = false,
   showUserLocation = false,
+  userPosition = null,
   cameraRevision = 0,
 }: Props) {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
@@ -137,6 +139,7 @@ export function MapboxTerritoryMap({
         showTerritories={showTerritories}
         followUser={followUser}
         showUserLocation={showUserLocation}
+        userPosition={userPosition}
         cameraRevision={cameraRevision}
       />
     );
@@ -153,6 +156,7 @@ export function MapboxTerritoryMap({
         showTerritories={showTerritories}
         followUser={followUser}
         showUserLocation={showUserLocation}
+        userPosition={userPosition}
         cameraRevision={cameraRevision}
       />
     );

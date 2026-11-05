@@ -1,7 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { Text } from '@underground/ui';
 import { shell } from '../../theme/shell';
-import { SafeLinearGradient } from './SafeLinearGradient';
 
 type Props = {
   size?: 'hero' | 'compact';
@@ -10,8 +9,10 @@ type Props = {
 };
 
 /**
- * Vector-style brand mark (pure RN) — no external logo binary required.
- * Matches near-black / champagne-gold theunderground.vip language.
+ * Official UNDERGROUND tachometer/U icon, sourced from
+ * https://theunderground.vip/assets/mark.svg?v=3
+ * Rendered as local PNG to avoid an SVG native dependency in older iPhone builds.
+ * Do not replace with the previous placeholder diamond.
  */
 export function UndergroundMark({
   size = 'hero',
@@ -20,21 +21,16 @@ export function UndergroundMark({
 }: Props) {
   const hero = size === 'hero';
   return (
-    <View style={styles.root} accessibilityRole="image" accessibilityLabel="UNDERGROUND">
-      <View style={[styles.glyph, hero ? styles.glyphHero : styles.glyphCompact]}>
-        <SafeLinearGradient
-          colors={['rgba(197,165,114,0.55)', 'rgba(197,165,114,0.12)', 'transparent']}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.diamondOuter}>
-          <View style={styles.diamondInner} />
-        </View>
-        <View style={styles.rule} />
-      </View>
+    <View style={styles.root} accessibilityLabel="UNDERGROUND">
+      <Image
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        source={require('../../../assets/brand/underground-mark.png')}
+        style={hero ? styles.markHero : styles.markCompact}
+        resizeMode="contain"
+        accessibilityLabel="UNDERGROUND tachometer emblem"
+      />
       {showWordmark ? (
-        <Text variant="brand" gold style={[styles.wordmark, !hero && styles.wordmarkCompact]}>
+        <Text variant="brand" style={[styles.wordmark, !hero && styles.wordmarkCompact]}>
           UNDERGROUND
         </Text>
       ) : null}
@@ -48,57 +44,17 @@ export function UndergroundMark({
 }
 
 const styles = StyleSheet.create({
-  root: {
-    alignItems: 'center',
-  },
-  glyph: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(197,165,114,0.35)',
-    overflow: 'hidden',
-  },
-  glyphHero: {
-    width: 88,
-    height: 88,
-  },
-  glyphCompact: {
-    width: 44,
-    height: 44,
-  },
-  diamondOuter: {
-    width: 34,
-    height: 34,
-    borderWidth: 1,
-    borderColor: shell.accent,
-    transform: [{ rotate: '45deg' }],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  diamondInner: {
-    width: 12,
-    height: 12,
-    backgroundColor: 'rgba(197,165,114,0.85)',
-  },
-  rule: {
-    position: 'absolute',
-    bottom: 10,
-    width: 28,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: shell.accent,
-  },
+  root: { alignItems: 'center' },
+  markHero: { width: 118, height: 118 },
+  markCompact: { width: 62, height: 62 },
   wordmark: {
-    marginTop: 22,
+    marginTop: 14,
     textAlign: 'center',
+    fontFamily: 'BarlowCondensed_700Bold',
+    fontSize: 38,
+    letterSpacing: 5,
+    color: shell.text,
   },
-  wordmarkCompact: {
-    marginTop: 10,
-    fontSize: 16,
-    letterSpacing: 3,
-  },
-  tagline: {
-    marginTop: 10,
-    color: shell.muted,
-    letterSpacing: 2,
-  },
+  wordmarkCompact: { marginTop: 8, fontSize: 16, letterSpacing: 3 },
+  tagline: { marginTop: 10, color: shell.muted, letterSpacing: 2 },
 });

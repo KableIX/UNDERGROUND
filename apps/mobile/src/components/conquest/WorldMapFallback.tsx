@@ -16,6 +16,7 @@ type Props = {
   showTerritories: boolean;
   followUser: boolean;
   showUserLocation: boolean;
+  userPosition: { longitude: number; latitude: number; accuracyM: number | null } | null;
   cameraRevision: number;
 };
 
@@ -34,7 +35,7 @@ type MapsModule = {
  */
 export function WorldMapFallback({
   territories, selectedSlug, onSelect, camera, badge, showTerritories, followUser,
-  showUserLocation, cameraRevision,
+  showUserLocation, userPosition, cameraRevision,
 }: Props) {
   const [maps, setMaps] = useState<MapsModule | null>(null);
   const [nativeMissing, setNativeMissing] = useState(false);
@@ -114,6 +115,15 @@ export function WorldMapFallback({
         zoomEnabled
         accessibilityLabel="UNDERGROUND full geographic road map"
       >
+        {showUserLocation && userPosition ? (
+          <Marker
+            identifier="underground-live-position"
+            coordinate={{ latitude: userPosition.latitude, longitude: userPosition.longitude }}
+            title="Your current location"
+            description={userPosition.accuracyM == null ? 'GPS fix' : `GPS accuracy approximately ${Math.round(userPosition.accuracyM)} meters`}
+            pinColor="#228BE6"
+          />
+        ) : null}
         {showTerritories ? territories.map(t => (
           <Polyline
             key={t.slug}

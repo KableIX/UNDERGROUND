@@ -1,12 +1,12 @@
 /** Near-black / champagne-gold brand tokens (shared conceptual palette). */
 export const BrandColors = {
-  nearBlack: '#0A0B0D',
+  nearBlack: '#08090A',
   ink: '#12141A',
   surface: '#1A1C24',
-  champagneGold: '#C5A572',
+  champagneGold: '#C6B08B',
   champagneGoldMuted: '#8F7A52',
-  fog: '#A8ADB8',
-  snow: '#F4F1EA',
+  fog: '#B7B7B8',
+  snow: '#F4F2ED',
   danger: '#B33A3A',
   success: '#3D7A5A',
   mapVoid: '#05070C',
