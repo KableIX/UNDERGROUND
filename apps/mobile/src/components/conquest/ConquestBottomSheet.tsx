@@ -84,7 +84,7 @@ export function ConquestBottomSheet({
           <View style={styles.actions}>
             <Pressable style={styles.ctaGhost} onPress={onProdChallenge}>
               <Text variant="caption" gold>
-                CHALLENGE
+                CAPTURE TERRITORY
               </Text>
             </Pressable>
             <Pressable style={styles.cta} onPress={onSimCapture}>

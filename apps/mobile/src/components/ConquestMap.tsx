@@ -31,7 +31,7 @@ type DistrictMode = 'monterey' | 'silicon-valley-dev';
 export function ConquestMap() {
   const insets = useSafeAreaInsets();
   const drive = useForegroundDrive();
-  const [mapMode, setMapMode] = useState<MapMode>('explore');
+  const [mapMode, setMapMode] = useState<MapMode>('conquest');
   const [district, setDistrict] = useState<DistrictMode>('silicon-valley-dev');
   const [track, setTrack] = useState<Track>('solo');
   const territories =

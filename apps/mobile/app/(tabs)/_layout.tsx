@@ -62,17 +62,17 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="conquest"
         options={{
-          title: 'CONQUEST',
-          headerTitle: 'CONQUEST',
-          tabBarAccessibilityLabel: 'Conquest tab',
+          title: 'PLAY',
+          headerTitle: 'TERRITORY CONQUEST',
+          tabBarAccessibilityLabel: 'Play: capture territories',
         }}
       />
       <Tabs.Screen
         name="garage"
         options={{
-          title: 'GARAGE',
-          headerTitle: 'GARAGE',
-          tabBarAccessibilityLabel: 'Garage tab',
+          title: 'MY CAR',
+          headerTitle: 'MY GARAGE',
+          tabBarAccessibilityLabel: 'My Car: open your garage',
         }}
       />
       <Tabs.Screen
