@@ -44,7 +44,8 @@ type MapboxMod = {
 };
 
 /**
- * Native Mapbox territory map with graceful tactical fallback.
+ * Native Mapbox when tokens + SDK are linked; otherwise Apple MapKit
+ * (WorldMapFallback / react-native-maps). Never crash on missing natives.
  * Requires custom Expo dev client — Expo Go unsupported.
  * Device rendering is unverified in this Linux agent environment.
  */
