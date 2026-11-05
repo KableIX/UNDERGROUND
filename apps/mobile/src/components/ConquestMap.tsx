@@ -17,7 +17,9 @@ import {
 import { previewChallenge } from '../lib/challenge';
 import { appendSimNewswireStory, runSimCaptureWorkflow } from '../lib/sim-workflow';
 import { shell } from '../theme/shell';
+import { useForegroundDrive } from '../lib/foreground-drive';
 
+type MapMode = 'explore' | 'drive' | 'conquest';
 type Track = 'solo' | 'club';
 type DistrictMode = 'monterey' | 'silicon-valley-dev';
 
@@ -26,8 +28,10 @@ type DistrictMode = 'monterey' | 'silicon-valley-dev';
  * SV DEV default; Monterey = production_candidate DRAFT.
  * Production captures blocked; sim → Newswire only on SV DEV (no CLOUT / ownership).
  */
-export function ConquestMap() {
+export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMode }) {
   const insets = useSafeAreaInsets();
+  const drive = useForegroundDrive();
+  const [mapMode, setMapMode] = useState<MapMode>(initialMode);
   const [district, setDistrict] = useState<DistrictMode>('silicon-valley-dev');
   const [track, setTrack] = useState<Track>('solo');
   const territories =
@@ -45,7 +49,19 @@ export function ConquestMap() {
   );
 
   const isDevDistrict = district === 'silicon-valley-dev';
-  const camera = isDevDistrict ? SV_LANDMARK_CAMERA : MONTEREY_LANDMARK_CAMERA;
+  const districtCamera = isDevDistrict ? SV_LANDMARK_CAMERA : MONTEREY_LANDMARK_CAMERA;
+  const camera = mapMode === 'drive' && drive.currentPosition
+    ? { longitude: drive.currentPosition.longitude, latitude: drive.currentPosition.latitude, zoom: 14 }
+    : districtCamera;
+  const showTerritories = mapMode === 'conquest';
+
+
+  function switchMapMode(next: MapMode) {
+    if (mapMode === 'drive' && next !== 'drive' && drive.status === 'recording') {
+      drive.pause();
+    }
+    setMapMode(next);
+  }
 
   function switchDistrict(next: DistrictMode) {
     setDistrict(next);
@@ -118,6 +134,11 @@ export function ConquestMap() {
           UNDERGROUND
         </Text>
         <View style={styles.modes}>
+          <ModeChip label="EXPLORE" active={mapMode === 'explore'} onPress={() => switchMapMode('explore')} />
+          <ModeChip label="DRIVE" active={mapMode === 'drive'} onPress={() => switchMapMode('drive')} />
+          <ModeChip label="CONQUEST" active={mapMode === 'conquest'} onPress={() => switchMapMode('conquest')} />
+        </View>
+        {showTerritories ? <View style={styles.districtModes}>
           <ModeChip
             label="SV"
             active={district === 'silicon-valley-dev'}
@@ -128,7 +149,7 @@ export function ConquestMap() {
             active={district === 'monterey'}
             onPress={() => switchDistrict('monterey')}
           />
-        </View>
+        </View> : null}
       </View>
 
       <View style={styles.map}>
@@ -137,15 +158,41 @@ export function ConquestMap() {
           selectedSlug={selectedSlug}
           onSelect={setSelectedSlug}
           camera={camera}
+          showTerritories={showTerritories}
+          followUser={mapMode === 'drive' && drive.status === 'recording'}
           badge={
-            isDevDistrict
-              ? `${siliconValleyDistrict.name.toUpperCase()} · DEV`
-              : 'MONTEREY · DRAFT CANDIDATE'
+            mapMode === 'explore' ? 'EXPLORE · WORLD MAP'
+              : mapMode === 'drive' ? 'DRIVE · PRIVATE GPS'
+                : isDevDistrict ? `${siliconValleyDistrict.name.toUpperCase()} · DEV`
+                  : 'MONTEREY · DRAFT CANDIDATE'
           }
         />
       </View>
 
-      <ConquestBottomSheet
+      {mapMode === 'explore' ? (
+        <View style={styles.modePanel}>
+          <Text variant="caption" gold>EXPLORE · FULL WORLD MAP</Text>
+          <Text style={styles.modeInfo}>Pan, zoom and navigate anywhere. Territories are curated overlays, not limits on the map.</Text>
+          <Pressable style={styles.modeButton} onPress={() => switchMapMode('conquest')}>
+            <Text variant="caption" gold>VIEW TERRITORIES</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {mapMode === 'drive' ? (
+        <View style={styles.modePanel}>
+          <Text variant="caption" gold>DRIVE · PRIVATE TRIP</Text>
+          <Text style={styles.modeInfo}>GPS {drive.status.toUpperCase()} · {drive.points} fixes · {drive.accuracyM == null ? 'NO FIX' : `${Math.round(drive.accuracyM)}m ACCURACY`}</Text>
+          <Text variant="title" gold>{(drive.distanceM / 1609.344).toFixed(2)} mi · {Math.floor(drive.elapsedSeconds / 60)}:{String(drive.elapsedSeconds % 60).padStart(2, '0')}</Text>
+          <Text style={styles.modeInfo}>Foreground recording only. Not persisted or eligible for territory awards.</Text>
+          <View style={styles.driveActions}>
+            {drive.status !== 'recording' ? <Pressable style={styles.modeButton} onPress={() => void drive.start()}><Text variant="caption" gold>{drive.status === 'paused' ? 'RESUME' : 'START DRIVE'}</Text></Pressable> : <Pressable style={styles.modeButton} onPress={drive.pause}><Text variant="caption" gold>PAUSE</Text></Pressable>}
+            <Pressable style={styles.modeButton} onPress={drive.finish}><Text variant="caption" gold>END</Text></Pressable>
+          </View>
+        </View>
+      ) : null}
+
+      {mapMode === 'conquest' ? <ConquestBottomSheet
         territory={selected}
         districtLabel={isDevDistrict ? 'SILICON VALLEY' : 'MONTEREY'}
         districtKind={isDevDistrict ? 'development' : 'production_candidate'}
@@ -155,7 +202,7 @@ export function ConquestMap() {
         previewMessage={previewMessage}
         onProdChallenge={onProdChallenge}
         onSimCapture={onSimCapture}
-      />
+      /> : null}
     </View>
   );
 }
@@ -184,16 +231,26 @@ const styles = StyleSheet.create({
     backgroundColor: shell.mapVoid,
   },
   topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 2,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2,
+    paddingHorizontal: 12, paddingBottom: 8,
+    alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(5,7,12,0.83)',
+  },
+  districtModes: { flexDirection: 'row', gap: 8 },
+  modePanel: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    paddingHorizontal: 16, paddingVertical: 12,
+    backgroundColor: 'rgba(5,7,12,0.94)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: shell.accent,
+    gap: 8,
+  },
+  modeInfo: { color: shell.muted },
+  driveActions: { flexDirection: 'row', gap: 12 },
+  modeButton: {
+    alignItems: 'center', justifyContent: 'center', paddingVertical: 12,
+    paddingHorizontal: 12, borderWidth: StyleSheet.hairlineWidth,
+    borderColor: shell.accent, flex: 1,
   },
   modes: {
     flexDirection: 'row',
