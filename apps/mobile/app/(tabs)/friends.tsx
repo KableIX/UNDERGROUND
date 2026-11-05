@@ -39,10 +39,11 @@ export default function FriendsScreen() {
           Friends
         </Text>
         <Text variant="caption" style={styles.meta}>
-          REQUEST · ACCEPT · REJECT · CLUBS · DMS · GUESTBOOK · DIRECTORY OPT-IN
+          REQUESTS · CLUBS · DIRECTORY · OPT-IN MARKETS
         </Text>
-        <Text variant="caption" style={styles.meta}>
-          SERVER AUTHZ IMPLEMENTED IN @underground/persistence · UI FIXTURES UNTIL SUPABASE
+        <Text style={styles.body}>
+          Social graph fixtures until Supabase authz is live. Server contracts already reject
+          stranger garage views and non-participant DMs.
         </Text>
         <GoldRule />
 

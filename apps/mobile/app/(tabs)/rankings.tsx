@@ -17,12 +17,12 @@ export default function RankingsScreen() {
           Rankings
         </Text>
         <Text variant="caption" style={styles.meta}>
-          CLOUT LEDGER · FIXTURE STANDINGS · LIVE AFTER PRODUCTION ACCEPTED
+          FIXTURE STANDINGS · NOT LIVE LEDGERS
         </Text>
         <GoldRule />
         <Text style={styles.body}>
-          Founder {FOUNDER_DISPLAY_NAME} #{FOUNDER_MEMBER_NUMBER} appears from seed CLOUT only.
-          Simulation captures never move these ranks.
+          {FOUNDER_DISPLAY_NAME} #{FOUNDER_MEMBER_NUMBER} appears from seed CLOUT only — founder
+          status confers no ranking privilege. Simulation captures never move these ranks.
         </Text>
         {ranked.map((entry) => (
           <View key={entry.memberId} style={styles.row}>
