@@ -28,7 +28,15 @@ export default function TabsLayout() {
       <Tabs.Screen name="conquest" options={{ title: 'CONQUEST', headerTitle: 'CONQUEST' }} />
       <Tabs.Screen name="garage" options={{ title: 'GARAGE', headerTitle: 'GARAGE' }} />
       <Tabs.Screen name="friends" options={{ title: 'FRIENDS', headerTitle: 'FRIENDS' }} />
-      <Tabs.Screen name="profile" options={{ title: 'PROFILE', headerTitle: 'PROFILE' }} />
+      <Tabs.Screen name="rankings" options={{ title: 'RANKINGS', headerTitle: 'RANKINGS' }} />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          href: null,
+          title: 'PROFILE',
+          headerTitle: 'PROFILE',
+        }}
+      />
     </Tabs>
   );
 }
