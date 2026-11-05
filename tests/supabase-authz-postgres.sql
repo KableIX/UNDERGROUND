@@ -45,6 +45,15 @@ BEGIN
     RAISE NOTICE 'PASS: verified update blocked';
   END;
   BEGIN
+    INSERT INTO public.vehicle_media (vehicle_id, storage_path, is_placeholder, caption)
+    VALUES ('44444444-4444-4444-8444-444444444444',
+      'garage/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/44444444-4444-4444-8444-444444444444/forged.jpg',
+      false, 'Forgeries must not enter the verified garage');
+    RAISE EXCEPTION 'FAIL: direct client media insertion succeeded';
+  EXCEPTION WHEN SQLSTATE '42501' THEN
+    RAISE NOTICE 'PASS: direct client media insertion blocked';
+  END;
+  BEGIN
     UPDATE public.profiles SET friend_count = 999
     WHERE member_id = '11111111-1111-4111-8111-111111111111';
     RAISE EXCEPTION 'FAIL: social count forgery succeeded';

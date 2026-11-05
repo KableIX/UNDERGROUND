@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
     "@underground/domain": "workspace:*",
     "@underground/persistence": "workspace:*",
     "@underground/territory-engine": "workspace:*",
