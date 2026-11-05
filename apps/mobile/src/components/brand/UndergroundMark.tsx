@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@underground/ui';
 import { shell } from '../../theme/shell';
+import { SafeLinearGradient } from './SafeLinearGradient';
 
 type Props = {
   size?: 'hero' | 'compact';
@@ -22,7 +22,7 @@ export function UndergroundMark({
   return (
     <View style={styles.root} accessibilityRole="image" accessibilityLabel="UNDERGROUND">
       <View style={[styles.glyph, hero ? styles.glyphHero : styles.glyphCompact]}>
-        <LinearGradient
+        <SafeLinearGradient
           colors={['rgba(197,165,114,0.55)', 'rgba(197,165,114,0.12)', 'transparent']}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}

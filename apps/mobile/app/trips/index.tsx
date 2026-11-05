@@ -34,6 +34,9 @@ export default function TripHistoryScreen() {
         next.push({ trip, samples: state?.samples ?? [] });
       }
       setRows(next);
+    } catch {
+      // Native SQLite missing / open failure — show empty history, never crash.
+      setRows([]);
     } finally {
       setLoading(false);
     }
