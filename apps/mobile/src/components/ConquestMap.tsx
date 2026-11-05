@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { buildSimGpsReplay, checkpointsAlongReplay } from '@underground/territory-engine';
@@ -19,6 +19,7 @@ import { previewChallenge } from '../lib/challenge';
 import { appendSimNewswireStory, runSimCaptureWorkflow } from '../lib/sim-workflow';
 import { shell } from '../theme/shell';
 import { useForegroundDrive } from '../lib/foreground-drive';
+import { useMapLocation } from '../lib/use-map-location';
 
 type MapMode = 'explore' | 'drive' | 'conquest';
 type Track = 'solo' | 'club';
@@ -33,6 +34,10 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const drive = useForegroundDrive();
+  const mapLocation = useMapLocation();
+  const [focusedCamera, setFocusedCamera] = useState<{ longitude: number; latitude: number; zoom: number } | null>(null);
+  const [cameraRevision, setCameraRevision] = useState(0);
+  const centeredOnFirstFix = useRef(false);
   const [mapMode, setMapMode] = useState<MapMode>(initialMode);
   const [district, setDistrict] = useState<DistrictMode>('silicon-valley-dev');
   const [track, setTrack] = useState<Track>('solo');
@@ -52,10 +57,37 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
 
   const isDevDistrict = district === 'silicon-valley-dev';
   const districtCamera = isDevDistrict ? SV_LANDMARK_CAMERA : MONTEREY_LANDMARK_CAMERA;
-  const camera = mapMode === 'drive' && drive.currentPosition
-    ? { longitude: drive.currentPosition.longitude, latitude: drive.currentPosition.latitude, zoom: 14 }
-    : districtCamera;
+  const camera = focusedCamera ?? districtCamera;
   const showTerritories = mapMode === 'conquest';
+
+  // Center once after the first foreground GPS fix; never snap back while panning.
+  useEffect(() => {
+    if (!mapLocation.position || centeredOnFirstFix.current) return;
+    centeredOnFirstFix.current = true;
+    setFocusedCamera({
+      longitude: mapLocation.position.longitude,
+      latitude: mapLocation.position.latitude,
+      zoom: 15,
+    });
+    setCameraRevision(revision => revision + 1);
+  }, [mapLocation.position]);
+
+  function locateMe() {
+    if (mapLocation.status === 'denied') {
+      void Linking.openSettings();
+      return;
+    }
+    if (!mapLocation.position) {
+      void mapLocation.retry();
+      return;
+    }
+    setFocusedCamera({
+      longitude: mapLocation.position.longitude,
+      latitude: mapLocation.position.latitude,
+      zoom: 15,
+    });
+    setCameraRevision(revision => revision + 1);
+  }
 
 
   function switchMapMode(next: MapMode) {
@@ -67,6 +99,11 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
 
   function switchDistrict(next: DistrictMode) {
     setDistrict(next);
+    // Explicit district selection overrides first-GPS centering until Locate Me is tapped.
+    centeredOnFirstFix.current = true;
+    const anchor = next === 'silicon-valley-dev' ? SV_LANDMARK_CAMERA : MONTEREY_LANDMARK_CAMERA;
+    setFocusedCamera({ ...anchor });
+    setCameraRevision(revision => revision + 1);
     const list = next === 'silicon-valley-dev' ? siliconValleyDevTerritories : draftMontereyTerritories;
     setSelectedSlug(list[0]?.slug ?? null);
     setPreviewMessage('Select a route. Production captures disabled.');
@@ -140,6 +177,19 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
           <ModeChip label="DRIVE" active={mapMode === 'drive'} onPress={() => switchMapMode('drive')} />
           <ModeChip label="CONQUEST" active={mapMode === 'conquest'} onPress={() => switchMapMode('conquest')} />
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Locate me on the map"
+          onPress={locateMe}
+          style={styles.locateButton}
+        >
+          <Text variant="caption" gold>
+            {mapLocation.position ? '◎ LOCATE ME'
+              : mapLocation.status === 'denied' ? 'LOCATION DENIED · SETTINGS'
+                : mapLocation.status === 'unavailable' ? 'LOCATION UNAVAILABLE'
+                  : '⌖ FINDING LOCATION'}
+          </Text>
+        </Pressable>
         {showTerritories ? <View style={styles.districtModes}>
           <ModeChip
             label="SV"
@@ -162,6 +212,8 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
           camera={camera}
           showTerritories={showTerritories}
           followUser={mapMode === 'drive' && drive.status === 'recording'}
+          showUserLocation={mapLocation.status === 'granted'}
+          cameraRevision={cameraRevision}
           badge={
             mapMode === 'explore' ? 'EXPLORE · WORLD MAP'
               : mapMode === 'drive' ? 'DRIVE · PRIVATE GPS'
@@ -241,6 +293,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(5,7,12,0.83)',
   },
   districtModes: { flexDirection: 'row', gap: 8 },
+  locateButton: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(5,7,12,0.84)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: shell.accent,
+  },
   modePanel: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     paddingHorizontal: 16, paddingVertical: 12,

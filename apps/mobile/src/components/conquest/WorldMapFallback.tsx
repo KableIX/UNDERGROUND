@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { TerritoryDefinition } from '@underground/domain';
 import { Text } from '@underground/ui';
+import { probeReactNativeMapsModule } from '../../lib/native-module-probe';
 import { shell } from '../../theme/shell';
 import { TacticalMapPlane } from '../TacticalMapPlane';
 
@@ -14,6 +15,8 @@ type Props = {
   badge: string;
   showTerritories: boolean;
   followUser: boolean;
+  showUserLocation: boolean;
+  cameraRevision: number;
 };
 
 type MapsModule = {
@@ -23,21 +26,39 @@ type MapsModule = {
   PROVIDER_DEFAULT?: string;
 };
 
-/** Apple MapKit basemap when Mapbox is not configured; real roads, world-wide pan/zoom.
- * No territory limits are applied to the map viewport.
- * A legacy tactical fallback is retained for older installed native binaries.
+/**
+ * Apple MapKit basemap when Mapbox is not configured — real roads, world-wide pan/zoom.
+ * Requires a custom dev client that linked react-native-maps.
+ * Never render MapView from JS-only presence: that is Crash A (bubblingEventTypes of null).
+ * Tactical plane is last-resort only for older IPAs missing the native module.
  */
 export function WorldMapFallback({
   territories, selectedSlug, onSelect, camera, badge, showTerritories, followUser,
+  showUserLocation, cameraRevision,
 }: Props) {
   const [maps, setMaps] = useState<MapsModule | null>(null);
+  const [nativeMissing, setNativeMissing] = useState(false);
+
   useEffect(() => {
+    const probe = probeReactNativeMapsModule();
+    if (!probe.usable) {
+      setMaps(null);
+      setNativeMissing(true);
+      return;
+    }
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const mod = require('react-native-maps');
-      if (mod?.default && mod?.Polyline) setMaps(mod as MapsModule);
+      if (mod?.default && mod?.Polyline) {
+        setMaps(mod as MapsModule);
+        setNativeMissing(false);
+      } else {
+        setMaps(null);
+        setNativeMissing(true);
+      }
     } catch {
       setMaps(null);
+      setNativeMissing(true);
     }
   }, []);
 
@@ -52,27 +73,37 @@ export function WorldMapFallback({
   }, [camera.latitude, camera.longitude, camera.zoom]);
 
   if (!maps) {
-    return <TacticalMapPlane
-      territories={showTerritories ? territories : []}
-      selectedSlug={selectedSlug}
-      onSelect={onSelect}
-      camera={camera}
-      illuminated
-      badge={badge}
-      disclaimer="MAP SDK NOT INSTALLED IN THIS DEV CLIENT · NEW IOS BUILD REQUIRED"
-    />;
+    return (
+      <TacticalMapPlane
+        territories={showTerritories ? territories : []}
+        selectedSlug={selectedSlug}
+        onSelect={onSelect}
+        camera={camera}
+        illuminated
+        badge={badge}
+        disclaimer={
+          nativeMissing
+            ? 'APPLE MAPKIT NOT LINKED IN THIS DEV CLIENT · INSTALL NEW IOS BUILD FOR REAL ROADS'
+            : 'MAP SDK NOT INSTALLED IN THIS DEV CLIENT · NEW IOS BUILD REQUIRED'
+        }
+      />
+    );
   }
 
   const MapView = maps.default;
   const Polyline = maps.Polyline;
   const Marker = maps.Marker;
+  // Explicit Apple/default provider — never PROVIDER_GOOGLE on iOS (New Arch AIRGoogleMap crash).
+  const provider = maps.PROVIDER_DEFAULT;
+
   return (
     <View style={styles.root}>
       <MapView
-        key={followUser ? 'drive-follow' : `${camera.longitude}:${camera.latitude}`}
+        key={`map-location-focus-${cameraRevision}`}
         style={StyleSheet.absoluteFill}
+        provider={provider}
         initialRegion={region}
-        showsUserLocation={followUser}
+        showsUserLocation={showUserLocation}
         followsUserLocation={followUser}
         showsMyLocationButton={false}
         showsCompass
@@ -112,7 +143,7 @@ export function WorldMapFallback({
         }) : null}
       </MapView>
       <View pointerEvents="none" style={styles.badge}>
-        <Text variant="caption" gold>{badge} · FULL MAP</Text>
+        <Text variant="caption" gold>{badge} · APPLE MAPS</Text>
       </View>
       {showTerritories ? (
         <View pointerEvents="none" style={styles.draft}>
