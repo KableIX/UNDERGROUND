@@ -28,9 +28,9 @@
 | Secret | Needed for | Status |
 |--------|------------|--------|
 | `EXPO_TOKEN` (prefer uppercase) | EAS CLI auth | Prefer uppercase injection; lowercase `expo_token` may be remapped locally — **never print** |
-| Apple Team ID | Device signing | Missing — membership processing |
-| Apple Device UDID(s) | Internal distribution | Missing |
-| Bundle ID registered in Apple portal | Signing | Unconfirmed |
+| Apple Team ID | Device signing | **`2TZCY23DP9`** in development profile env — interactive Apple login still required |
+| Apple Device UDID(s) | Internal distribution | Missing — `eas device:create` (user-interactive) |
+| Bundle ID registered in Apple portal | Signing | Unconfirmed until EAS Apple session |
 | `EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN` | Satellite map plane | Optional for first install; dark fallback works |
 | Supabase URL + anon + service role | Live garage upload / persistence | Optional for first install; placeholder planner works |
 | Sentry DSN | Crash reporting | Optional |
@@ -43,9 +43,10 @@
 - [x] Icon / splash placeholders under `apps/mobile/assets/`
 - [x] iOS Info.plist usage strings: location, camera, photo library
 - [x] `expo-doctor` 18/18; `npx expo export --platform ios` bundles cleanly
-- [ ] Credentials source configured in Expo (after Apple ready)
-- [ ] Ad-hoc / enterprise provisioning for test iPhone
-- [ ] Device UDID registered + Apple Team ID available
+- [x] Apple Team ID `2TZCY23DP9` in development `env.EXPO_APPLE_TEAM_ID`
+- [ ] Credentials source configured in Expo (TJ: `eas credentials -p ios` + Apple login/2FA)
+- [ ] Ad-hoc provisioning for test iPhone (after Apple login)
+- [ ] Device UDID registered via `eas device:create`
 
 ## Pre-build commands (no secrets printed)
 

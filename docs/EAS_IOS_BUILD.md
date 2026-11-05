@@ -1,8 +1,8 @@
 # EAS / iOS development build
 
-**Status: NOT installable yet.** EAS project is linked; no signed iOS build has been run. Do not claim device install success. Apple Developer enrollment still processing — no signing / device `eas build` attempted.
+**Status: NOT installable yet.** EAS project is linked; Apple Team ID is known; **no signed IPA** — blocked on interactive Apple login + device registration. Do not claim device install success. Canonical first-build stop doc (Project store): `docs/FIRST_IOS_BUILD.md` on the coordinator store.
 
-## Expo / EAS link (2026-11-05)
+## Expo / EAS link (verified 2026-11-05)
 
 | Field | Value |
 |-------|--------|
@@ -12,22 +12,13 @@
 | `extra.eas.projectId` | `fa7e7c16-cf9d-456b-83c9-4a1c985898c9` |
 | Dashboard | https://expo.dev/accounts/undergroundvps-team/projects/underground |
 | Bundle ID | `vip.theunderground.app` (unchanged) |
+| Apple Team ID | `2TZCY23DP9` (`eas.json` development `env.EXPO_APPLE_TEAM_ID`) |
 | `eas.json` profiles | development/internal preserved (`developmentClient: true`, `distribution: internal`, `ios.simulator: false`) |
 
-### Token presence (this agent)
+### Token presence
 
-- `EXPO_TOKEN` (uppercase): **unset** in process env
-- `expo_token` (lowercase secret injection): **present**, length **40** (value never logged)
-- CLI auth: export `EXPO_TOKEN="$expo_token"` then `npx eas-cli whoami` → success
-
-### Link procedure used
-
-1. Cleared invalid placeholder `REPLACE_WHEN_EAS_PROJECT_LINKED` (not a UUID; blocked GraphQL).
-2. `pnpm install` (eas init needs `expo-router` resolvable).
-3. `npx eas-cli init --account undergroundvps-team --non-interactive --json --no-icon`
-   - Account `underground` cannot create projects; only `undergroundvps-team` is permitted.
-   - Result: **created** `@undergroundvps-team/underground` and wrote real `projectId` + `owner`.
-4. `eas.json` untouched. No Apple signing / device build.
+- Prefer uppercase `EXPO_TOKEN` in the environment.
+- If only lowercase `expo_token` is injected: `export EXPO_TOKEN="$expo_token"` (never print the value).
 
 ## Exact config (committed)
 
@@ -37,60 +28,58 @@
 - `owner`: `undergroundvps-team`
 - `extra.eas.projectId`: `fa7e7c16-cf9d-456b-83c9-4a1c985898c9`
 
-### `apps/mobile/eas.json`
+### `apps/mobile/eas.json` (development)
 
-```json
-{
-  "cli": { "version": ">= 14.0.0", "appVersionSource": "remote" },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "ios": { "simulator": false },
-      "env": { "APP_ENV": "development" }
-    },
-    "preview": {
-      "distribution": "internal",
-      "env": { "APP_ENV": "staging" }
-    },
-    "production": {
-      "env": { "APP_ENV": "production" }
-    }
-  },
-  "submit": { "production": {} }
-}
-```
+- `developmentClient: true`, `distribution: internal`, `ios.simulator: false`
+- `env.APP_ENV`: `development`
+- `env.EXPO_APPLE_TEAM_ID`: `2TZCY23DP9`
 
-## Commands (when Apple ready)
+## TJ interactive steps (required before signed build)
+
+### 1) Apple credentials (`eas credentials`)
 
 ```bash
 cd apps/mobile
-export EXPO_TOKEN="$expo_token"   # or inject uppercase EXPO_TOKEN into the environment
-npx eas-cli whoami
-npx eas-cli project:info
-# ONLY after Apple membership is active — not run yet:
-# npx eas-cli build --platform ios --profile development
+npx eas-cli credentials -p ios
 ```
 
-## CI results
+Official prompts:
 
-GitHub Actions CI runs `pnpm lint`, `pnpm typecheck`, `pnpm test` only. **No EAS build job is configured.** Prefer injecting secret as uppercase `EXPO_TOKEN` for CI/agents; this VM currently receives lowercase `expo_token`.
+1. Build profile → **development**
+2. `Do you want to log in to your Apple account?` → **Y**
+3. `› Log in to your Apple Developer account to continue` / `? Apple ID: ›`
+4. Complete Apple password + 2FA **locally** (never paste into chat)
+5. Select Team **`2TZCY23DP9`**; let EAS manage cert + ad hoc profile / register bundle ID
 
-## Remaining blockers (precise)
+### 2) Device registration (`eas device:create`) — user-interactive
 
-1. Prefer environment secret named **`EXPO_TOKEN`** (uppercase) so agents need no remapping — currently only `expo_token` is injected
-2. Apple Developer Program enrollment still processing — **no device signing / `eas build` for device attempted**
-3. Apple Team ID missing
-4. Bundle ID `vip.theunderground.app` registration not confirmed in Apple portal
-5. No test iPhone UDID registered
-6. Runtime Mapbox/Supabase remain stubbed (not required for EAS project link)
+```bash
+npx eas-cli device:create
+```
 
-## iPhone install procedure (conditional — only after signed build succeeds)
+- Use account `undergroundvps-team`
+- Prefer **Website** registration (QR/URL) → open on iPhone → Download/Install profile
+- Confirm with `npx eas-cli device:list`
 
-1. Complete Apple blockers above.
-2. `eas build -p ios --profile development` produces an internal distribution artifact.
-3. Register device UDID in Apple portal / EAS credentials.
-4. Install via EAS QR / `eas device:create` + build page link, or Apple Configurator.
-5. Trust developer certificate on device; launch UNDERGROUND.
+### 3) Build
 
-**Until step 2 produces a successful signed artifact, install is blocked.**
+```bash
+npx eas-cli build --platform ios --profile development
+```
+
+Non-interactive builds fail until credentials + device exist:
+
+> Failed to set up credentials. You're in non-interactive mode. EAS CLI couldn't find any credentials suitable for internal distribution.
+
+## Remaining blockers
+
+1. Interactive Apple Developer login / 2FA (TJ)
+2. At least one device via `eas device:create` (TJ)
+3. Bundle ID registration confirmation via EAS Apple session
+4. Prefer uppercase `EXPO_TOKEN` injection for agents/CI
+5. Mapbox/Supabase optional for first install (stubs/fallbacks OK)
+6. Production captures remain disabled
+
+## Post-install checks (only after TJ confirms)
+
+Launch · Newswire/Conquest/Garage/Friends/Rankings · Founder garage · SV map · sim capture (prod captures off).

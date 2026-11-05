@@ -11,7 +11,8 @@
         "simulator": false
       },
       "env": {
-        "APP_ENV": "development"
+        "APP_ENV": "development",
+        "EXPO_APPLE_TEAM_ID": "2TZCY23DP9"
       }
     },
     "preview": {
