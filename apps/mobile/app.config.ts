@@ -33,8 +33,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ...(config.plugins ?? []),
       ...mapboxPlugins,
       'expo-image-picker',
+      'expo-sqlite',
       ['expo-location', {
         locationWhenInUsePermission: 'UNDERGROUND uses your location to show your position and record a drive only when you choose Start Drive.',
+        // Foreground tracking first — do not silently enable background GPS here.
         isIosBackgroundLocationEnabled: false,
         isAndroidBackgroundLocationEnabled: false,
       }],
