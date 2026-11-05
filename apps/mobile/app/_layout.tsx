@@ -60,6 +60,8 @@ function RootNavigator() {
         <Stack.Screen name="invite" />
         <Stack.Screen name="newswire" options={{ headerShown: true, title: 'NEWSWIRE', headerStyle: { backgroundColor: shell.background }, headerTintColor: shell.accent }} />
         <Stack.Screen name="(tabs)" />
+        {/* Trip History standalone stack — see docs/TRIP_HISTORY_NAV_INTEGRATION.md */}
+        <Stack.Screen name="trips" options={{ headerShown: false, animation: 'slide_from_right' }} />
       </Stack>
     </AuthGate>
   );

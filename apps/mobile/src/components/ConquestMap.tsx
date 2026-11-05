@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { buildSimGpsReplay, checkpointsAlongReplay } from '@underground/territory-engine';
 import { Text } from '@underground/ui';
 import { ConquestBottomSheet } from './conquest/ConquestBottomSheet';
@@ -30,6 +31,7 @@ type DistrictMode = 'monterey' | 'silicon-valley-dev';
  */
 export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMode }) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const drive = useForegroundDrive();
   const [mapMode, setMapMode] = useState<MapMode>(initialMode);
   const [district, setDistrict] = useState<DistrictMode>('silicon-valley-dev');
@@ -181,13 +183,15 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
 
       {mapMode === 'drive' ? (
         <View style={styles.modePanel}>
-          <Text variant="caption" gold>DRIVE · PRIVATE TRIP</Text>
-          <Text style={styles.modeInfo}>GPS {drive.status.toUpperCase()} · {drive.points} fixes · {drive.accuracyM == null ? 'NO FIX' : `${Math.round(drive.accuracyM)}m ACCURACY`}</Text>
-          <Text variant="title" gold>{(drive.distanceM / 1609.344).toFixed(2)} mi · {Math.floor(drive.elapsedSeconds / 60)}:{String(drive.elapsedSeconds % 60).padStart(2, '0')}</Text>
-          <Text style={styles.modeInfo}>Foreground recording only. Not persisted or eligible for territory awards.</Text>
+          <Text variant="caption" gold>DRIVE · TRIP TRACKING</Text>
+          <Text style={styles.modeInfo}>Record a private drive, save it on this iPhone, and replay it later. Ordinary drives do not capture territory or award CLOUT.</Text>
           <View style={styles.driveActions}>
-            {drive.status !== 'recording' ? <Pressable style={styles.modeButton} onPress={() => void drive.start()}><Text variant="caption" gold>{drive.status === 'paused' ? 'RESUME' : 'START DRIVE'}</Text></Pressable> : <Pressable style={styles.modeButton} onPress={drive.pause}><Text variant="caption" gold>PAUSE</Text></Pressable>}
-            <Pressable style={styles.modeButton} onPress={drive.finish}><Text variant="caption" gold>END</Text></Pressable>
+            <Pressable style={styles.modeButton} onPress={() => router.push('/trips/record')}>
+              <Text variant="caption" gold>START TRACKING</Text>
+            </Pressable>
+            <Pressable style={styles.modeButton} onPress={() => router.push('/trips')}>
+              <Text variant="caption" gold>TRIP HISTORY</Text>
+            </Pressable>
           </View>
         </View>
       ) : null}
