@@ -25,6 +25,8 @@ type Props = {
   forceFallback?: boolean;
   showTerritories?: boolean;
   followUser?: boolean;
+  showUserLocation?: boolean;
+  cameraRevision?: number;
 };
 
 type LoadState =
@@ -57,6 +59,8 @@ export function MapboxTerritoryMap({
   forceFallback,
   showTerritories = true,
   followUser = false,
+  showUserLocation = false,
+  cameraRevision = 0,
 }: Props) {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
   const [MapboxMod, setMapboxMod] = useState<MapboxMod | null>(null);
@@ -131,6 +135,8 @@ export function MapboxTerritoryMap({
         badge={`${badge} · APPLE MAP FALLBACK`}
         showTerritories={showTerritories}
         followUser={followUser}
+        showUserLocation={showUserLocation}
+        cameraRevision={cameraRevision}
       />
     );
   }
@@ -145,6 +151,8 @@ export function MapboxTerritoryMap({
         badge={badge}
         showTerritories={showTerritories}
         followUser={followUser}
+        showUserLocation={showUserLocation}
+        cameraRevision={cameraRevision}
       />
     );
   }
@@ -167,12 +175,13 @@ export function MapboxTerritoryMap({
         }}
       >
         <Camera
+          key={`location-focus-${cameraRevision}`}
           centerCoordinate={[camera.longitude, camera.latitude]}
           zoomLevel={camera.zoom}
           animationMode="flyTo"
           animationDuration={600}
         />
-        {followUser && UserLocation ? <UserLocation visible /> : null}
+        {showUserLocation && UserLocation ? <UserLocation visible /> : null}
         {showTerritories ? <ShapeSource
           id="territories"
           shape={collection}
