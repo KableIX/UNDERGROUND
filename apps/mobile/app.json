@@ -17,12 +17,10 @@
       "supportsTablet": false,
       "bundleIdentifier": "vip.theunderground.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "UNDERGROUND uses your location to verify territory runs you start.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "UNDERGROUND may record background GPS only during an active verified run.",
+        "NSLocationWhenInUseUsageDescription": "UNDERGROUND uses your location only when you request your position or start a foreground drive.",
         "NSCameraUsageDescription": "UNDERGROUND uses the camera for verified-run evidence photos and private garage media you choose to upload.",
         "NSPhotoLibraryUsageDescription": "UNDERGROUND accesses your photo library only when you add private garage media.",
         "NSPhotoLibraryAddUsageDescription": "UNDERGROUND may save capture evidence you approve to your photo library.",
-        "UIBackgroundModes": ["location"],
         "ITSAppUsesNonExemptEncryption": false
       }
     },

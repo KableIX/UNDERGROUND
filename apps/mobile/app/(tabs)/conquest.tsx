@@ -1,13 +1,13 @@
 import { StyleSheet } from 'react-native';
 import { Screen } from '@underground/ui';
-import { ConquestMap } from '../../src/components/ConquestMap';
+import { FullWorldMap } from '../../src/components/map/FullWorldMap';
 import { shell } from '../../src/theme/shell';
 
-/** Map-first Conquest tab — command sheet lives inside the map surface. */
+/** Map-first validation: full geographic basemap now; curated territory overlays later. */
 export default function ConquestScreen() {
   return (
     <Screen padded={false} style={styles.root}>
-      <ConquestMap />
+      <FullWorldMap />
     </Screen>
   );
 }
