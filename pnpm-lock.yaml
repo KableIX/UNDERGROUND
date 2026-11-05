@@ -38,12 +38,18 @@ importers:
       '@babel/runtime':
         specifier: ^7.29.10
         version: 7.29.10
+      '@expo-google-fonts/barlow-condensed':
+        specifier: 0.4.1
+        version: 0.4.1
       '@expo-google-fonts/cinzel':
         specifier: ^0.3.0
         version: 0.3.0
       '@expo-google-fonts/dm-sans':
         specifier: ^0.3.0
         version: 0.3.0
+      '@expo-google-fonts/inter':
+        specifier: 0.4.1
+        version: 0.4.1
       '@rnmapbox/maps':
         specifier: 10.1.39
         version: 10.1.39(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@expo/metro-runtime@4.0.1(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1)))(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1))(react@18.3.1)
@@ -1184,11 +1190,17 @@ packages:
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
+  '@expo-google-fonts/barlow-condensed@0.4.1':
+    resolution: {integrity: sha512-9yuXU1MpI4Dw/8rR4pj2EXcT4/31H5+DrrT47auF8IzD9r7SZPRoNVq8clRq7zxOTh7v1gJk3pBhydDVf2x/dA==}
+
   '@expo-google-fonts/cinzel@0.3.0':
     resolution: {integrity: sha512-vXHlPvAW4WWniYuCAAfLaSmP0YKQGqEOk3DuYygpbzH33r4QhPSEfLpHtZda048r2nXhla0LfZWGVhtxa/m2hg==}
 
   '@expo-google-fonts/dm-sans@0.3.0':
     resolution: {integrity: sha512-AVIFXp4c1sHeERSAvhVKPJ+WCx15chn9ISeftiYJ5AMwPt9FwN5j/R0W5oNkGWKxbWBQ3baOQqbsqQoS2yY7QA==}
+
+  '@expo-google-fonts/inter@0.4.1':
+    resolution: {integrity: sha512-ypL+XokTHEG+ie/nxNj/mS38afMrY4Li4oKvTJf9k9XvH7I21qfTGCsDtlZ6nIUWEAy1odoUZISdXT1nfMh4kA==}
 
   '@expo/bunyan@4.0.1':
     resolution: {integrity: sha512-+Lla7nYSiHZirgK+U/uYzsLv/X+HaJienbD5AKX1UQZHYfWaP+9uuQluRB4GrEVWF0GZ7vEVp/jzaOT9k/SQlg==}
@@ -5980,9 +5992,13 @@ snapshots:
       '@eslint/core': 0.17.0
       levn: 0.4.1
 
+  '@expo-google-fonts/barlow-condensed@0.4.1': {}
+
   '@expo-google-fonts/cinzel@0.3.0': {}
 
   '@expo-google-fonts/dm-sans@0.3.0': {}
+
+  '@expo-google-fonts/inter@0.4.1': {}
 
   '@expo/bunyan@4.0.1':
     dependencies:

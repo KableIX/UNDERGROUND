@@ -56,7 +56,9 @@ export function useMapLocation() {
           accuracyM: fix.coords.accuracy,
           timestamp: fix.timestamp,
         };
-        if (validPosition(next) && (next.accuracyM == null || next.accuracyM <= 200)) {
+        // A low-accuracy fix is still preferable to an unrelated default-city camera.
+        // Display its accuracy separately; never use these fixes for conquest adjudication.
+        if (validPosition(next)) {
           setPosition(previous => previous && next.timestamp < previous.timestamp ? previous : next);
         }
       };
