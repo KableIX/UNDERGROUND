@@ -18,7 +18,12 @@ export default function ConquestScreen() {
           DEV ONLY
         </Text>
         <Text variant="caption" style={styles.meta}>
-          {mapboxConfigured ? 'MAPBOX READY' : 'DRAFT FALLBACK MAP — TOKEN ABSENT'}
+          {mapboxConfigured
+            ? 'MAPBOX SATELLITE READY · ILLUMINATED ROUTES'
+            : 'DARK TACTICAL FALLBACK — MAPBOX TOKEN ABSENT'}
+        </Text>
+        <Text variant="caption" style={styles.meta}>
+          CAPTURES: SV DEV SIM → NEWSWIRE ONLY · PRODUCTION DISABLED
         </Text>
         <GoldRule />
       </View>
