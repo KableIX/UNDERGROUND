@@ -62,9 +62,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="conquest"
         options={{
-          title: 'CONQUEST',
-          headerTitle: 'CONQUEST',
-          tabBarAccessibilityLabel: 'Conquest tab',
+          title: 'MAP',
+          headerTitle: 'WORLD MAP',
+          tabBarAccessibilityLabel: 'Full world map tab',
         }}
       />
       <Tabs.Screen
