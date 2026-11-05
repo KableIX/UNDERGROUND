@@ -1,16 +1,16 @@
 import type { PublicEnv } from '@underground/domain';
 
-/** Santa Clara / SV development district camera defaults. */
+/** Santa Clara / NVIDIA-area camera (public landmark centroid). */
 export const SV_DEV_CAMERA = {
-  longitude: -121.96,
-  latitude: 37.37,
-  zoom: 11.4,
+  longitude: -121.9677,
+  latitude: 37.3706,
+  zoom: 12.2,
 } as const;
 
 export const MONTEREY_CAMERA = {
   longitude: -121.9,
-  latitude: 36.55,
-  zoom: 9.5,
+  latitude: 36.58,
+  zoom: 10.2,
 } as const;
 
 /**

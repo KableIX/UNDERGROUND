@@ -1,5 +1,10 @@
 import { BrandColors } from '@underground/domain';
 
+/**
+ * Premium type stack for UNDERGROUND.
+ * Cinzel (display) + DM Sans (UI) — loaded in apps/mobile root layout.
+ * Falls back to System if fonts not yet loaded.
+ */
 export const theme = {
   colors: BrandColors,
   spacing: {
@@ -11,27 +16,27 @@ export const theme = {
   },
   typography: {
     brand: {
-      fontFamily: 'System',
-      fontSize: 28,
-      letterSpacing: 4,
+      fontFamily: 'Cinzel_600SemiBold',
+      fontSize: 30,
+      letterSpacing: 5,
       fontWeight: '600' as const,
     },
     title: {
-      fontFamily: 'System',
+      fontFamily: 'DMSans_600SemiBold',
       fontSize: 22,
-      letterSpacing: 1,
+      letterSpacing: 0.5,
       fontWeight: '600' as const,
     },
     body: {
-      fontFamily: 'System',
+      fontFamily: 'DMSans_400Regular',
       fontSize: 15,
       lineHeight: 22,
       fontWeight: '400' as const,
     },
     caption: {
-      fontFamily: 'System',
-      fontSize: 12,
-      letterSpacing: 1.5,
+      fontFamily: 'DMSans_500Medium',
+      fontSize: 11,
+      letterSpacing: 1.6,
       fontWeight: '500' as const,
     },
   },

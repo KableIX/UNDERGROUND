@@ -1,52 +1,20 @@
-import { StyleSheet, View } from 'react-native';
-import { GoldRule, Screen, Text } from '@underground/ui';
-import { mapboxConfigured } from '../../src/lib/env';
-import { shell } from '../../src/theme/shell';
+import { StyleSheet } from 'react-native';
+import { Screen } from '@underground/ui';
 import { ConquestMap } from '../../src/components/ConquestMap';
-import { EvidenceCaptureStub } from '../../src/components/EvidenceCaptureStub';
-import { siliconValleyDistrict } from '../../src/data/silicon-valley-dev';
+import { shell } from '../../src/theme/shell';
 
+/** Map-first Conquest tab — command sheet lives inside the map surface. */
 export default function ConquestScreen() {
   return (
-    <Screen padded={false}>
-      <View style={styles.header}>
-        <Text variant="title" gold>
-          Conquest
-        </Text>
-        <Text variant="caption" style={styles.meta}>
-          MONTEREY = PRODUCTION CANDIDATE (DRAFT) · {siliconValleyDistrict.name.toUpperCase()} =
-          DEV ONLY
-        </Text>
-        <Text variant="caption" style={styles.meta}>
-          {mapboxConfigured
-            ? 'MAPBOX SATELLITE READY · ILLUMINATED ROUTES'
-            : 'DARK TACTICAL FALLBACK — MAPBOX TOKEN ABSENT'}
-        </Text>
-        <Text variant="caption" style={styles.meta}>
-          CAPTURES: SV DEV SIM → NEWSWIRE ONLY · PRODUCTION DISABLED
-        </Text>
-        <GoldRule />
-      </View>
+    <Screen padded={false} style={styles.root}>
       <ConquestMap />
-      <View style={styles.evidence}>
-        <EvidenceCaptureStub />
-      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  meta: {
-    marginTop: 6,
-    color: shell.muted,
-  },
-  evidence: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-    backgroundColor: shell.background,
+  root: {
+    flex: 1,
+    backgroundColor: shell.mapVoid,
   },
 });

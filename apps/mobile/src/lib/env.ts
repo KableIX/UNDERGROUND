@@ -7,7 +7,7 @@ function readPublicEnv() {
     EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
     EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
     EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN: process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? '',
-    API_PUBLIC_URL: process.env.API_PUBLIC_URL ?? '',
+    API_PUBLIC_URL: process.env.EXPO_PUBLIC_API_URL ?? process.env.API_PUBLIC_URL ?? '',
   });
 }
 

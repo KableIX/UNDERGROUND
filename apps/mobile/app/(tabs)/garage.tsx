@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import type { GarageMediaUploadPlan } from '@underground/domain';
 import { GoldRule, Screen, Text } from '@underground/ui';
 import { GaragePhotoUpload } from '../../src/components/GaragePhotoUpload';
+import { LiveGarage } from '../../src/components/LiveGarage';
+import { isLiveAuthConfigured } from '../../src/session/supabase-session';
 import { VehicleViewerStub } from '../../src/components/VehicleViewerStub';
 import { founderGarageSeed } from '../../src/data/founder-garage';
 import { shell } from '../../src/theme/shell';
@@ -10,117 +13,148 @@ import { shell } from '../../src/theme/shell';
 const FOUNDER_MEMBER_ID = '33333333-3333-4333-8333-333333333301';
 const FOUNDER_VEHICLE_ID = '44444444-4444-4444-8444-444444444401';
 
+/**
+ * Immersive Founder's Garage — 2010 black Audi R8 V10 from seed only.
+ * Does not invent installed mods or verified achievements.
+ */
 export default function GarageScreen() {
-  const { vehicle, mods, media, profile } = founderGarageSeed;
+  return isLiveAuthConfigured() ? <LiveGarage /> : <FixtureGarage />;
+}
+
+function FixtureGarage() {
+  const router = useRouter();
+  const { vehicle, mods, media, profile, displayName, memberNumber } = founderGarageSeed;
   const installed = mods.filter((m) => m.status === 'installed');
   const pending = mods.filter((m) => m.status === 'pending');
   const [plannedUploads, setPlannedUploads] = useState<GarageMediaUploadPlan[]>([]);
 
   return (
     <Screen padded={false}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text variant="caption" gold>
-          MEMBER #{founderGarageSeed.memberNumber}
-        </Text>
-        <Text variant="brand" gold style={styles.owner}>
-          {founderGarageSeed.displayName}
-        </Text>
-        <Text variant="caption" style={styles.meta}>
-          FOUNDER ≠ ADMIN · GARAGE {vehicle.visibility.toUpperCase()} ·{' '}
-          {vehicle.verificationStatus.toUpperCase()}
-        </Text>
-        <GoldRule />
-
-        <View style={styles.heroBlock}>
+      <ScrollView contentContainerStyle={styles.content} accessibilityLabel="Founder garage">
+        <View style={styles.heroPlate}>
           <Text variant="caption" gold>
-            PRIMARY VEHICLE
+            PLACEHOLDER PHOTOGRAPHY
           </Text>
-          <Text variant="title" style={styles.car}>
+          <Text variant="title" style={styles.heroTitle}>
             {vehicle.year} {vehicle.make} {vehicle.model}
           </Text>
-          <Text style={styles.body}>{vehicle.trim}</Text>
+          <Text style={styles.heroSub}>{vehicle.trim} · {vehicle.color}</Text>
         </View>
 
-        <View style={styles.specGrid}>
-          <Spec label="COLOR" value={vehicle.color} />
-          <Spec label="TRANS" value={vehicle.transmission} />
-          <Spec label="WHEELS" value={vehicle.wheels} />
-          <Spec label="BRAKES" value={vehicle.brakes} />
-        </View>
+        <View style={styles.pad}>
+          <Text variant="caption" gold>
+            MEMBER #{memberNumber} · {displayName}
+          </Text>
+          <Text variant="caption" style={styles.meta}>
+            VISIBILITY {vehicle.visibility.toUpperCase()} · {vehicle.verificationStatus.toUpperCase()} ·
+            FOUNDER ≠ ADMIN
+          </Text>
+          <GoldRule />
 
-        <Text variant="caption" gold style={styles.section}>
-          INSTALLED MODS ({installed.length})
-        </Text>
-        {installed.map((mod) => (
-          <View key={mod.title} style={styles.modRow}>
-            <View style={styles.modCopy}>
-              <Text>{mod.title}</Text>
-              <Text style={styles.body}>{mod.description}</Text>
-            </View>
-            <Text variant="caption" gold>
-              INSTALLED
-            </Text>
+          <Text style={styles.body}>{profile.mediaNote}</Text>
+
+          <View style={styles.specGrid}>
+            <Spec label="COLOR" value={vehicle.color} />
+            <Spec label="TRANS" value={vehicle.transmission} />
+            <Spec label="WHEELS" value={vehicle.wheels} />
+            <Spec label="BRAKES" value={vehicle.brakes} />
           </View>
-        ))}
 
-        <Text variant="caption" gold style={styles.section}>
-          PENDING MODS ({pending.length})
-        </Text>
-        {pending.map((mod) => (
-          <View key={mod.title} style={styles.modRow}>
-            <View style={styles.modCopy}>
-              <Text>{mod.title}</Text>
-              <Text style={styles.body}>{mod.description}</Text>
-            </View>
-            <Text variant="caption" gold>
-              PENDING
-            </Text>
-          </View>
-        ))}
-
-        <Text variant="caption" gold style={styles.section}>
-          MEDIA GALLERY
-        </Text>
-        <Text style={styles.body}>{profile.mediaNote}</Text>
-        <GaragePhotoUpload
-          vehicleId={FOUNDER_VEHICLE_ID}
-          memberId={FOUNDER_MEMBER_ID}
-          onPlanned={(plan) => setPlannedUploads((prev) => [plan, ...prev])}
-        />
-        <View style={styles.gallery}>
-          {plannedUploads.map((plan) => (
-            <View key={`${plan.mode}:${plan.storagePath}`} style={styles.mediaCard}>
-              <View style={styles.mediaPlate}>
-                <Text variant="caption" gold>
-                  {plan.mode === 'placeholder' ? 'UPLOAD PLACEHOLDER' : 'SIGNED UPLOAD'}
-                </Text>
+          <Text variant="caption" gold style={styles.section}>
+            MOD JOURNAL · INSTALLED ({installed.length})
+          </Text>
+          {installed.map((mod) => (
+            <View key={mod.title} style={styles.modRow}>
+              <View style={styles.modCopy}>
+                <Text>{mod.title}</Text>
+                <Text style={styles.body}>{mod.description}</Text>
               </View>
-              <Text variant="caption" style={styles.meta}>
-                {plan.bucket} · {plan.mode}
-              </Text>
-              <Text variant="caption" style={styles.path}>
-                {plan.storagePath}
+              <Text variant="caption" gold>
+                INSTALLED
               </Text>
             </View>
           ))}
-          {media.map((item) => (
-            <View key={item.storagePath} style={styles.mediaCard}>
-              <View style={styles.mediaPlate}>
-                <Text variant="caption" gold>
-                  PLACEHOLDER ASSET
-                </Text>
+
+          <Text variant="caption" gold style={styles.section}>
+            PENDING ({pending.length})
+          </Text>
+          {pending.map((mod) => (
+            <View key={mod.title} style={styles.modRow}>
+              <View style={styles.modCopy}>
+                <Text>{mod.title}</Text>
+                <Text style={styles.body}>{mod.description}</Text>
               </View>
-              <Text variant="caption" style={styles.meta}>
-                {item.caption}
-              </Text>
-              <Text variant="caption" style={styles.path}>
-                {item.storagePath}
+              <Text variant="caption" gold>
+                PENDING
               </Text>
             </View>
           ))}
-        </View>
 
-        <VehicleViewerStub label={`${vehicle.year} ${vehicle.make} ${vehicle.model} V10`} />
+          <Text variant="caption" gold style={styles.section}>
+            GALLERY
+          </Text>
+          <GaragePhotoUpload
+            vehicleId={FOUNDER_VEHICLE_ID}
+            memberId={FOUNDER_MEMBER_ID}
+            onPlanned={(plan) => setPlannedUploads((prev) => [plan, ...prev])}
+          />
+          <View style={styles.gallery}>
+            {plannedUploads.map((plan) => (
+              <View key={`${plan.mode}:${plan.storagePath}`} style={styles.mediaCard}>
+                <View style={styles.mediaPlate}>
+                  <Text variant="caption" gold>
+                    {plan.mode === 'placeholder' ? 'UPLOAD PLACEHOLDER' : 'SIGNED UPLOAD'}
+                  </Text>
+                </View>
+                <Text variant="caption" style={styles.meta}>
+                  {plan.bucket} · {plan.mode}
+                </Text>
+              </View>
+            ))}
+            {media.map((item) => (
+              <View key={item.storagePath} style={styles.mediaCard}>
+                <View style={styles.mediaPlate}>
+                  <Text variant="caption" gold>
+                    PLACEHOLDER ASSET
+                  </Text>
+                </View>
+                <Text variant="caption" style={styles.meta}>
+                  {item.caption}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <Text variant="caption" gold style={styles.section}>
+            CUSTOMIZATION PREVIEW
+          </Text>
+          <Text style={styles.body}>
+            Feature-preview destination for friend-gated viewers. Entitlement grants view access only —
+            not admin or ranking privilege.
+          </Text>
+          <VehicleViewerStub label={`${vehicle.year} ${vehicle.make} ${vehicle.model} V10`} />
+
+          <Text variant="caption" gold style={styles.section}>
+            TROPHIES / RUN HISTORY
+          </Text>
+          <Text style={styles.body}>
+            Empty — no invented verified trophies. Production run history appears after accepted
+            captures persist.
+          </Text>
+          <Text variant="caption" style={styles.meta}>
+            VISIT STATS · 0 (fixture until persistence)
+          </Text>
+
+          <Pressable
+            style={styles.link}
+            onPress={() => router.push('/(tabs)/profile')}
+            accessibilityRole="button"
+          >
+            <Text variant="caption" gold>
+              VIEW PROFILE
+            </Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </Screen>
   );
@@ -139,26 +173,35 @@ function Spec({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 40,
+    paddingBottom: 48,
   },
-  owner: {
-    marginTop: 6,
+  heroPlate: {
+    height: 220,
+    backgroundColor: shell.tabBar,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  heroTitle: {
+    textAlign: 'center',
+  },
+  heroSub: {
+    color: shell.muted,
+    textTransform: 'capitalize',
+  },
+  pad: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   meta: {
     marginTop: 6,
     color: shell.muted,
   },
-  heroBlock: {
-    marginTop: 8,
-  },
-  car: {
-    marginTop: 8,
-  },
   body: {
     marginTop: 6,
     color: shell.muted,
+    lineHeight: 21,
   },
   specGrid: {
     marginTop: 20,
@@ -203,12 +246,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   mediaPlate: {
-    height: 120,
+    height: 140,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: shell.tabBar,
   },
-  path: {
-    color: shell.muted,
+  link: {
+    marginTop: 28,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: shell.accent,
   },
 });

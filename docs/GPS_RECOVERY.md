@@ -1,18 +1,19 @@
-# Background GPS recovery
+# GPS recovery & offline sessions
 
-## Status honesty
+## Implemented (pure / tested)
 
-| Capability | Status |
-|------------|--------|
-| Pure GPS buffer merge + timestamp dedupe | **Implemented** (`packages/territory-engine` `mergeGpsBuffers`) |
-| Gap detection helper | **Implemented** (`findGpsGaps`) |
-| iOS background location resume after process death | **Planned** — needs native/dev-client + credentials |
-| Server checkpoint watermark sync | **Planned** — needs Supabase/API persistence |
-| Auto-flag EVIDENCE_REVIEW on large gaps | **Planned** — policy not wired to run transitions yet |
+- Ordered GPS buffer merge with timestamp dedupe (`mergeGpsBuffers`)
+- Gap detection (`findGpsGaps`)
+- Offline session recovery planner (`recoverOfflineSession`) — recoverable / force evidence review / abandoned
+- Sim GPS replay + checkpoint sampling for SV DEV (`buildSimGpsReplay`)
 
-See `GPS_RECOVERY_STATUS` exported from `@underground/territory-engine` and unit tests in `packages/territory-engine/tests/gps-recovery.test.ts`.
+## Planned (device / Apple)
 
-## Non-claims
+- iOS background location resume after process death
+- Secure on-device encrypted session blob
+- Server checkpoint watermark ack on reconnect
+- Gap > threshold forcing `EVIDENCE_REVIEW` on live runs (engine helper ready; device path untested)
 
-- No live background GPS recovery on device has been verified.
-- Sim GPS fixtures in `tests/fixtures/sim-evidence.ts` are test-only.
+## Production gate
+
+Simulation evidence and development district captures **must never** write production ownership. Offline recovery cannot bypass district/draft gates.
