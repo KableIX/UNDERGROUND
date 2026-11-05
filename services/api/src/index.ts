@@ -17,6 +17,7 @@ import {
 } from './routes/social';
 import { handleCreateRoutePlan, handleRouteArchitecture } from './routes/route-plans';
 import { getPersistenceStatus } from './routes/persistence-status';
+import { mutationGate } from './routes/mutation-gate';
 
 const env = loadEnv();
 const health = getHealth(env);
@@ -65,6 +66,18 @@ const server = createServer(async (req, res) => {
   if (req.url === '/v1/routes/architecture' && req.method === 'GET') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify(handleRouteArchitecture()));
+    return;
+  }
+
+  const gate = mutationGate({
+    method: req.method,
+    pathname: req.url,
+    appEnv: env.APP_ENV,
+    remoteAddress: req.socket.remoteAddress,
+  });
+  if (!gate.allowed) {
+    res.writeHead(gate.status, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: gate.error }));
     return;
   }
 
