@@ -69,10 +69,11 @@ export function WorldMapFallback({
   return (
     <View style={styles.root}>
       <MapView
-        key={`${camera.longitude}:${camera.latitude}`}
+        key={followUser ? 'drive-follow' : `${camera.longitude}:${camera.latitude}`}
         style={StyleSheet.absoluteFill}
         initialRegion={region}
         showsUserLocation={followUser}
+        followsUserLocation={followUser}
         showsMyLocationButton={false}
         showsCompass
         mapType="standard"
