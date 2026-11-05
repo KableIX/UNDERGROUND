@@ -2,31 +2,52 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@underground/ui';
 import { draftMontereyTerritories } from '../data/monterey-draft';
+import {
+  siliconValleyDevTerritories,
+  siliconValleyDistrict,
+} from '../data/silicon-valley-dev';
 import { previewChallenge } from '../lib/challenge';
 import { mapboxConfigured } from '../lib/env';
 import { shell } from '../theme/shell';
 
 type Track = 'solo' | 'club';
+type DistrictMode = 'monterey' | 'silicon-valley-dev';
 
 /**
  * Interactive Conquest map shell.
- * Mapbox mounts when token present (dev-build); otherwise dark fallback.
- * Illuminated draft routes + glowing nodes — no hex carpet.
+ * Monterey = production_candidate (draft). Silicon Valley = development only.
+ * Dev routes never write production ownership (engine + district gate).
  */
 export function ConquestMap() {
+  const [district, setDistrict] = useState<DistrictMode>('silicon-valley-dev');
   const [track, setTrack] = useState<Track>('solo');
+  const territories =
+    district === 'silicon-valley-dev' ? siliconValleyDevTerritories : draftMontereyTerritories;
   const [selectedSlug, setSelectedSlug] = useState<string | null>(
-    draftMontereyTerritories[0]?.slug ?? null,
+    siliconValleyDevTerritories[0]?.slug ?? null,
   );
   const [lastPreview, setLastPreview] = useState<string>('No challenge preview yet.');
 
   const selected = useMemo(
-    () => draftMontereyTerritories.find((t) => t.slug === selectedSlug) ?? null,
-    [selectedSlug],
+    () => territories.find((t) => t.slug === selectedSlug) ?? null,
+    [territories, selectedSlug],
   );
+
+  const isDevDistrict = district === 'silicon-valley-dev';
+
+  function switchDistrict(next: DistrictMode) {
+    setDistrict(next);
+    const list = next === 'silicon-valley-dev' ? siliconValleyDevTerritories : draftMontereyTerritories;
+    setSelectedSlug(list[0]?.slug ?? null);
+    setLastPreview('No challenge preview yet.');
+  }
 
   function onChallenge(isSimulation: boolean) {
     if (!selected) return;
+    if (isDevDistrict && !isSimulation) {
+      setLastPreview('BLOCKED (development_district) · DEV ROUTES NEVER PRODUCTION-CAPTURABLE');
+      return;
+    }
     const preview = previewChallenge({
       territoryDefinitionId: selected.id,
       track,
@@ -51,13 +72,17 @@ export function ConquestMap() {
 
   return (
     <View style={styles.root}>
-      <View style={styles.mapPlane}>
-        <View style={styles.atmosphere} />
+      <View style={[styles.mapPlane, isDevDistrict && styles.mapPlaneDev]}>
+        <View style={[styles.atmosphere, isDevDistrict && styles.atmosphereDev]} />
         <Text variant="caption" gold style={styles.mapBadge}>
-          {mapboxConfigured ? 'SATELLITE LAYER' : 'DARK FALLBACK · NO MAPBOX TOKEN'}
+          {isDevDistrict
+            ? `${siliconValleyDistrict.name.toUpperCase()} · DEV ONLY`
+            : mapboxConfigured
+              ? 'MONTEREY · SATELLITE LAYER'
+              : 'MONTEREY · DARK FALLBACK · NO MAPBOX TOKEN'}
         </Text>
         <View style={styles.routes}>
-          {draftMontereyTerritories.map((territory, index) => {
+          {territories.map((territory, index) => {
             const active = territory.slug === selectedSlug;
             return (
               <Pressable
@@ -66,27 +91,41 @@ export function ConquestMap() {
                 style={[
                   styles.route,
                   {
-                    top: 36 + index * 34,
+                    top: 36 + index * 42,
                     opacity: active ? 1 : 0.55,
                     shadowOpacity: active ? 0.9 : 0.35,
                   },
                 ]}
               >
                 <View style={[styles.node, active && styles.nodeActive]} />
-                <View style={[styles.line, active && styles.lineActive]} />
+                <View style={[styles.line, active && styles.lineActive, isDevDistrict && styles.lineDev]} />
                 <Text variant="caption" style={styles.routeLabel}>
-                  {territory.name.toUpperCase()} · DRAFT
+                  {territory.name.toUpperCase()} · {isDevDistrict ? 'DEV' : 'DRAFT'}
                 </Text>
               </Pressable>
             );
           })}
         </View>
         <Text variant="caption" style={styles.disclaimer}>
-          PLACEHOLDER LINESTRINGS — NOT PRODUCTION ROAD GEOMETRY
+          {isDevDistrict
+            ? 'SANTA CLARA TEST ROUTES — NEVER PRODUCTION OWNERSHIP'
+            : 'PLACEHOLDER LINESTRINGS — NOT PRODUCTION ROAD GEOMETRY'}
         </Text>
       </View>
 
       <View style={styles.panel}>
+        <View style={styles.modes}>
+          <ModeChip
+            label="SV DEV"
+            active={district === 'silicon-valley-dev'}
+            onPress={() => switchDistrict('silicon-valley-dev')}
+          />
+          <ModeChip
+            label="MONTEREY"
+            active={district === 'monterey'}
+            onPress={() => switchDistrict('monterey')}
+          />
+        </View>
         <View style={styles.modes}>
           <ModeChip label="SOLO" active={track === 'solo'} onPress={() => setTrack('solo')} />
           <ModeChip label="CLUB" active={track === 'club'} onPress={() => setTrack('club')} />
@@ -95,12 +134,14 @@ export function ConquestMap() {
           {selected?.name ?? 'Select a territory'}
         </Text>
         <Text variant="caption" style={styles.meta}>
-          STATUS {selected?.status.toUpperCase() ?? '—'} · TRACK {track.toUpperCase()} · WEIGHT{' '}
+          {isDevDistrict ? 'KIND DEVELOPMENT' : 'KIND PRODUCTION_CANDIDATE'} · STATUS{' '}
+          {selected?.status.toUpperCase() ?? '—'} · TRACK {track.toUpperCase()} · WEIGHT{' '}
           {selected?.eligibleWeight ?? '—'}
         </Text>
         <Text style={styles.body}>
-          Ownership panel calls territory-engine contracts. Draft territories reject production
-          captures. Sim evidence cannot write production ownership.
+          {isDevDistrict
+            ? 'Development district for Santa Clara test loops. Production capture actions are hard-blocked in UI and engine.'
+            : 'Monterey remains a production candidate with draft geometries. Production captures stay blocked while status=draft.'}
         </Text>
         <Text variant="caption" style={styles.preview}>
           {lastPreview}
@@ -108,7 +149,7 @@ export function ConquestMap() {
         <View style={styles.actions}>
           <Pressable style={styles.cta} onPress={() => onChallenge(false)}>
             <Text variant="caption" gold>
-              CHALLENGE (ENGINE)
+              {isDevDistrict ? 'PROD CAPTURE (BLOCKED)' : 'CHALLENGE (ENGINE)'}
             </Text>
           </Pressable>
           <Pressable style={styles.ctaMuted} onPress={() => onChallenge(true)}>
@@ -149,9 +190,15 @@ const styles = StyleSheet.create({
     backgroundColor: shell.mapVoid,
     overflow: 'hidden',
   },
+  mapPlaneDev: {
+    backgroundColor: '#061018',
+  },
   atmosphere: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#071018',
+  },
+  atmosphereDev: {
+    backgroundColor: '#0A1820',
   },
   mapBadge: {
     position: 'absolute',
@@ -192,6 +239,9 @@ const styles = StyleSheet.create({
     backgroundColor: shell.routeGlow,
     opacity: 0.55,
   },
+  lineDev: {
+    backgroundColor: '#6FA8C9',
+  },
   lineActive: {
     opacity: 1,
     height: 3,
@@ -199,7 +249,7 @@ const styles = StyleSheet.create({
   },
   routeLabel: {
     color: shell.muted,
-    maxWidth: 160,
+    maxWidth: 180,
   },
   disclaimer: {
     position: 'absolute',
@@ -219,7 +269,7 @@ const styles = StyleSheet.create({
   modes: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   chip: {
     paddingHorizontal: 12,

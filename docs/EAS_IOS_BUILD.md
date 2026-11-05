@@ -54,14 +54,15 @@ GitHub Actions CI runs `pnpm lint`, `pnpm typecheck`, `pnpm test` only. **No EAS
 
 ## Blockers (precise)
 
-1. Expo account / org not linked
-2. `EXPO_TOKEN` missing (CI + CLI)
-3. Real EAS `projectId` not issued (`REPLACE_WHEN_EAS_PROJECT_LINKED` remains)
-4. Apple Developer Program enrollment still processing
+1. **`EXPO_TOKEN` not injected into this Cloud Agent process env** (2026-11-05) — presence check failed; `eas whoami` → `Not logged in`. Token must be available as an environment secret named `EXPO_TOKEN` for this agent (requested via environment setup actions). Value must never be logged.
+2. Expo account / org not confirmed via CLI (blocked by #1)
+3. Real EAS `projectId` not issued (`REPLACE_WHEN_EAS_PROJECT_LINKED` remains until non-destructive `eas init`/link succeeds)
+4. Apple Developer Program enrollment still processing — **no device signing / `eas build` for device attempted**
 5. Apple Team ID missing
 6. Bundle ID `vip.theunderground.app` registration not confirmed
 7. No test iPhone UDID registered
-8. No Mapbox/Supabase secrets required for a shell build, but runtime map/auth remain stubbed
+8. Runtime Mapbox/Supabase remain stubbed (not required to link EAS project id)
+
 
 ## iPhone install procedure (conditional — only after signed build succeeds)
 
