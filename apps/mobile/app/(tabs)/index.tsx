@@ -1,18 +1,56 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import type { NewswireStory, SimNewswireStory } from '@underground/domain';
 import { GoldRule, Screen, Text } from '@underground/ui';
+import { NewswireCard } from '../../src/components/feed/NewswireCard';
+import { UndergroundMark } from '../../src/components/brand/UndergroundMark';
+import { feedFixtureCards, type FeedCardModel } from '../../src/data/feed-v2';
 import {
   listNewswireFeed,
   subscribeSimNewswire,
 } from '../../src/lib/sim-workflow';
+import { useSession } from '../../src/session/SessionContext';
 import { shell } from '../../src/theme/shell';
 
+function simToCard(story: SimNewswireStory, displayName: string): FeedCardModel {
+  return {
+    id: story.id,
+    kind: 'capture',
+    provenance: 'sim',
+    badge: 'SIM · NOT PRODUCTION',
+    actorName: displayName,
+    headline: story.headline,
+    body: story.body,
+    territoryLabel: story.territoryName,
+    cloutDelta: 0,
+    createdAt: story.createdAt,
+    imageLabel: 'SIM ROUTE REPLAY',
+  };
+}
+
+function fixtureCaptureToCard(story: NewswireStory, displayName: string): FeedCardModel {
+  return {
+    id: story.id,
+    kind: 'capture',
+    provenance: 'fixture',
+    badge: 'FIXTURE SAMPLE · NOT LIVE VERIFIED',
+    actorName: displayName,
+    headline: story.headline,
+    body: `${story.body} Marked fixture for UI — not a live verified production event in this build.`,
+    territoryLabel: story.territoryName,
+    cloutDelta: story.cloutDelta,
+    createdAt: story.createdAt,
+    imageLabel: 'FIXTURE MAP PLATE',
+  };
+}
+
 /**
- * Newswire feed: live sim_capture_v1 stories + deterministic production fixtures.
- * Sim stories never imply production ownership or CLOUT.
+ * Newswire v2 — visual feed cards with explicit SIM / FIXTURE provenance.
  */
 export default function NewswireScreen() {
+  const router = useRouter();
+  const { state, signOut } = useSession();
   const [sim, setSim] = useState<SimNewswireStory[]>([]);
   const [fixtures, setFixtures] = useState<NewswireStory[]>([]);
 
@@ -26,57 +64,67 @@ export default function NewswireScreen() {
     return subscribeSimNewswire(refresh);
   }, []);
 
+  const cards = useMemo(() => {
+    const simCards = sim.map((s) =>
+      simToCard(s, state.status === 'authenticated' ? state.member.displayName : 'MEMBER'),
+    );
+    const captureFixtures = fixtures.map((s) =>
+      fixtureCaptureToCard(s, s.memberId.endsWith('01') ? 'STARK' : 'PACIFIC'),
+    );
+    return [...simCards, ...feedFixtureCards, ...captureFixtures].sort((a, b) =>
+      a.createdAt < b.createdAt ? 1 : -1,
+    );
+  }, [sim, fixtures, state]);
+
   return (
     <Screen padded={false}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text variant="brand" gold>
-          UNDERGROUND
-        </Text>
-        <Text variant="caption" style={styles.tagline}>
-          OWNERSHIP IS THE ENTRY.
-        </Text>
+      <ScrollView contentContainerStyle={styles.content} accessibilityLabel="Newswire feed">
+        <View style={styles.header}>
+          <UndergroundMark size="compact" showWordmark={false} />
+          <View style={styles.headerCopy}>
+            <Text variant="brand" gold>
+              UNDERGROUND
+            </Text>
+            <Text variant="caption" style={styles.tagline}>
+              OWNERSHIP IS THE ENTRY.
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => router.push('/(tabs)/profile')}
+            accessibilityRole="button"
+            accessibilityLabel="Open profile and account"
+            style={styles.account}
+          >
+            <Text variant="caption" gold>
+              ACCOUNT
+            </Text>
+          </Pressable>
+        </View>
         <GoldRule />
         <Text variant="title">Newswire</Text>
         <Text style={styles.body}>
-          Live SIM captures from SV DEV appear below. Production fixtures use
-          `capture_accepted_v1` only — no fabricated achievements.
+          Captures, garage moments, and club notes. Simulated and fixture cards are labeled — never
+          presented as live verified production.
         </Text>
 
-        <Text variant="caption" gold style={styles.section}>
-          SIM CAPTURES ({sim.length})
-        </Text>
-        {sim.length === 0 ? (
-          <Text style={styles.body}>
-            No sim stories yet — run SIM CAPTURE → NEWSWIRE on the Conquest tab (SV DEV).
-          </Text>
-        ) : (
-          sim.map((story) => (
-            <View key={story.id} style={styles.story}>
-              <Text variant="caption" gold>
-                {story.templateId.toUpperCase()} · CLOUT +{story.cloutDelta} · NO OWNERSHIP
-              </Text>
-              <Text variant="title" style={styles.headline}>
-                {story.headline}
-              </Text>
-              <Text style={styles.body}>{story.body}</Text>
-            </View>
-          ))
-        )}
-
-        <Text variant="caption" gold style={styles.section}>
-          PRODUCTION FIXTURES ({fixtures.length})
-        </Text>
-        {fixtures.map((story) => (
-          <View key={story.id} style={styles.story}>
-            <Text variant="caption" gold>
-              {story.templateId.toUpperCase()} · CLOUT +{story.cloutDelta}
-            </Text>
-            <Text variant="title" style={styles.headline}>
-              {story.headline}
-            </Text>
-            <Text style={styles.body}>{story.body}</Text>
-          </View>
+        {cards.map((card) => (
+          <NewswireCard key={card.id} card={card} />
         ))}
+
+        {state.status === 'authenticated' ? (
+          <Pressable
+            style={styles.signOut}
+            onPress={() => {
+              signOut();
+              router.replace('/welcome');
+            }}
+            accessibilityRole="button"
+          >
+            <Text variant="caption" style={styles.meta}>
+              SIGN OUT
+            </Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </Screen>
   );
@@ -86,27 +134,35 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 40,
+    paddingBottom: 48,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerCopy: {
+    flex: 1,
+  },
+  account: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   tagline: {
-    marginTop: 8,
+    marginTop: 4,
     color: shell.muted,
   },
   body: {
     marginTop: 8,
     color: shell.muted,
+    lineHeight: 21,
   },
-  section: {
-    marginTop: 28,
-    marginBottom: 4,
+  meta: {
+    color: shell.muted,
   },
-  story: {
-    marginTop: 24,
-    paddingBottom: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(197,165,114,0.25)',
-  },
-  headline: {
-    marginTop: 8,
+  signOut: {
+    marginTop: 32,
+    alignItems: 'center',
+    paddingVertical: 12,
   },
 });
