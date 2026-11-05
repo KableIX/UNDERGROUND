@@ -48,3 +48,10 @@
 - **Context:** Dev needs GPS/camera fixtures; production ledgers must stay clean.
 - **Decision:** Environment + evidence source flags; sim evidence cannot write production ownership tables.
 - **Consequences:** Separate fixture pipelines; integration tests assert the gate.
+
+## ADR-009: Optional vehicle-bound identity authentication
+
+- **Status:** Proposed (not part of current MVP release gate)
+- **Context:** Sakura proposed one-time BLE pairing and a fresh run-bound visual token to make real-car territory proof effortless.
+- **Decision:** Investigate NFC-assisted enrollment of a dedicated cryptographic BLE authenticator bound to a verified garage vehicle. Use fresh backend challenges, independent GPS/photo evidence, and optionally vehicle telemetry. Factory audio Bluetooth and ordinary NFC tags alone do not establish vehicle identity. Support controlled phone replacement and authorized drivers.
+- **Consequences:** Future hardware sourcing, provisioning, security reviews, and on-device tests. Do not block the software-only route+photo+odometer protocol. Full proposal: `docs/VEHICLE_IDENTITY_PROTOCOL.md`.
