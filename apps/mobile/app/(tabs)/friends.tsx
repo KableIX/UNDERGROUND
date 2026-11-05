@@ -39,7 +39,10 @@ export default function FriendsScreen() {
           Friends
         </Text>
         <Text variant="caption" style={styles.meta}>
-          REQUEST · ACCEPT · REJECT · CLUBS · DIRECTORY OPT-IN
+          REQUEST · ACCEPT · REJECT · CLUBS · DMS · GUESTBOOK · DIRECTORY OPT-IN
+        </Text>
+        <Text variant="caption" style={styles.meta}>
+          SERVER AUTHZ IMPLEMENTED IN @underground/persistence · UI FIXTURES UNTIL SUPABASE
         </Text>
         <GoldRule />
 
@@ -147,6 +150,14 @@ export default function FriendsScreen() {
             </Text>
           ))
         )}
+
+        <Text variant="caption" gold style={styles.section}>
+          DMS / GUESTBOOK / CLUBHOUSE
+        </Text>
+        <Text style={styles.body}>
+          Domain + API contracts live (POST /v1/social/dm, /guestbook). Mobile thread UI remains
+          fixture-backed until cloud auth. Club events schema ready; no fabricated meet locations.
+        </Text>
       </ScrollView>
     </Screen>
   );

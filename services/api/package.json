@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@underground/domain": "workspace:*",
+    "@underground/persistence": "workspace:*",
     "@underground/territory-engine": "workspace:*",
     "zod": "^3.24.2"
   },
