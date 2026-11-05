@@ -17,6 +17,12 @@ Scope: reviewed migrations 00002–00007, garage-media API planner, and mobile G
 `supabase/migrations/20261105000009_sensitive_state_hardening.sql` (draft, not applied).
 It narrows friendship update permissions, blocks client vehicle self-verification on INSERT and UPDATE, prevents client-created friendships from starting as accepted, and prevents direct mutation of profile counters and Top 8. All require database-level integration tests.
 
+## Disposable PostgreSQL validation completed
+
+Applied migrations 00001–00009 to a disposable local PostGIS 16 database with stubbed Supabase `auth` and `storage` roles/functions. Ran `tests/supabase-authz-postgres.sql` with `ON_ERROR_STOP=1`: all six assertions passed (block verified INSERT, verified UPDATE, social-count forgery, pre-accepted friendship INSERT, requester self-acceptance; allow recipient acceptance and block subsequent transition). Test transaction rolled back.
+
+**Scope limitation:** This emulates Supabase identity functions. It does not replace an actual Supabase storage/auth integration test or validate signed URLs/JWT services. Production remains blocked until those tests pass.
+
 ## Validation required
 - Apply migrations to a disposable Supabase/Postgres instance with Supabase auth/storage roles.
 - Test requester cannot accept their own invitation; recipient can accept pending once; requester cannot change participant IDs.
