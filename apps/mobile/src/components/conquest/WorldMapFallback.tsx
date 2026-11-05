@@ -15,6 +15,8 @@ type Props = {
   badge: string;
   showTerritories: boolean;
   followUser: boolean;
+  showUserLocation: boolean;
+  cameraRevision: number;
 };
 
 type MapsModule = {
@@ -32,6 +34,7 @@ type MapsModule = {
  */
 export function WorldMapFallback({
   territories, selectedSlug, onSelect, camera, badge, showTerritories, followUser,
+  showUserLocation, cameraRevision,
 }: Props) {
   const [maps, setMaps] = useState<MapsModule | null>(null);
   const [nativeMissing, setNativeMissing] = useState(false);
@@ -96,11 +99,11 @@ export function WorldMapFallback({
   return (
     <View style={styles.root}>
       <MapView
-        key={followUser ? 'drive-follow' : `${camera.longitude}:${camera.latitude}`}
+        key={`map-location-focus-${cameraRevision}`}
         style={StyleSheet.absoluteFill}
         provider={provider}
         initialRegion={region}
-        showsUserLocation={followUser}
+        showsUserLocation={showUserLocation}
         followsUserLocation={followUser}
         showsMyLocationButton={false}
         showsCompass
