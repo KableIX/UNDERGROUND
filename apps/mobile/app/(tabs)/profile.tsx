@@ -5,6 +5,7 @@ import { GoldRule, Screen, Text } from '@underground/ui';
 import { rankingFixtures } from '../../src/data/rankings';
 import { founderGarageSeed } from '../../src/data/founder-garage';
 import { useSession } from '../../src/session/SessionContext';
+import { isLiveAuthConfigured } from '../../src/session/supabase-session';
 import { shell } from '../../src/theme/shell';
 
 const TOP_EIGHT_SLOTS = Array.from({ length: 8 }, (_, i) => i);
@@ -26,8 +27,9 @@ export default function ProfileScreen() {
           role: 'member' as const,
         };
 
-  const cloutTotal =
-    rankingFixtures.find((r) => r.memberNumber === member.memberNumber)?.cloutTotal ?? 0;
+  const cloutTotal = isLiveAuthConfigured()
+    ? 0 // Awaiting authenticated ledger read; never show fixture CLOUT as real.
+    : (rankingFixtures.find((r) => r.memberNumber === member.memberNumber)?.cloutTotal ?? 0);
 
   return (
     <Screen padded={false}>
@@ -57,7 +59,11 @@ export default function ProfileScreen() {
           </View>
         </View>
         <GoldRule />
-        <Text style={styles.body}>{founderGarageSeed.profile.bio}</Text>
+        <Text style={styles.body}>
+          {isLiveAuthConfigured()
+            ? 'Personal biography will appear after profile persistence is enabled.'
+            : founderGarageSeed.profile.bio}
+        </Text>
 
         <View style={styles.row}>
           <Stat label="FRIENDS" value="0" />
