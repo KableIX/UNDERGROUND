@@ -190,6 +190,16 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
                   : '⌖ WAITING FOR GPS FIX'}
           </Text>
         </Pressable>
+        {showTerritories ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Browse curated driving runs"
+            onPress={() => router.push('/runs')}
+            style={styles.runsButton}
+          >
+            <Text variant="caption" gold>VIEW ICONIC RUNS ↗</Text>
+          </Pressable>
+        ) : null}
         {showTerritories ? <View style={styles.districtModes}>
           <ModeChip
             label="SV"
@@ -294,6 +304,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(5,7,12,0.83)',
   },
   districtModes: { flexDirection: 'row', gap: 8 },
+  runsButton: {
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(198,176,139,0.13)',
+    borderWidth: 1,
+    borderColor: shell.accent,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
   locateButton: {
     alignSelf: 'flex-end',
     paddingHorizontal: 12,
