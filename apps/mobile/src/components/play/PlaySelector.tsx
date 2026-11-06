@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ImageBackground, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@underground/ui';
 import { curatedRuns, getCuratedEvents, type CuratedRun } from '../../data/curated-runs';
 import { shell } from '../../theme/shell';
@@ -16,6 +17,7 @@ const categories = ['RUN', 'CRUISE', 'TEST'] as const;
 
 export function PlaySelector() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [area, setArea] = useState<AreaKey>('peninsula-coast');
   const [category, setCategory] = useState<CuratedRun['category']>('RUN');
   const selected = areas.find(item => item.key === area) ?? areas[0];
@@ -38,9 +40,9 @@ export function PlaySelector() {
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 12) + 12 }]} showsVerticalScrollIndicator={false}>
         <Text style={styles.kicker}>UNDERGROUND / CALIFORNIA</Text>
-        <Text style={styles.heading} allowFontScaling>PLAY</Text>
+        <Text style={styles.heading}>PLAY</Text>
         <Text style={styles.subtitle}>Choose an area, then a drive.</Text>
 
         <Text style={styles.label}>AREA</Text>
@@ -76,19 +78,18 @@ export function PlaySelector() {
             accessibilityRole="button" accessibilityLabel={`View ${run.title}`}
             onPress={() => router.push({ pathname: '/runs/[slug]', params: { slug: run.slug } })}>
             <ImageBackground source={run.cover} style={styles.photo} imageStyle={styles.photoImage}>
-              <View style={styles.scrim} />
               <View style={styles.photoTop}>
                 <Text style={styles.runNo}>{run.category} {run.number}</Text>
                 <Text style={styles.draft}>DRAFT</Text>
               </View>
-              <View style={styles.photoBottom}>
-                <Text style={styles.runName} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7}>{run.title}</Text>
-                <Text style={styles.routeLocation}>{run.region.toUpperCase()}</Text>
-              </View>
             </ImageBackground>
-            <View style={styles.cardFooter}>
-              <Text style={styles.view}>VIEW DETAILS</Text>
-              <Text style={styles.arrow}>›</Text>
+            <View style={styles.cardCaption}>
+              <Text style={styles.runName} numberOfLines={2}>{run.title}</Text>
+              <Text style={styles.routeLocation}>{run.region.toUpperCase()}</Text>
+              <View style={styles.cardFooter}>
+                <Text style={styles.view}>VIEW DETAILS</Text>
+                <Text style={styles.arrow}>›</Text>
+              </View>
             </View>
           </Pressable>
         )) : (
@@ -132,16 +133,16 @@ const styles = StyleSheet.create({
   activeLabel: { color: '#F4F2ED', fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   unavailableDot: { backgroundColor: '#48423A', width: 4, height: 4, borderRadius: 2 },
   card: { borderWidth: 1, borderColor: '#48423A', backgroundColor: '#121314', marginBottom: 6 },
-  photo: { height: 194, justifyContent: 'space-between' },
-  photoImage: { opacity: 0.96 },
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.43)' },
-  photoTop: { padding: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  runNo: { fontFamily: 'BarlowCondensed_700Bold', letterSpacing: 1.7, fontSize: 17, color: '#FFFFFF' },
+  photo: { height: 188, justifyContent: 'flex-start' },
+  photoImage: { opacity: 1 },
+  cardCaption: { backgroundColor: '#111214', paddingHorizontal: 14, paddingTop: 13, paddingBottom: 2, gap: 4 },
+  photoTop: { padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  runNo: { fontFamily: 'Inter_600SemiBold', letterSpacing: 1.3, fontSize: 11, color: '#08090A', backgroundColor: '#D0B88F', paddingHorizontal: 10, paddingVertical: 6, overflow: 'hidden' },
   draft: { color: '#08090A', backgroundColor: '#D0B88F', paddingHorizontal: 9, paddingVertical: 5, fontFamily: 'Inter_600SemiBold', fontSize: 9 },
-  photoBottom: { padding: 15, gap: 5 },
-  runName: { color: '#FFFFFF', fontFamily: 'BarlowCondensed_700Bold', fontSize: 30, letterSpacing: 1.2, lineHeight: 32 },
+
+  runName: { color: '#FFFFFF', fontFamily: 'BarlowCondensed_700Bold', fontSize: 28, letterSpacing: 0.7, lineHeight: 34, flexShrink: 1 },
   routeLocation: { color: '#F4F2ED', fontFamily: 'Inter_500Medium', fontSize: 10, letterSpacing: 1.3 },
-  cardFooter: { paddingHorizontal: 15, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardFooter: { paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 3, borderTopWidth: 1, borderTopColor: '#363432' },
   view: { fontFamily: 'Inter_600SemiBold', color: '#D0B88F', letterSpacing: 1.8, fontSize: 10 },
   arrow: { color: '#D0B88F', fontSize: 24 },
   empty: { borderWidth: 1, borderColor: '#48423A', padding: 24, gap: 10 },
