@@ -1,11 +1,13 @@
 import { ImageBackground, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@underground/ui';
 import { getCuratedRun } from '../../src/data/curated-runs';
 import { shell } from '../../src/theme/shell';
 
 export default function RunDetailScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ slug: string }>();
   const run = getCuratedRun(params.slug ?? '');
 
@@ -25,7 +27,7 @@ export default function RunDetailScreen() {
       <Stack.Screen options={{ title: run.title, headerShown: false }} />
       <ImageBackground source={run.cover} style={styles.hero} resizeMode="cover">
         <View style={styles.scrim} />
-        <Pressable onPress={() => router.back()} style={styles.back} accessibilityRole="button">
+        <Pressable onPress={() => router.back()} style={[styles.back, { paddingTop: Math.max(insets.top, 14) + 10 }]} accessibilityRole="button">
           <Text variant="caption" style={styles.backLabel}>‹ ALL RUNS</Text>
         </Pressable>
         <View style={styles.heroCopy}>
