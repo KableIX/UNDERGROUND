@@ -1,4 +1,5 @@
 import type { ImageSourcePropType } from 'react-native';
+import { UNVERIFIED_SCREENING, type RunScreening } from './run-screening';
 
 export type CuratedRun = {
   slug: string;
@@ -7,6 +8,10 @@ export type CuratedRun = {
   territory: string;
   region: string;
   category: 'RUN' | 'CRUISE' | 'TEST';
+  /** Coastal RUNs take precedence; these are editorial candidates, not clearance claims. */
+  environment: 'COASTAL_HIGHWAY' | 'RIDGE' | 'COUNTRYSIDE' | 'URBAN' | 'DESTINATION';
+  /** Every criterion must pass before a RUN can be approved. */
+  screening: RunScreening;
   routeClass: 'CIRCUIT' | 'COASTAL' | 'RIDGE' | 'SCENIC';
   subtitle: string;
   sequence: readonly string[];
@@ -36,6 +41,8 @@ export const curatedRuns: readonly CuratedRun[] = [
     number: '01',
     title: 'NVIDIA CAMPUS LOOP',
     category: 'TEST',
+    environment: 'URBAN',
+    screening: UNVERIFIED_SCREENING,
     territory: 'Silicon Valley',
     region: 'Santa Clara, CA',
     routeClass: 'CIRCUIT',
@@ -58,6 +65,8 @@ export const curatedRuns: readonly CuratedRun[] = [
     number: '02',
     title: 'SKYLINE RIDGE RUN',
     category: 'RUN',
+    environment: 'RIDGE',
+    screening: UNVERIFIED_SCREENING,
     territory: 'Silicon Valley',
     region: 'San Mateo / Santa Cruz Mountains',
     routeClass: 'RIDGE',
@@ -80,6 +89,8 @@ export const curatedRuns: readonly CuratedRun[] = [
     number: '03',
     title: 'HALF MOON BAY COAST',
     category: 'RUN',
+    environment: 'COASTAL_HIGHWAY',
+    screening: UNVERIFIED_SCREENING,
     territory: 'Peninsula Coast',
     region: 'Pacifica / Half Moon Bay',
     routeClass: 'COASTAL',
@@ -102,6 +113,8 @@ export const curatedRuns: readonly CuratedRun[] = [
     number: '04',
     title: 'PESCADERO COASTAL RUN',
     category: 'RUN',
+    environment: 'COASTAL_HIGHWAY',
+    screening: UNVERIFIED_SCREENING,
     territory: 'Peninsula Coast',
     region: 'Half Moon Bay / Pescadero',
     routeClass: 'COASTAL',
@@ -124,6 +137,8 @@ export const curatedRuns: readonly CuratedRun[] = [
     number: '05',
     title: 'SILVERADO TRAIL',
     category: 'RUN',
+    environment: 'COUNTRYSIDE',
+    screening: UNVERIFIED_SCREENING,
     territory: 'Napa Valley',
     region: 'Napa / Calistoga',
     routeClass: 'SCENIC',
@@ -146,6 +161,8 @@ export const curatedRuns: readonly CuratedRun[] = [
     number: '06',
     title: '17-MILE DRIVE',
     category: 'CRUISE',
+    environment: 'DESTINATION',
+    screening: UNVERIFIED_SCREENING,
     territory: 'Monterey Peninsula',
     region: 'Pebble Beach / Pacific Grove',
     routeClass: 'SCENIC',
@@ -164,6 +181,20 @@ export const curatedRuns: readonly CuratedRun[] = [
     },
   },
 ];
+
+/** Editorial ordering: ocean-side highways first; test circuits never mingle with RUNs. */
+export function getCuratedEvents(category: CuratedRun['category']): CuratedRun[] {
+  const priority: Record<CuratedRun['environment'], number> = {
+    COASTAL_HIGHWAY: 0,
+    COUNTRYSIDE: 1,
+    RIDGE: 2,
+    DESTINATION: 3,
+    URBAN: 4,
+  };
+  return curatedRuns
+    .filter(run => run.category === category)
+    .sort((a, b) => priority[a.environment] - priority[b.environment] || Number(a.number) - Number(b.number));
+}
 
 export function getCuratedRun(slug: string): CuratedRun | undefined {
   return curatedRuns.find(run => run.slug === slug);

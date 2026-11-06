@@ -18,6 +18,14 @@ The catalog is accessed via **PLAY → VIEW ICONIC RUNS**. The photos and full-s
 
 **Photography:** Every event needs striking, location-accurate scenery. If a vehicle is prominent, it must be an accurate exotic supercar. Prefer authentic ocean vistas to mediocre generic-car imagery.
 
+## 1.0 editorial priority and release gate
+
+The RUNS filter opens first and sorts **COASTAL_HIGHWAY → COUNTRYSIDE → RIDGE**. The Half Moon Bay and Pescadero oceanside candidates come before Silverado Trail and Skyline. This is an editorial presentation order only, not a claim that a road is currently empty or supercar-safe.
+
+A RUN requires seven separate PASS results: legal road and turns, sustained flow, minimal pedestrian conflicts, low stop-and-go, supercar clearance, legal access/closures, and road-snapped GPS geometry. A missing assessment or failed criterion blocks approval. No preview event is currently approved. These are enforced by the catalog's `run-screening.ts` policy and tests; real capture remains independently disabled.
+
+CRUISES and TESTS are separate tabs. **Cannery Row never belongs in RUNS**; it remains a possible slow social CRUISE. 17-Mile Drive also remains a scenic CRUISE, while the NVIDIA campus circuit stays a TEST. Beautiful ocean imagery is the preferred RUN cover. The public road-speed limit remains the upper bound, never a target.
+
 ## Route-accuracy gates before capture
 
 For each run:

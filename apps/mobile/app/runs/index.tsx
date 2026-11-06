@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { ImageBackground, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Text } from '@underground/ui';
-import { curatedRuns, type CuratedRun } from '../../src/data/curated-runs';
+import { getCuratedEvents, type CuratedRun } from '../../src/data/curated-runs';
 import { shell } from '../../src/theme/shell';
 
 export default function RunCatalogScreen() {
   const router = useRouter();
   const [category, setCategory] = useState<'RUN' | 'CRUISE' | 'TEST'>('RUN');
-  const visibleRuns = curatedRuns.filter(run => run.category === category);
+  const visibleRuns = getCuratedEvents(category);
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <View style={styles.header}>
@@ -20,7 +20,7 @@ export default function RunCatalogScreen() {
       <Text style={styles.kicker}>THE DRIVING COLLECTION</Text>
       <Text style={styles.heading}>{category === 'RUN' ? 'ICONIC RUNS' : category === 'CRUISE' ? 'SCENIC CRUISES' : 'POC CIRCUITS'}</Text>
       <Text style={styles.description}>
-        {category === 'RUN' ? 'Long scenic routes with sustained legal flow, minimal pedestrian conflicts and suitable road surfaces.' : category === 'CRUISE' ? 'Low-speed scenic and social drives: presence and participation, not pace.' : 'Development-only circuits, separate from the public run catalog.'}
+        {category === 'RUN' ? 'Ocean-side highways come first. Only long, scenic, low-interruption road segments will qualify after traffic, pedestrian and low-clearance reviews.' : category === 'CRUISE' ? 'Slow scenic and social destinations. Potential participation CLOUT, never speed-based.' : 'Internal GPS and checkpoint validation only. Not public driving challenges.'}
         {' '}All events are draft concepts; clearance and geometry are unverified.
       </Text>
       <View style={styles.filters}>
