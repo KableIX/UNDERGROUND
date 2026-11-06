@@ -6,6 +6,7 @@ export type CuratedRun = {
   title: string;
   territory: string;
   region: string;
+  category: 'RUN' | 'CRUISE' | 'TEST';
   routeClass: 'CIRCUIT' | 'COASTAL' | 'RIDGE' | 'SCENIC';
   subtitle: string;
   sequence: readonly string[];
@@ -34,6 +35,7 @@ export const curatedRuns: readonly CuratedRun[] = [
     slug: 'nvidia-campus-loop',
     number: '01',
     title: 'NVIDIA CAMPUS LOOP',
+    category: 'TEST',
     territory: 'Silicon Valley',
     region: 'Santa Clara, CA',
     routeClass: 'CIRCUIT',
@@ -54,7 +56,8 @@ export const curatedRuns: readonly CuratedRun[] = [
   {
     slug: 'skyline-ridge-cruise',
     number: '02',
-    title: 'SKYLINE RIDGE CRUISE',
+    title: 'SKYLINE RIDGE RUN',
+    category: 'RUN',
     territory: 'Silicon Valley',
     region: 'San Mateo / Santa Cruz Mountains',
     routeClass: 'RIDGE',
@@ -76,6 +79,7 @@ export const curatedRuns: readonly CuratedRun[] = [
     slug: 'half-moon-bay-coast',
     number: '03',
     title: 'HALF MOON BAY COAST',
+    category: 'RUN',
     territory: 'Peninsula Coast',
     region: 'Pacifica / Half Moon Bay',
     routeClass: 'COASTAL',
@@ -97,6 +101,7 @@ export const curatedRuns: readonly CuratedRun[] = [
     slug: 'pescadero-coastal-run',
     number: '04',
     title: 'PESCADERO COASTAL RUN',
+    category: 'RUN',
     territory: 'Peninsula Coast',
     region: 'Half Moon Bay / Pescadero',
     routeClass: 'COASTAL',
@@ -118,6 +123,7 @@ export const curatedRuns: readonly CuratedRun[] = [
     slug: 'silverado-trail',
     number: '05',
     title: 'SILVERADO TRAIL',
+    category: 'RUN',
     territory: 'Napa Valley',
     region: 'Napa / Calistoga',
     routeClass: 'SCENIC',
@@ -139,6 +145,7 @@ export const curatedRuns: readonly CuratedRun[] = [
     slug: 'seventeen-mile-drive',
     number: '06',
     title: '17-MILE DRIVE',
+    category: 'CRUISE',
     territory: 'Monterey Peninsula',
     region: 'Pebble Beach / Pacific Grove',
     routeClass: 'SCENIC',

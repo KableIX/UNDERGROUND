@@ -17,12 +17,12 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const root = segments[0];
     const inAuth =
-      root === 'welcome' || root === 'login' || root === 'invite' || root === 'index' || !root;
+      root === 'welcome' || root === 'login' || root === 'invite' || String(root) === 'index' || !root;
     if (state.status === 'anonymous' && !inAuth) {
       router.replace('/welcome');
       return;
     }
-    if (state.status === 'authenticated' && (root === 'welcome' || root === 'login' || root === 'invite' || root === 'index')) {
+    if (state.status === 'authenticated' && (root === 'welcome' || root === 'login' || root === 'invite' || String(root) === 'index')) {
       router.replace('/(tabs)');
     }
   }, [state.status, segments, router]);

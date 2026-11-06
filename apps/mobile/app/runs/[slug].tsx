@@ -29,13 +29,14 @@ export default function RunDetailScreen() {
           <Text variant="caption" style={styles.backLabel}>‹ ALL RUNS</Text>
         </Pressable>
         <View style={styles.heroCopy}>
-          <Text style={styles.eyebrow}>RUN {run.number} · {run.routeClass}</Text>
+          <Text style={styles.eyebrow}>{run.category} {run.number} · {run.routeClass}</Text>
           <Text style={styles.title}>{run.title}</Text>
           <Text style={styles.location}>{run.territory.toUpperCase()} / {run.region.toUpperCase()}</Text>
         </View>
       </ImageBackground>
       <View style={styles.body}>
-        <Text style={styles.status}>DRAFT EVENT · ROUTE NOT GPS-VERIFIED</Text>
+        <Text style={styles.status}>DRAFT {run.category} · ROUTE NOT GPS-VERIFIED</Text>
+        <Text style={styles.note}>{run.category === 'RUN' ? 'A continuous scenic driving candidate, subject to traffic, pavement, pedestrian exposure and clearance review. Never a speed challenge.' : run.category === 'CRUISE' ? 'A scenic, slower social drive. CLOUT participation may be enabled after validation; no pace or speed scoring.' : 'Development test circuit only; not an open-road run or live territory claim.'}</Text>
         <Text style={styles.intro}>{run.subtitle}</Text>
         <Text style={styles.section}>PROPOSED ROUTE</Text>
         {run.sequence.map((segment, index) => (

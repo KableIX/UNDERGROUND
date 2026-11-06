@@ -8,6 +8,16 @@ The in-app event catalog is intentionally separate from the existing `TerritoryD
 
 The catalog is accessed via **PLAY → VIEW ICONIC RUNS**. The photos and full-screen event detail sheets take visual inspiration from early Need for Speed event selection—large scenic photography, minimal typography, prominent run numbers—not from its game assets.
 
+## Run, Cruise and Test categories
+
+**RUN:** Longer, scenic, flowing road segments, especially coastal highways. Require low pedestrian exposure, reasonable traffic, a suitable road surface and verified supercar clearance. All driving is within posted limits. Skyline and other mountain roads remain provisional pending inspection.
+
+**CRUISE:** Slower waterfront, social and sightseeing drives with stops and pedestrians. These may support CLOUT for verified participation after the system is implemented, but not time or speed ranking. Cannery Row is Cruise-only; 17-Mile Drive is a Cruise because it is an access-controlled sightseeing road.
+
+**TEST:** Development-only circuits for GPS validation. NVIDIA Campus Loop is a Test, not a public long-distance Run.
+
+**Photography:** Every event needs striking, location-accurate scenery. If a vehicle is prominent, it must be an accurate exotic supercar. Prefer authentic ocean vistas to mediocre generic-car imagery.
+
 ## Route-accuracy gates before capture
 
 For each run:

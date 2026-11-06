@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ImageBackground, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Text } from '@underground/ui';
@@ -6,6 +7,8 @@ import { shell } from '../../src/theme/shell';
 
 export default function RunCatalogScreen() {
   const router = useRouter();
+  const [category, setCategory] = useState<'RUN' | 'CRUISE' | 'TEST'>('RUN');
+  const visibleRuns = curatedRuns.filter(run => run.category === category);
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <View style={styles.header}>
@@ -15,13 +18,20 @@ export default function RunCatalogScreen() {
         <Text variant="caption" style={styles.counter}>UNDERGROUND / EVENTS</Text>
       </View>
       <Text style={styles.kicker}>THE DRIVING COLLECTION</Text>
-      <Text style={styles.heading}>ICONIC RUNS</Text>
+      <Text style={styles.heading}>{category === 'RUN' ? 'ICONIC RUNS' : category === 'CRUISE' ? 'SCENIC CRUISES' : 'POC CIRCUITS'}</Text>
       <Text style={styles.description}>
-        Curated roads. Real landscapes. Six initial event concepts for the 1.0 catalog.
-        Geometry and supercar-clearance reviews are pending; no live captures are enabled.
+        {category === 'RUN' ? 'Long scenic routes with sustained legal flow, minimal pedestrian conflicts and suitable road surfaces.' : category === 'CRUISE' ? 'Low-speed scenic and social drives: presence and participation, not pace.' : 'Development-only circuits, separate from the public run catalog.'}
+        {' '}All events are draft concepts; clearance and geometry are unverified.
       </Text>
+      <View style={styles.filters}>
+        {(['RUN', 'CRUISE', 'TEST'] as const).map(value => (
+          <Pressable key={value} onPress={() => setCategory(value)} style={[styles.filter, category === value && styles.filterActive]} accessibilityRole="button">
+            <Text variant="caption" style={category === value ? styles.filterSelected : styles.filterMuted}>{value === 'TEST' ? 'POC TEST' : `${value}S`}</Text>
+          </Pressable>
+        ))}
+      </View>
       <View style={styles.cards}>
-        {curatedRuns.map(run => (
+        {visibleRuns.map(run => (
           <RunEventCard
             key={run.slug}
             run={run}
@@ -47,7 +57,7 @@ export function RunEventCard({ run, onPress }: { run: CuratedRun; onPress: () =>
       <ImageBackground source={run.cover} resizeMode="cover" style={styles.cover} imageStyle={styles.coverImage}>
         <View style={styles.scrim} />
         <View style={styles.top}>
-          <Text style={styles.runNumber}>RUN / {run.number}</Text>
+          <Text style={styles.runNumber}>{run.category === 'TEST' ? 'TEST' : run.category} / {run.number}</Text>
           <Text style={styles.draft}>DRAFT · PREVIEW</Text>
         </View>
         <View style={styles.heroText}>
@@ -73,6 +83,11 @@ const styles = StyleSheet.create({
   kicker: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 4, color: shell.accent },
   heading: { fontFamily: 'BarlowCondensed_700Bold', fontSize: 48, color: '#F4F2ED', letterSpacing: 3 },
   description: { fontFamily: 'Inter_400Regular', color: shell.muted, fontSize: 12, lineHeight: 20, marginBottom: 12 },
+  filters: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  filter: { flex: 1, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#48423A' },
+  filterActive: { backgroundColor: '#D0B88F', borderColor: '#D0B88F' },
+  filterSelected: { color: '#08090A', fontFamily: 'Inter_600SemiBold' },
+  filterMuted: { color: '#B7B7B8' },
   cards: { gap: 16 },
   card: { borderWidth: 1, borderColor: 'rgba(198,176,139,0.45)', backgroundColor: '#121314', overflow: 'hidden' },
   cover: { height: 235, justifyContent: 'space-between' },
