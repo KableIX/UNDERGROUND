@@ -24,6 +24,10 @@ export type CuratedRun = {
 /** Curated event candidates, not accepted GPS territory geometries.
  * We must not synthesize road polylines from landmark/corner labels.
  * Every published card has its own site-specific, credited photograph.
+ * For any future event art prominently featuring a car: only verified exotic
+ * supercars/hypercars (R8, Lamborghini, Ferrari, Carrera GT/911 GT, McLaren,
+ * etc.). Never feature ordinary vehicles as the hero. Landscapes are preferred
+ * to inaccurate vehicle imagery. See docs/CURATED_RUNS.md.
  */
 export const curatedRuns: readonly CuratedRun[] = [
   {

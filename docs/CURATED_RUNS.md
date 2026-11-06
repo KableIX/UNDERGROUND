@@ -22,6 +22,16 @@ For each run:
 
 For the NVIDIA loop the user-defined **street order** is **Scott Boulevard → San Tomas Expressway → Walsh Avenue → Bowers Avenue → Scott Boulevard**. This is a sequencing requirement, not yet proof of allowable turns and exact geometry.
 
+## Vehicle imagery rule — required for every run
+
+- Preserve location-first, accurate scenic photographs such as the NVIDIA headquarters image; a visible vehicle is not required.
+- **If any vehicle is prominently visible in UNDERGROUND-controlled event imagery, it must be an identifiable exotic supercar or hypercar.** Suitable examples include Audi R8 V10, Lamborghini Huracán/Aventador, Ferrari V8/V12 models, Porsche Carrera GT/911 GT variants, and McLaren supercars.
+- Do **not** feature ordinary commuter cars, SUVs, pickup trucks, generic sports sedans, or unrelated production cars as the hero vehicle. Prefer an unobstructed landscape over a photograph with the wrong foreground vehicle.
+- Before adding or replacing art, visually review every visible foreground vehicle and confirm its model, plausibility, and period accuracy. If classification is uncertain, reject or crop the car out; never label an unverified car a supercar.
+- Background traffic that is incidental to an authentic location photograph should not be misrepresented as featured vehicles. For tightly controlled promotional composites, avoid prominently visible ordinary vehicles entirely.
+- Don't manipulate location photography to imply that a supercar was present or a specific run was driven. Any AI-rendered or composited visual should be marked as illustrative and still depict physically accurate exotic models.
+- Maintain image provenance, licensing and attribution on every event detail page. NVIDIA Campus Loop's approved location image should be retained unless deliberately replaced.
+
 ## Photo assets and attribution
 
 All six photos were sourced individually from Wikimedia Commons, resized and center-cropped to 1200 × 675 JPEG event art. The displayed events are **not official endorsements** from NVIDIA, Pebble Beach or any other entity.
