@@ -269,6 +269,7 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
         previewMessage={previewMessage}
         onProdChallenge={onProdChallenge}
         onSimCapture={onSimCapture}
+        onBrowseRuns={() => router.push('/runs')}
       /> : null}
     </View>
   );

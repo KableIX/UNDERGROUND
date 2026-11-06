@@ -71,6 +71,7 @@ function RootNavigator() {
         {/* Trip History standalone stack — see docs/TRIP_HISTORY_NAV_INTEGRATION.md */}
         <Stack.Screen name="trips" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="runs" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="conquests" options={{ headerShown: false, animation: 'slide_from_right' }} />
       </Stack>
     </AuthGate>
   );

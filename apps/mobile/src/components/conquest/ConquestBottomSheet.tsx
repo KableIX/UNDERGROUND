@@ -21,6 +21,7 @@ type Props = {
   previewMessage: string;
   onProdChallenge: () => void;
   onSimCapture: () => void;
+  onBrowseRuns: () => void;
   collapsedHint?: string;
 };
 
@@ -37,6 +38,7 @@ export function ConquestBottomSheet({
   previewMessage,
   onProdChallenge,
   onSimCapture,
+  onBrowseRuns,
   collapsedHint = 'Pull up for command',
 }: Props) {
   const insets = useSafeAreaInsets();
@@ -56,6 +58,15 @@ export function ConquestBottomSheet({
             {territory?.name ?? collapsedHint}
           </Text>
         ) : null}
+      </Pressable>
+
+      <Pressable
+        onPress={onBrowseRuns}
+        accessibilityRole="button"
+        accessibilityLabel="Browse scenic runs and cruises"
+        style={styles.browseButton}
+      >
+        <Text variant="caption" style={styles.browseText}>BROWSE RUNS & CRUISES</Text>
       </Pressable>
 
       {expanded ? (
@@ -142,6 +153,20 @@ const styles = StyleSheet.create({
   hint: {
     marginTop: 8,
     color: shell.muted,
+  },
+  browseButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    backgroundColor: '#D0B88F',
+    borderWidth: 1,
+    borderColor: '#D0B88F',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  browseText: {
+    color: '#08090A',
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 1.8,
   },
   body: {
     paddingBottom: 8,
