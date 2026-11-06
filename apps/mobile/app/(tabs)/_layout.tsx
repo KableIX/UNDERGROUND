@@ -71,7 +71,7 @@ export default function TabsLayout() {
         name="conquest"
         options={{
           title: 'PLAY',
-          headerTitle: 'TERRITORY CONQUEST',
+          headerTitle: 'PLAY',
           tabBarAccessibilityLabel: 'Play: capture territories',
         }}
       />
