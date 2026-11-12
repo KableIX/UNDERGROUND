@@ -8,12 +8,38 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
-from pydantic import Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictBool, field_validator
 from starlette.responses import Response
 
-STORY_ID_PATTERN = r"^[A-Za-z0-9_-][A-Za-z0-9_.:-]*(/[A-Za-z0-9_-][A-Za-z0-9_.:-]*)*$"
-StoryId = Annotated[str, Field(pattern=STORY_ID_PATTERN, min_length=1, max_length=256)]
-Story = dict[str, Any]
+STORY_ID_PATTERN = r"^[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)*$"
+StoryId = Annotated[str, Field(pattern=STORY_ID_PATTERN, min_length=1, max_length=160)]
+Row = dict[str, Any]
+
+
+class Story(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    headline: str = Field(min_length=1, max_length=160)
+    body: str = Field(min_length=1, max_length=4000)
+    action_label: str = Field(min_length=1, max_length=80)
+    source_url: str = Field(min_length=1, max_length=2048)
+    verified_at: AwareDatetime
+    expires_at: AwareDatetime
+    withdrawn: StrictBool
+
+    @field_validator("verified_at", "expires_at", mode="before")
+    @classmethod
+    def iso_timestamp(cls, value):
+        if not isinstance(value, str) or "T" not in value:
+            raise ValueError("Use an ISO 8601 timestamp with a time zone.")
+        return value
+
+    @field_validator("source_url")
+    @classmethod
+    def https_source(cls, value):
+        parts = urlsplit(value)
+        if parts.scheme != "https" or not parts.hostname or parts.username is not None or parts.password is not None:
+            raise ValueError("The source must be an HTTPS link without credentials.")
+        return value
 
 
 def origin(value: str, *, local_api: bool = False) -> str:
@@ -33,7 +59,7 @@ class EditorialAPI:
         self.headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
         self.transport = transport
 
-    async def request(self, method: str, story_id: str, story: Story | None = None):
+    async def request(self, method: str, story_id: str, story: Row | None = None):
         # Encode the entire stable ID as one path component, including any organizer slash.
         url = f"{self.base}/v1/newswire/editorial/{quote(story_id, safe='')}"
         try:
@@ -52,8 +78,8 @@ class EditorialAPI:
             raise ValueError(f"Beta {method} returned invalid JSON.") from None
         if not isinstance(value, dict) or value.get("ok") is False or not value:
             raise ValueError(f"Beta {method} did not return a successful editorial record.")
-        if method == "GET" and set(value) == {"ok"}:
-            raise ValueError("Beta GET returned an acknowledgment without a story.")
+        if method == "GET" and value.get("story_id") != story_id:
+            raise ValueError("Beta GET returned an unexpected story ID.")
         return value
 
 
@@ -77,21 +103,22 @@ def create_app(public_origin: str, api: EditorialAPI, connector_token: str):
     )
 
     @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False))
-    async def read_story(story_id: StoryId) -> Story:
+    async def read_story(story_id: StoryId) -> Row:
         """Read the beta editorial record stored under this exact stable ID."""
         return await api.request("GET", story_id)
 
     @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=True, destructiveHint=True))
-    async def put_story(story_id: StoryId, story: Story) -> Story:
+    async def put_story(story_id: StoryId, story: Story) -> Row:
         """Create, correct or withdraw one story using the beta editorial PUT body.
         Use the deployed API's field names and lifecycle values. Reuse the exact ID
         and body for retries. Returns the GET response for comparison to this revision.
         """
-        if not story:
-            raise ValueError("Supply the editorial record.")
-        await api.request("PUT", story_id, story)
+        await api.request("PUT", story_id, story.model_dump(mode="json"))
         try:
             stored = await api.request("GET", story_id)
+            revision = Story.model_validate({field: stored.get(field) for field in Story.model_fields})
+            if revision != story:
+                raise ValueError("The stored revision differs from this write.")
         except ValueError as exc:
             raise ValueError(f"Beta accepted the write. Read-back failed: {exc} "
                              "Retry read_story with the same ID.") from None

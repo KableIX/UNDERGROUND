@@ -7,7 +7,7 @@ This service exposes two MCP tools at `/mcp`. Both operate on one beta editorial
 | `read_story(story_id)` | GET the stored editorial record by stable ID. |
 | `put_story(story_id, story)` | PUT the full editorial record and immediately GET the same ID. Returns the stored record in `readBack`. |
 
-Use the deployed beta API's editorial request body for `story`, including its original verification timestamp. Corrections and withdrawals use the same ID. The beta API owns field validation, lifecycle rules, and stale-write detection. Grok should compare the returned record's content and revision with the intended change before marking delivery in its checkpoint. A conflict or uncertain result calls for reading the same ID. The connector has no scheduling, database, run-capture or notification tools.
+The seven `story` fields are `headline`, `body`, `action_label`, `source_url`, `verified_at`, `expires_at`, and `withdrawn`. Use ISO 8601 timestamps with an offset and keep the original verification time on retries. Corrections and withdrawals use the same ID. The beta API owns field validation, lifecycle rules, and stale-write detection. Grok should compare the returned record's content and revision with the intended change before marking delivery in its checkpoint. A conflict or uncertain result calls for reading the same ID. The connector has no scheduling, database, run-capture or notification tools.
 
 ## Run on the beta host
 
@@ -40,4 +40,4 @@ Route HTTPS `/mcp` on the configured public origin to that listener. Preserve th
 
 In Grok Bot, select **Connect apps → Add a custom connector → Remote HTTPS**. Enter the public origin followed by `/mcp`. Add an `Authorization` header whose value is `Bearer` followed by a space and the connector credential. Attach **UNDERGROUND Beta Newswire** to the existing scout routine. [Grok Bot connector settings](https://docs.x.ai/grok-bot/computer-and-apps)
 
-For acceptance, discover the two tools from Grok, write one owner-visible beta test record using the beta API's documented visibility, read it, then correct it under the same stable ID. Verify the stored revision and single record in the beta UI. Use the beta lifecycle to withdraw the test story. A successful tool listing alone verifies only the Grok-to-connector connection.
+For a private connectivity test, set `withdrawn: true` on every write. Discover the two tools from Grok, create a withdrawn test story, read it, then correct it under the same stable ID with a later verification time. Verify the corrected body and the original publication time. The beta API exposes active, unexpired stories to members. A successful tool listing alone verifies only the Grok-to-connector connection.
