@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import type { ReportedAlpr } from '../../lib/alpr';
 import type { TerritoryDefinition } from '@underground/domain';
 import { Text } from '@underground/ui';
 import { publicEnv } from '../../lib/env';
@@ -28,6 +29,8 @@ type Props = {
   showUserLocation?: boolean;
   userPosition?: { longitude: number; latitude: number; accuracyM: number | null } | null;
   cameraRevision?: number;
+  reportedAlpr?: ReportedAlpr[];
+  onViewportChange?: (position:{latitude:number;longitude:number}) => void;
 };
 
 type LoadState =
@@ -64,6 +67,8 @@ export function MapboxTerritoryMap({
   showUserLocation = false,
   userPosition = null,
   cameraRevision = 0,
+  reportedAlpr = [],
+  onViewportChange,
 }: Props) {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
   const [MapboxMod, setMapboxMod] = useState<MapboxMod | null>(null);
@@ -141,6 +146,8 @@ export function MapboxTerritoryMap({
         showUserLocation={showUserLocation}
         userPosition={userPosition}
         cameraRevision={cameraRevision}
+        reportedAlpr={reportedAlpr}
+        onViewportChange={onViewportChange}
       />
     );
   }
@@ -158,6 +165,8 @@ export function MapboxTerritoryMap({
         showUserLocation={showUserLocation}
         userPosition={userPosition}
         cameraRevision={cameraRevision}
+        reportedAlpr={reportedAlpr}
+        onViewportChange={onViewportChange}
       />
     );
   }
@@ -173,6 +182,10 @@ export function MapboxTerritoryMap({
         logoEnabled={false}
         attributionEnabled
         compassEnabled
+        onMapIdle={(event: {properties?: {center?: number[]}}) => {
+          const center = event.properties?.center;
+          if (center?.length === 2 && Number.isFinite(center[0]) && Number.isFinite(center[1])) onViewportChange?.({longitude:center[0],latitude:center[1]});
+        }}
         scaleBarEnabled={false}
         onPress={(event: { features?: Array<{ properties?: { slug?: string } }> }) => {
           const slug = event?.features?.[0]?.properties?.slug;
@@ -187,6 +200,11 @@ export function MapboxTerritoryMap({
           animationDuration={600}
         />
         {showUserLocation && UserLocation ? <UserLocation visible /> : null}
+        {reportedAlpr.length ? <ShapeSource id="reported-alpr" shape={{type:'FeatureCollection',features:reportedAlpr.map(item => ({type:'Feature',properties:{id:item.id,manufacturer:item.manufacturer || 'Unknown'},geometry:{type:'Point',coordinates:[item.longitude,item.latitude]}}))}}
+          onPress={(event: {features?: Array<{properties?: {manufacturer?: string}}>}) => Alert.alert('Reported plate reader', `Manufacturer: ${event.features?.[0]?.properties?.manufacturer || 'Unknown'}. Noise enforcement is unknown. Location from OpenStreetMap; may be incomplete or outdated.`)}>
+          <CircleLayer id="reported-alpr-points" style={{circleRadius:7,circleColor:'#ff9d38',circleStrokeWidth:2,circleStrokeColor:'#1c120a'}} />
+        </ShapeSource> : null}
+
         {showTerritories ? <ShapeSource
           id="territories"
           shape={collection}

@@ -20,6 +20,7 @@ import { appendSimNewswireStory, runSimCaptureWorkflow } from '../lib/sim-workfl
 import { shell } from '../theme/shell';
 import { useForegroundDrive } from '../lib/foreground-drive';
 import { useMapLocation } from '../lib/use-map-location';
+import { fetchAlpr, alprBounds, type ReportedAlpr } from '../lib/alpr';
 
 type MapMode = 'explore' | 'drive' | 'conquest';
 type Track = 'solo' | 'club';
@@ -37,6 +38,10 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
   const mapLocation = useMapLocation();
   const [focusedCamera, setFocusedCamera] = useState<{ longitude: number; latitude: number; zoom: number } | null>(null);
   const [cameraRevision, setCameraRevision] = useState(0);
+  const [showAlpr, setShowAlpr] = useState(false);
+  const [alpr, setAlpr] = useState<ReportedAlpr[]>([]);
+  const [alprStatus, setAlprStatus] = useState('');
+  const [mapViewport, setMapViewport] = useState<{latitude:number;longitude:number} | null>(null);
   const centeredOnFirstFix = useRef(false);
   const [mapMode, setMapMode] = useState<MapMode>(initialMode);
   const [district, setDistrict] = useState<DistrictMode>('silicon-valley-dev');
@@ -59,6 +64,23 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
   const districtCamera = isDevDistrict ? SV_LANDMARK_CAMERA : MONTEREY_LANDMARK_CAMERA;
   const camera = focusedCamera ?? districtCamera;
   const showTerritories = mapMode === 'conquest';
+  // Fetch only when enabled or the coarse location tile changes; do not send precise GPS.
+  const alprTile = useMemo(() => {
+    try { return alprBounds(mapViewport?.latitude ?? camera.latitude, mapViewport?.longitude ?? camera.longitude).join(','); } catch { return ''; }
+  }, [camera.latitude, camera.longitude, mapViewport]);
+  useEffect(() => {
+    if (!showAlpr) { setAlpr([]); setAlprStatus(''); return; }
+    if (!alprTile) { setAlpr([]); setAlprStatus('Camera data unavailable for this area.'); return; }
+    const abort = new AbortController();
+    setAlpr([]); setAlprStatus('Loading reported plate readers...');
+    const timeout = setTimeout(() => { abort.abort(); setAlprStatus('Camera data timed out. Retry by toggling the layer.'); }, 15000);
+    const [south,west,north,east] = alprTile.split(',').map(Number);
+    void fetchAlpr((south+north)/2, (west+east)/2, abort.signal).then(rows => {
+      clearTimeout(timeout); if (!abort.signal.aborted) { setAlpr(rows); setAlprStatus(`${rows.length} reported plate readers nearby. Noise enforcement unknown. © OpenStreetMap contributors`); }
+    }).catch(() => { clearTimeout(timeout); if (!abort.signal.aborted) setAlprStatus('Camera data unavailable. Retry by toggling the layer.'); });
+    return () => { clearTimeout(timeout); abort.abort(); };
+  }, [showAlpr, alprTile]);
+
 
   // Center once after the first foreground GPS fix; never snap back while panning.
   useEffect(() => {
@@ -225,6 +247,8 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
           showUserLocation={mapLocation.status === 'granted'}
           userPosition={mapLocation.position}
           cameraRevision={cameraRevision}
+          reportedAlpr={alpr}
+          onViewportChange={setMapViewport}
           badge={
             mapMode === 'explore' ? 'EXPLORE · WORLD MAP'
               : mapMode === 'drive' ? 'DRIVE · PRIVATE GPS'
@@ -234,6 +258,12 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
         />
       </View>
 
+      <View style={{position:'absolute', right:12, top:180, maxWidth:230, backgroundColor:'rgba(5,7,12,0.93)', padding:8, borderRadius:8}}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Toggle reported plate reader cameras" accessibilityState={{checked:showAlpr}} onPress={() => setShowAlpr(v => !v)}>
+          <Text variant="caption" gold>{showAlpr ? 'PLATE READERS ON' : 'SHOW PLATE READERS'}</Text>
+        </Pressable>
+        {showAlpr ? <Text style={{color:'#ddd',fontSize:10,marginTop:5}}>{alprStatus}</Text> : null}
+      </View>
       {mapMode === 'explore' ? (
         <View style={styles.modePanel}>
           <Text variant="caption" gold>EXPLORE · FULL WORLD MAP</Text>

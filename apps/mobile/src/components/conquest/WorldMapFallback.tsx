@@ -5,6 +5,7 @@ import { Text } from '@underground/ui';
 import { probeReactNativeMapsModule } from '../../lib/native-module-probe';
 import { shell } from '../../theme/shell';
 import { TacticalMapPlane } from '../TacticalMapPlane';
+import type { ReportedAlpr } from '../../lib/alpr';
 
 type Camera = { longitude: number; latitude: number; zoom: number };
 type Props = {
@@ -18,6 +19,8 @@ type Props = {
   showUserLocation: boolean;
   userPosition: { longitude: number; latitude: number; accuracyM: number | null } | null;
   cameraRevision: number;
+  reportedAlpr: ReportedAlpr[];
+  onViewportChange?: (position:{latitude:number;longitude:number}) => void;
 };
 
 type MapsModule = {
@@ -35,7 +38,7 @@ type MapsModule = {
  */
 export function WorldMapFallback({
   territories, selectedSlug, onSelect, camera, badge, showTerritories, followUser,
-  showUserLocation, userPosition, cameraRevision,
+  showUserLocation, userPosition, cameraRevision, reportedAlpr, onViewportChange,
 }: Props) {
   const [maps, setMaps] = useState<MapsModule | null>(null);
   const [nativeMissing, setNativeMissing] = useState(false);
@@ -104,6 +107,7 @@ export function WorldMapFallback({
         style={StyleSheet.absoluteFill}
         provider={provider}
         initialRegion={region}
+        onRegionChangeComplete={(value: {latitude:number;longitude:number}) => onViewportChange?.({latitude:value.latitude,longitude:value.longitude})}
         showsUserLocation={showUserLocation}
         followsUserLocation={followUser}
         showsMyLocationButton={false}
@@ -115,6 +119,7 @@ export function WorldMapFallback({
         zoomEnabled
         accessibilityLabel="UNDERGROUND full geographic road map"
       >
+        {reportedAlpr.map(item => <Marker key={item.id} identifier={item.id} coordinate={{latitude:item.latitude,longitude:item.longitude}} title="Reported plate reader" description={`Manufacturer: ${item.manufacturer || 'Unknown'}. Noise enforcement unknown. © OpenStreetMap contributors.`} pinColor="#ff9d38" />)}
         {showUserLocation && userPosition ? (
           <Marker
             identifier="underground-live-position"
