@@ -30,3 +30,4 @@ export * from './top8';
 export * from './capture-workflow';
 export * from './authz';
 export * from './trip';
+export * from './radar';

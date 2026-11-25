@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import type { TerritoryDefinition } from '@underground/domain';
+import type { ClubRadarReport, TerritoryDefinition } from '@underground/domain';
 import { Text } from '@underground/ui';
 import { publicEnv } from '../../lib/env';
 import {
@@ -17,6 +17,8 @@ import { WorldMapFallback } from './WorldMapFallback';
 type Camera = { longitude: number; latitude: number; zoom: number };
 
 type Props = {
+  radarReports?: ClubRadarReport[];
+  onRadarReportPress?: () => void;
   territories: TerritoryDefinition[];
   selectedSlug: string | null;
   onSelect: (slug: string) => void;
@@ -64,6 +66,8 @@ export function MapboxTerritoryMap({
   showUserLocation = false,
   userPosition = null,
   cameraRevision = 0,
+  radarReports = [],
+  onRadarReportPress,
 }: Props) {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
   const [MapboxMod, setMapboxMod] = useState<MapboxMod | null>(null);
@@ -131,6 +135,8 @@ export function MapboxTerritoryMap({
     // the native map width to zero and leave the user with a blank screen.
     return (
       <WorldMapFallback
+        radarReports={radarReports}
+        onRadarReportPress={onRadarReportPress}
         territories={territories}
         selectedSlug={selectedSlug}
         onSelect={onSelect}
@@ -148,6 +154,8 @@ export function MapboxTerritoryMap({
   if (load.status === 'fallback' || !MapboxMod) {
     return (
       <WorldMapFallback
+        radarReports={radarReports}
+        onRadarReportPress={onRadarReportPress}
         territories={territories}
         selectedSlug={selectedSlug}
         onSelect={onSelect}
@@ -187,6 +195,11 @@ export function MapboxTerritoryMap({
           animationDuration={600}
         />
         {showUserLocation && UserLocation ? <UserLocation visible /> : null}
+        <ShapeSource id="club-radar-reports" onPress={onRadarReportPress} shape={{ type: 'FeatureCollection', features: radarReports.map(r => ({
+          type: 'Feature', properties: { kind: r.kind }, geometry: { type: 'Point', coordinates: [r.longitude, r.latitude] },
+        })) }}>
+          <CircleLayer id="club-radar-pins" style={{ circleRadius: 8, circleColor: ['match', ['get', 'kind'], 'police_visual', '#ed8fff', '#ffbb66'], circleStrokeWidth: 2, circleStrokeColor: '#05070C' }} />
+        </ShapeSource>
         {showTerritories ? <ShapeSource
           id="territories"
           shape={collection}
