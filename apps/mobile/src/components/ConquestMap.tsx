@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useRadar } from '../radar/RadarContext';
+import { RadarMapStatus } from '../radar/RadarMapStatus';
 import { buildSimGpsReplay, checkpointsAlongReplay } from '@underground/territory-engine';
 import { Text } from '@underground/ui';
 import { ConquestBottomSheet } from './conquest/ConquestBottomSheet';
@@ -33,6 +35,7 @@ type DistrictMode = 'monterey' | 'silicon-valley-dev';
 export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMode }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const radar = useRadar();
   const drive = useForegroundDrive();
   const mapLocation = useMapLocation();
   const [focusedCamera, setFocusedCamera] = useState<{ longitude: number; latitude: number; zoom: number } | null>(null);
@@ -214,8 +217,11 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
         </View> : null}
       </View>
 
+      <RadarMapStatus />
       <View style={styles.map}>
         <MapboxTerritoryMap
+          radarReports={radar.nearby}
+          onRadarReportPress={() => router.push('/radar')}
           territories={territories}
           selectedSlug={selectedSlug}
           onSelect={setSelectedSlug}

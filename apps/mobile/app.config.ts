@@ -43,6 +43,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       'expo-file-system',
       'expo-image-picker',
       'expo-sqlite',
+      ['react-native-ble-plx', {
+        isBackgroundEnabled: false,
+        bluetoothAlwaysPermission: 'UNDERGROUND connects to the radar detector you choose and displays its alerts during your radar session.',
+      }],
       ['expo-location', {
         locationWhenInUsePermission: 'UNDERGROUND uses your location to show your position on the map and, when you choose Start Drive, record your trip.',
         // Foreground tracking first — do not silently enable background GPS here.

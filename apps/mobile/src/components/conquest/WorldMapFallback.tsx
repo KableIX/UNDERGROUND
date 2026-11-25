@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { StyleSheet, View } from 'react-native';
-import type { TerritoryDefinition } from '@underground/domain';
+import { radarReportLabel, type ClubRadarReport, type TerritoryDefinition } from '@underground/domain';
 import { Text } from '@underground/ui';
 import { probeReactNativeMapsModule } from '../../lib/native-module-probe';
 import { shell } from '../../theme/shell';
@@ -8,6 +8,8 @@ import { TacticalMapPlane } from '../TacticalMapPlane';
 
 type Camera = { longitude: number; latitude: number; zoom: number };
 type Props = {
+  radarReports?: ClubRadarReport[];
+  onRadarReportPress?: () => void;
   territories: TerritoryDefinition[];
   selectedSlug: string | null;
   onSelect: (slug: string) => void;
@@ -36,6 +38,8 @@ type MapsModule = {
 export function WorldMapFallback({
   territories, selectedSlug, onSelect, camera, badge, showTerritories, followUser,
   showUserLocation, userPosition, cameraRevision,
+  radarReports = [],
+  onRadarReportPress,
 }: Props) {
   const [maps, setMaps] = useState<MapsModule | null>(null);
   const [nativeMissing, setNativeMissing] = useState(false);
@@ -115,6 +119,14 @@ export function WorldMapFallback({
         zoomEnabled
         accessibilityLabel="UNDERGROUND full geographic road map"
       >
+        {radarReports.map(report => <Marker
+          key={`radar-${report.id}`}
+          onPress={onRadarReportPress}
+          coordinate={{ latitude: report.latitude, longitude: report.longitude }}
+          title={radarReportLabel(report)}
+          description="Member observation location · not the source’s exact position"
+          pinColor={report.kind === 'police_visual' ? '#ed8fff' : '#ffbb66'}
+        />)}
         {showUserLocation && userPosition ? (
           <Marker
             identifier="underground-live-position"
