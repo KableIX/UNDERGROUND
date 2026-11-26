@@ -1,0 +1,230 @@
+[
+  {
+    "index": 0,
+    "instruction": "Drive southeast on Crestbrook Drive."
+  },
+  {
+    "index": 5,
+    "instruction": "Turn left onto Saratoga Avenue."
+  },
+  {
+    "index": 14,
+    "instruction": "Turn right onto Fruitvale Avenue."
+  },
+  {
+    "index": 97,
+    "instruction": "Turn left onto Saratoga-Los Gatos Road/CA 9."
+  },
+  {
+    "index": 225,
+    "instruction": "Turn left onto Los Gatos Boulevard."
+  },
+  {
+    "index": 238,
+    "instruction": "Turn right onto Kennedy Road."
+  },
+  {
+    "index": 275,
+    "instruction": "Bear right to stay on Kennedy Road."
+  },
+  {
+    "index": 352,
+    "instruction": "Bear right to stay on Kennedy Road."
+  },
+  {
+    "index": 396,
+    "instruction": "Turn left to stay on Kennedy Road."
+  },
+  {
+    "index": 471,
+    "instruction": "Turn left to stay on Kennedy Road."
+  },
+  {
+    "index": 527,
+    "instruction": "Turn right onto Shannon Road."
+  },
+  {
+    "index": 565,
+    "instruction": "Turn right onto Hicks Road."
+  },
+  {
+    "index": 881,
+    "instruction": "Your destination is on the left."
+  },
+  {
+    "index": 881,
+    "instruction": "Drive southeast on Hicks Road."
+  },
+  {
+    "index": 1111,
+    "instruction": "Turn left onto Alamitos Road."
+  },
+  {
+    "index": 1190,
+    "instruction": "Stay straight to take the ramp."
+  },
+  {
+    "index": 1299,
+    "instruction": "Turn right onto McKean Road."
+  },
+  {
+    "index": 1328,
+    "instruction": "Turn right onto McKean Road/CR G8."
+  },
+  {
+    "index": 1441,
+    "instruction": "Turn left onto Bailey Avenue."
+  },
+  {
+    "index": 1501,
+    "instruction": "You have arrived at your destination."
+  },
+  {
+    "index": 1501,
+    "instruction": "Drive southwest on Bailey Avenue."
+  },
+  {
+    "index": 1561,
+    "instruction": "Turn left onto McKean Road/CR G8."
+  },
+  {
+    "index": 1639,
+    "instruction": "You have arrived at your destination."
+  },
+  {
+    "index": 1639,
+    "instruction": "Drive southeast on McKean Road/CR G8. Continue on CR G8."
+  },
+  {
+    "index": 1824,
+    "instruction": "You have arrived at your destination."
+  },
+  {
+    "index": 1824,
+    "instruction": "Drive northwest on Uvas Road/CR G8."
+  },
+  {
+    "index": 1952,
+    "instruction": "Turn right onto Oak Glen Avenue."
+  },
+  {
+    "index": 2021,
+    "instruction": "Turn left onto Willow Springs Road."
+  },
+  {
+    "index": 2136,
+    "instruction": "Turn left to stay on Willow Springs Road."
+  },
+  {
+    "index": 2139,
+    "instruction": "Turn right onto Hale Avenue."
+  },
+  {
+    "index": 2241,
+    "instruction": "Turn left onto West Main Avenue."
+  },
+  {
+    "index": 2261,
+    "instruction": "Your destination is on the left."
+  },
+  {
+    "index": 2261,
+    "instruction": "Drive southwest on East Main Avenue."
+  },
+  {
+    "index": 2263,
+    "instruction": "Turn right onto Monterey Road."
+  },
+  {
+    "index": 2491,
+    "instruction": "Turn right onto Metcalf Road."
+  },
+  {
+    "index": 2622,
+    "instruction": "Turn right."
+  },
+  {
+    "index": 2625,
+    "instruction": "Bear right."
+  },
+  {
+    "index": 2626,
+    "instruction": "Turn left."
+  },
+  {
+    "index": 2627,
+    "instruction": "Turn left."
+  },
+  {
+    "index": 2628,
+    "instruction": "Turn left."
+  },
+  {
+    "index": 2631,
+    "instruction": "Your destination is on the left."
+  },
+  {
+    "index": 2631,
+    "instruction": "Drive west."
+  },
+  {
+    "index": 2632,
+    "instruction": "Turn right."
+  },
+  {
+    "index": 2635,
+    "instruction": "Turn right onto Metcalf Road."
+  },
+  {
+    "index": 2736,
+    "instruction": "Bear left onto San Felipe Road."
+  },
+  {
+    "index": 2768,
+    "instruction": "You have arrived at your destination."
+  },
+  {
+    "index": 2768,
+    "instruction": "Drive west on San Felipe Road."
+  },
+  {
+    "index": 2858,
+    "instruction": "Turn left onto Farnsworth Drive."
+  },
+  {
+    "index": 2974,
+    "instruction": "Turn left onto Silver Creek Valley Road."
+  },
+  {
+    "index": 3099,
+    "instruction": "Continue on Blossom Hill Road."
+  },
+  {
+    "index": 3665,
+    "instruction": "Turn left onto North Santa Cruz Avenue."
+  },
+  {
+    "index": 3720,
+    "instruction": "Turn right onto Los Gatos-Saratoga Road/CA 9. Continue on CA 9."
+  },
+  {
+    "index": 3780,
+    "instruction": "Keep left to take Saratoga-Los Gatos Road/CA 9."
+  },
+  {
+    "index": 3813,
+    "instruction": "Turn right onto Fruitvale Avenue."
+  },
+  {
+    "index": 3877,
+    "instruction": "Turn left onto Saratoga Avenue."
+  },
+  {
+    "index": 3886,
+    "instruction": "Turn right onto Crestbrook Drive."
+  },
+  {
+    "index": 3891,
+    "instruction": "You have arrived at your destination."
+  }
+]

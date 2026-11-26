@@ -5,21 +5,24 @@ import { SafeLinearGradient } from './SafeLinearGradient';
 /** Uses the same garage hero photography, dark scrim and minimal surfaces
  * as theunderground.vip. Keep the official tach/U logo in UndergroundMark.
  */
-export function CinematicBackdrop({ children }: { children: ReactNode }) {
+export function CinematicBackdrop({ children, entrance = false }: { children: ReactNode; entrance?: boolean }) {
   return (
     <View style={styles.root}>
       <Image
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         source={require('../../../assets/brand/garage.jpg')}
-        style={styles.photo}
+        style={[styles.photo, entrance && { opacity: 1 }]}
         resizeMode="cover"
       />
+      {entrance ? <Image accessible={false} source={require('../../../assets/brand/welcome-shade.png')}
+        resizeMode="stretch" style={[styles.photo, { opacity: 1 }]} /> : <>
       <View style={styles.scrim} />
       <SafeLinearGradient
         colors={['rgba(0,0,0,0.74)', 'rgba(8,9,10,0.50)', 'rgba(8,9,10,0.97)']}
         locations={[0, 0.42, 1]}
         style={StyleSheet.absoluteFill}
       />
+      </>}
       {children}
     </View>
   );

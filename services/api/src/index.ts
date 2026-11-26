@@ -1,6 +1,9 @@
+import { validateFinish } from './routes/route-finishes';
+import { createEditorialHandler } from './routes/editorial';
 import { createServer } from 'node:http';
 import { MemoryStore } from '@underground/persistence';
 import { loadEnv } from './env';
+import { identifySpot } from './routes/spotted';
 import { getHealth } from './routes/health';
 import { planFounderProvision } from './routes/founder';
 import { postChallenge } from './routes/challenge-http';
@@ -22,6 +25,7 @@ import { mutationGate } from './routes/mutation-gate';
 import { authenticateMember, createSupabaseMemberGateway } from './supabase-gateway';
 
 const env = loadEnv();
+const handleEditorial = createEditorialHandler(env, process.env.NEWSWIRE_EDITORIAL_TOKEN_SHA256);
 const health = getHealth(env);
 const runStore = createRunStore();
 const memoryStore = new MemoryStore();
@@ -36,13 +40,13 @@ console.info(
   }),
 );
 
-async function readJsonBody(req: import('node:http').IncomingMessage): Promise<unknown> {
+async function readJsonBody(req: import('node:http').IncomingMessage, limit = 1024 * 1024): Promise<unknown> {
   const chunks: Buffer[] = [];
   let total = 0;
   for await (const chunk of req) {
     const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     total += data.length;
-    if (total > 1024 * 1024) throw new Error('request_body_too_large');
+    if (total > limit) throw new Error('request_body_too_large');
     chunks.push(data);
   }
   return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
@@ -53,6 +57,7 @@ async function readJsonBody(req: import('node:http').IncomingMessage): Promise<u
  * Replace with a full server (e.g. Hono) once routes expand.
  */
 const server = createServer(async (req, res) => {
+  if (await handleEditorial(req, res, () => readJsonBody(req))) return;
   if (req.url === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(
@@ -79,6 +84,8 @@ const server = createServer(async (req, res) => {
   // The only live member routes: server-verified Supabase JWT and trusted membership
   // lookups. All other mutations continue to fail closed below.
   if (
+    (req.url === '/v1/route-finishes' && req.method === 'POST') ||
+    (req.url === '/v1/spotted/identify' && req.method === 'POST') ||
     (req.url === '/v1/me' && req.method === 'GET') ||
     (req.url === '/v1/garage/media/upload-intent' && req.method === 'POST') ||
     (req.url === '/v1/garage/media/complete' && req.method === 'POST')
@@ -96,7 +103,20 @@ const server = createServer(async (req, res) => {
         res.end(JSON.stringify({ ok: true, profile }));
         return;
       }
+      if (req.url === '/v1/route-finishes') {
+        const result = validateFinish(await readJsonBody(req, 8 * 1024 * 1024));
+        if (result) await memberGateway!.recordRouteFinish(auth.session.memberId, result);
+        res.writeHead(result ? 200 : 422, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ ok: !!result }));
+        return;
+      }
       const body = await readJsonBody(req);
+      if (req.url === '/v1/spotted/identify') {
+        const { status, ...result } = await identifySpot(auth.session.memberId, body);
+        res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify(result));
+        return;
+      }
       const upload = req.url === '/v1/garage/media/complete'
         ? await finalizeGarageUpload({
             raw: body,
@@ -115,7 +135,7 @@ const server = createServer(async (req, res) => {
       res.end(JSON.stringify(upload));
     } catch {
       res.writeHead(502, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-      res.end(JSON.stringify({ ok: false, error: 'garage_backend_unavailable' }));
+      res.end(JSON.stringify({ ok: false, error: req.url === '/v1/route-finishes' ? 'route_result_unavailable' : 'garage_backend_unavailable' }));
     }
     return;
   }

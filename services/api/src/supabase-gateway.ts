@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+import type { FinishWrite } from './routes/route-finishes';
 import type { RuntimeEnv } from './env';
 
 const UuidSchema = z.string().uuid();
@@ -15,7 +16,7 @@ export interface MemberGateway {
   getOwnProfile(memberId: string): Promise<unknown>;
 }
 
-export function createSupabaseMemberGateway(env: RuntimeEnv): MemberGateway | null {
+export function createSupabaseMemberGateway(env: RuntimeEnv): (MemberGateway & { recordRouteFinish(member: string, finish: FinishWrite): Promise<void> }) | null {
   if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return null;
   }
@@ -31,6 +32,12 @@ export function createSupabaseMemberGateway(env: RuntimeEnv): MemberGateway | nu
   const admin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, options);
 
   return {
+    async recordRouteFinish(member: string, finish: FinishWrite) {
+      const result = 'duration' in finish
+        ? await admin.from('route_run_finishes').upsert({ member_id: member, attempt_id: finish.attempt, route_slug: finish.route, duration_ms: finish.duration }, { onConflict: 'member_id,attempt_id', ignoreDuplicates: true })
+        : await admin.from('cruise_completions').upsert({member_id: member, route_slug: finish.route}, {onConflict: 'member_id,route_slug', ignoreDuplicates: true});
+      if (result.error) throw new Error('result_save_unavailable');
+    },
     async verifyUserJwt(jwt) {
       // getUser contacts Supabase Auth; a decoded-but-unverified JWT is NEVER trusted.
       const { data, error } = await authClient.auth.getUser(jwt);
@@ -107,19 +114,28 @@ export function createSupabaseMemberGateway(env: RuntimeEnv): MemberGateway | nu
       const vehicles = vehiclesResult.data ?? [];
       const vehicleIds = vehicles.map((v) => v.id);
       if (!vehicleIds.length) {
-        return { member: memberResult.data, profile: profileResult.data, vehicles, media: [] };
+        return { member: memberResult.data, profile: profileResult.data, vehicles, mods: [], media: [] };
       }
       // Private originals are signed ONLY for the authenticated owner.
       // Friend/public galleries will require EXIF-stripped derivatives and separate authorization.
-      const mediaResult = await admin.from('vehicle_media')
-        .select('id,vehicle_id,storage_path,caption,sort_order')
-        .in('vehicle_id', vehicleIds)
-        .order('sort_order', { ascending: true })
-        .limit(50);
+      const [modsResult, mediaResult] = await Promise.all([
+        admin.from('vehicle_mods')
+          .select('id,vehicle_id,title,status,installed_at')
+          .in('vehicle_id', vehicleIds)
+          .order('installed_at', { ascending: false, nullsFirst: false }),
+        admin.from('vehicle_media')
+          .select('id,vehicle_id,storage_path,caption,sort_order')
+          .in('vehicle_id', vehicleIds)
+          .eq('is_placeholder', false)
+          .order('sort_order', { ascending: true })
+          .limit(50),
+      ]);
+      if (modsResult.error) throw new Error('garage_mods_unavailable');
+      const mods = modsResult.data ?? [];
       if (mediaResult.error) throw new Error('garage_media_unavailable');
       const media = mediaResult.data ?? [];
       if (!media.length) {
-        return { member: memberResult.data, profile: profileResult.data, vehicles, media: [] };
+        return { member: memberResult.data, profile: profileResult.data, vehicles, mods, media: [] };
       }
       const { data: signed, error: signingError } = await admin.storage
         .from('garage-originals')
@@ -130,6 +146,7 @@ export function createSupabaseMemberGateway(env: RuntimeEnv): MemberGateway | nu
         member: memberResult.data,
         profile: profileResult.data,
         vehicles,
+        mods,
         media: media.map((m) => ({
           id: m.id,
           vehicleId: m.vehicle_id,

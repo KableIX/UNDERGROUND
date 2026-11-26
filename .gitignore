@@ -42,3 +42,14 @@ pnpm-debug.log*
 # Test artifacts
 playwright-report/
 test-results/
+
+# Local state and generated previews
+.underground/
+.capsule/
+.expo*/
+expo-env.d.ts
+docs/jacobs-pass/before*/
+*.pem
+*.key
+*.pfx
+credentials.json

@@ -1,261 +1,65 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import type { GarageMediaUploadPlan } from '@underground/domain';
-import { GoldRule, Screen, Text } from '@underground/ui';
-import { GaragePhotoUpload } from '../../src/components/GaragePhotoUpload';
+import { FounderR8Cover } from '../../src/components/FounderR8Cover';
+import { isFounderR8 } from '../../src/garage/founder-r8';
+import { useEffect, useState } from 'react';
+import { ScrollView } from 'react-native';
+import Storage from 'expo-sqlite/kv-store';
+import { Screen, Text } from '@underground/ui';
+import { GarageCarPhoto } from '../../src/components/GarageCarPhoto';
 import { LiveGarage } from '../../src/components/LiveGarage';
+import { EditGarageProfile, GarageStoreLink } from '../../src/components/GarageFirstLook';
+import { Action, blankCar, CarForm, CarRecord, type GarageCar, type CarDetails } from '../../src/components/CarDetails';
+import { useSession } from '../../src/session/SessionContext';
 import { isLiveAuthConfigured } from '../../src/session/supabase-session';
-import { VehicleViewerStub } from '../../src/components/VehicleViewerStub';
-import { founderGarageSeed } from '../../src/data/founder-garage';
-import { shell } from '../../src/theme/shell';
 
-const FOUNDER_MEMBER_ID = '33333333-3333-4333-8333-333333333301';
-const FOUNDER_VEHICLE_ID = '44444444-4444-4444-8444-444444444401';
-
-/**
- * Immersive Founder's Garage — 2010 black Audi R8 V10 from seed only.
- * Does not invent installed mods or verified achievements.
- */
 export default function GarageScreen() {
-  return isLiveAuthConfigured() ? <LiveGarage /> : <FixtureGarage />;
+  const {state}=useSession();
+  if(state.status!=='authenticated') return null;
+  if(isLiveAuthConfigured()) return <LiveGarage key={state.member.memberId}/>;
+  return <PreviewGarage key={state.member.memberId} memberId={state.member.memberId} founder={state.member.isFounder}/>;
 }
 
-function FixtureGarage() {
-  const router = useRouter();
-  const { vehicle, mods, media, profile, displayName, memberNumber } = founderGarageSeed;
-  const installed = mods.filter((m) => m.status === 'installed');
-  const pending = mods.filter((m) => m.status === 'pending');
-  const [plannedUploads, setPlannedUploads] = useState<GarageMediaUploadPlan[]>([]);
-
-  return (
-    <Screen padded={false}>
-      <ScrollView contentContainerStyle={styles.content} accessibilityLabel="Founder garage">
-        <View style={styles.heroPlate}>
-          <Text variant="caption" gold>
-            PLACEHOLDER PHOTOGRAPHY
-          </Text>
-          <Text variant="title" style={styles.heroTitle}>
-            {vehicle.year} {vehicle.make} {vehicle.model}
-          </Text>
-          <Text style={styles.heroSub}>{vehicle.trim} · {vehicle.color}</Text>
-        </View>
-
-        <View style={styles.pad}>
-          <Text variant="caption" gold>
-            MEMBER #{memberNumber} · {displayName}
-          </Text>
-          <Text variant="caption" style={styles.meta}>
-            VISIBILITY {vehicle.visibility.toUpperCase()} · {vehicle.verificationStatus.toUpperCase()} ·
-            FOUNDER ≠ ADMIN
-          </Text>
-          <GoldRule />
-
-          <Text style={styles.body}>{profile.mediaNote}</Text>
-
-          <View style={styles.specGrid}>
-            <Spec label="COLOR" value={vehicle.color} />
-            <Spec label="TRANS" value={vehicle.transmission} />
-            <Spec label="WHEELS" value={vehicle.wheels} />
-            <Spec label="BRAKES" value={vehicle.brakes} />
-          </View>
-
-          <Text variant="caption" gold style={styles.section}>
-            MOD JOURNAL · INSTALLED ({installed.length})
-          </Text>
-          {installed.map((mod) => (
-            <View key={mod.title} style={styles.modRow}>
-              <View style={styles.modCopy}>
-                <Text>{mod.title}</Text>
-                <Text style={styles.body}>{mod.description}</Text>
-              </View>
-              <Text variant="caption" gold>
-                INSTALLED
-              </Text>
-            </View>
-          ))}
-
-          <Text variant="caption" gold style={styles.section}>
-            PENDING ({pending.length})
-          </Text>
-          {pending.map((mod) => (
-            <View key={mod.title} style={styles.modRow}>
-              <View style={styles.modCopy}>
-                <Text>{mod.title}</Text>
-                <Text style={styles.body}>{mod.description}</Text>
-              </View>
-              <Text variant="caption" gold>
-                PENDING
-              </Text>
-            </View>
-          ))}
-
-          <Text variant="caption" gold style={styles.section}>
-            GALLERY
-          </Text>
-          <GaragePhotoUpload
-            vehicleId={FOUNDER_VEHICLE_ID}
-            memberId={FOUNDER_MEMBER_ID}
-            onPlanned={(plan) => setPlannedUploads((prev) => [plan, ...prev])}
-          />
-          <View style={styles.gallery}>
-            {plannedUploads.map((plan) => (
-              <View key={`${plan.mode}:${plan.storagePath}`} style={styles.mediaCard}>
-                <View style={styles.mediaPlate}>
-                  <Text variant="caption" gold>
-                    {plan.mode === 'placeholder' ? 'UPLOAD PLACEHOLDER' : 'SIGNED UPLOAD'}
-                  </Text>
-                </View>
-                <Text variant="caption" style={styles.meta}>
-                  {plan.bucket} · {plan.mode}
-                </Text>
-              </View>
-            ))}
-            {media.map((item) => (
-              <View key={item.storagePath} style={styles.mediaCard}>
-                <View style={styles.mediaPlate}>
-                  <Text variant="caption" gold>
-                    PLACEHOLDER ASSET
-                  </Text>
-                </View>
-                <Text variant="caption" style={styles.meta}>
-                  {item.caption}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          <Text variant="caption" gold style={styles.section}>
-            CUSTOMIZATION PREVIEW
-          </Text>
-          <Text style={styles.body}>
-            Feature-preview destination for friend-gated viewers. Entitlement grants view access only —
-            not admin or ranking privilege.
-          </Text>
-          <VehicleViewerStub label={`${vehicle.year} ${vehicle.make} ${vehicle.model} V10`} />
-
-          <Text variant="caption" gold style={styles.section}>
-            TROPHIES / RUN HISTORY
-          </Text>
-          <Text style={styles.body}>
-            Empty — no invented verified trophies. Production run history appears after accepted
-            captures persist.
-          </Text>
-          <Text variant="caption" style={styles.meta}>
-            VISIT STATS · 0 (fixture until persistence)
-          </Text>
-
-          <Pressable
-            style={styles.link}
-            onPress={() => router.push('/(tabs)/profile')}
-            accessibilityRole="button"
-          >
-            <Text variant="caption" gold>
-              VIEW PROFILE
-            </Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </Screen>
-  );
+function PreviewGarage({memberId,founder}:{memberId:string;founder:boolean}) {
+  const key='garage-cars.v1.'+memberId;
+  const [cars,setCars]=useState<GarageCar[]|null>(null);
+  const [edit,setEdit]=useState<string|null>(null);
+  const [error,setError]=useState('');
+  const [attempt,setAttempt]=useState(0);
+  useEffect(()=>{
+    let active=true;
+    Storage.getItem(key).then(raw=>{
+      const records:GarageCar[]=raw?JSON.parse(raw):[];
+      if(!Array.isArray(records)) throw Error();
+      if(active){setCars(records);setError('');}
+    }).catch(()=>{if(active)setError('Unable to load your saved garage.');});
+    return ()=>{active=false;};
+  },[key,attempt]);
+  async function save(car:CarDetails) {
+    if(!cars || !edit)throw Error('Reopen the garage and try again.');
+    let next:GarageCar[];
+    if(edit==='new'){
+      // Preview-only identifier for the existing UUID-based photo picker.
+      let id='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+        const n=Math.floor(Math.random()*16);return (c==='x'?n:(n&3)|8).toString(16);
+      });
+      const original='44444444-4444-4444-8444-444444444401';
+      if(founder && car.year==='2010' && car.make.toLowerCase()==='audi' && /^r8\b/i.test(car.model) && !cars.some(c=>c.id===original))id=original;
+      next=[...cars,{...car,id}];
+    } else next=cars.map(c=>c.id===edit?{...car,id:c.id}:c);
+    await Storage.setItem(key,JSON.stringify(next));
+    setCars(next);setEdit(null);
+  }
+  return <Screen padded={false}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:18,paddingBottom:50,gap:10}}>
+    <Text variant="title">{founder?'Founder’s Garage':'My Garage'}</Text><EditGarageProfile/>
+    {founder && !edit && cars && !cars.some(car => isFounderR8(founder, [car.year, car.make, car.model].join(' '))) &&
+      <FounderR8Cover />}
+    {error && <><Text>{error}</Text><Action label="Retry" onPress={()=>setAttempt(a=>a+1)}/></>}
+    {cars && (edit ? <CarForm key={edit} initial={cars.find(c=>c.id===edit)??blankCar} onSave={save} onCancel={()=>setEdit(null)}/> : <>
+      <Action label="Add car" onPress={()=>setEdit('new')}/>
+      {cars.map(car=><GarageEntry key={car.id} car={car} memberId={memberId} founder={founder} onEdit={()=>setEdit(car.id)}/>)}
+    </>)}
+    <GarageStoreLink/>
+  </ScrollView></Screen>;
 }
-
-function Spec({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.spec}>
-      <Text variant="caption" gold>
-        {label}
-      </Text>
-      <Text style={styles.specValue}>{value}</Text>
-    </View>
-  );
+function GarageEntry({car,memberId,founder,onEdit}:{car:GarageCar;memberId:string;founder:boolean;onEdit:()=>void}){
+  return <><GarageCarPhoto founderCover={isFounderR8(founder, [car.year, car.make, car.model].join(' '))} memberId={memberId} vehicleId={car.id} label={car.make+' '+car.model}/><Action label="Edit car" onPress={onEdit}/><CarRecord car={car}/></>;
 }
-
-const styles = StyleSheet.create({
-  content: {
-    paddingBottom: 48,
-  },
-  heroPlate: {
-    height: 220,
-    backgroundColor: shell.tabBar,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-  },
-  heroTitle: {
-    textAlign: 'center',
-  },
-  heroSub: {
-    color: shell.muted,
-    textTransform: 'capitalize',
-  },
-  pad: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  meta: {
-    marginTop: 6,
-    color: shell.muted,
-  },
-  body: {
-    marginTop: 6,
-    color: shell.muted,
-    lineHeight: 21,
-  },
-  specGrid: {
-    marginTop: 20,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  spec: {
-    width: '47%',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(197,165,114,0.2)',
-  },
-  specValue: {
-    marginTop: 6,
-    color: shell.text,
-    textTransform: 'capitalize',
-  },
-  section: {
-    marginTop: 28,
-    marginBottom: 10,
-  },
-  modRow: {
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(197,165,114,0.2)',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  modCopy: {
-    flex: 1,
-  },
-  gallery: {
-    marginTop: 12,
-    gap: 12,
-  },
-  mediaCard: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(197,165,114,0.3)',
-    padding: 12,
-    gap: 8,
-  },
-  mediaPlate: {
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: shell.tabBar,
-  },
-  link: {
-    marginTop: 28,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: shell.accent,
-  },
-});

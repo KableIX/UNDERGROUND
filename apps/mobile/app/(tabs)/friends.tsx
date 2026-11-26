@@ -2,11 +2,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   applyClubInvitationAction,
-  applyFriendshipAccept,
-  applyFriendshipReject,
   listDirectoryMembers,
   type ClubInvitation,
-  type Friendship,
 } from '@underground/domain';
 import { GoldRule, Screen, Text } from '@underground/ui';
 import {
@@ -14,16 +11,14 @@ import {
   directoryFixtures,
   ownerMembership,
   pendingClubInvite,
-  pendingFriendship,
 } from '../../src/data/clubs';
+import { ClubHub } from '../../src/components/clubs/ClubHub';
+import { FriendPages } from '../../src/profile/FriendPages';
+import { isLiveAuthConfigured } from '../../src/session/supabase-session';
 import { shell } from '../../src/theme/shell';
 
-/**
- * Friends + clubs stubs wired to typed domain contracts / fixtures.
- * Persistence waits on Supabase credentials.
- */
 export default function FriendsScreen() {
-  const [friendship, setFriendship] = useState<Friendship>(pendingFriendship);
+
   const [invite, setInvite] = useState<ClubInvitation>(pendingClubInvite);
   const [market, setMarket] = useState<'california' | 'miami'>('california');
 
@@ -38,52 +33,10 @@ export default function FriendsScreen() {
         <Text variant="title" gold>
           Friends
         </Text>
-        <Text variant="caption" style={styles.meta}>
-          REQUESTS · CLUBS · DIRECTORY · OPT-IN MARKETS
-        </Text>
-        <Text style={styles.body}>
-          Social graph fixtures until Supabase authz is live. Server contracts already reject
-          stranger garage views and non-participant DMs.
-        </Text>
+        <ClubHub />
+        <FriendPages />
         <GoldRule />
-
-        <Text variant="caption" gold>
-          FRIENDSHIP
-        </Text>
-        <View style={styles.row}>
-          <Text>Inbound · {friendship.status.toUpperCase()}</Text>
-          <View style={styles.actions}>
-            <Pressable
-              onPress={() => {
-                const r = applyFriendshipAccept(
-                  friendship,
-                  friendship.addresseeId,
-                  new Date().toISOString(),
-                );
-                if (r.ok) setFriendship(r.friendship);
-              }}
-            >
-              <Text variant="caption" gold>
-                ACCEPT
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                const r = applyFriendshipReject(
-                  friendship,
-                  friendship.addresseeId,
-                  new Date().toISOString(),
-                );
-                if (r.ok) setFriendship(r.friendship);
-              }}
-            >
-              <Text variant="caption" gold>
-                REJECT
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
+        {!isLiveAuthConfigured() && <>
         <Text variant="caption" gold style={styles.section}>
           CLUB · {clubFixture.name.toUpperCase()}
         </Text>
@@ -152,13 +105,7 @@ export default function FriendsScreen() {
           ))
         )}
 
-        <Text variant="caption" gold style={styles.section}>
-          DMS / GUESTBOOK / CLUBHOUSE
-        </Text>
-        <Text style={styles.body}>
-          Domain + API contracts live (POST /v1/social/dm, /guestbook). Mobile thread UI remains
-          fixture-backed until cloud auth. Club events schema ready; no fabricated meet locations.
-        </Text>
+        </>}
       </ScrollView>
     </Screen>
   );

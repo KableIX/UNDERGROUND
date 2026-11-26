@@ -1,0 +1,98 @@
+{
+  "drivingMinutes": 167,
+  "description": [
+    "The crew rolls out of Saratoga together. Thirteen miles in, Hicks Road brings you to Guadalupe Rock. From there, the loop opens up along McKean and G8 before swinging through Morgan Hill. Metcalf saves a winding stretch for the return leg. By the time Saratoga comes back into view, you’ll have put 83 miles on the clock.",
+    "Budget about 3 hr 20 min with two short stops. Pick your regroup spots while everyone has signal and download the map before rollout. Reception can fade in the hills.",
+    "Bringing a low car? Pavement, driveway clearance and pullout space haven’t been field-checked. Confirm parking with the organizer."
+  ],
+  "stops": [
+    {
+      "name": "Saratoga",
+      "distanceM": 0,
+      "latitude": 37.271748,
+      "longitude": -122.018424
+    },
+    {
+      "name": "Guadalupe Rock",
+      "distanceM": 20589,
+      "latitude": 37.186372,
+      "longitude": -121.871903
+    },
+    {
+      "name": "Bailey Avenue waypoint",
+      "distanceM": 40982,
+      "latitude": 37.18821,
+      "longitude": -121.754751
+    },
+    {
+      "name": "McKean Road / G8 waypoint",
+      "distanceM": 46422,
+      "latitude": 37.151347,
+      "longitude": -121.748211
+    },
+    {
+      "name": "County Route G8 waypoint",
+      "distanceM": 55024,
+      "latitude": 37.089954,
+      "longitude": -121.718873
+    },
+    {
+      "name": "Morgan Hill",
+      "distanceM": 71585,
+      "latitude": 37.130501,
+      "longitude": -121.654388
+    },
+    {
+      "name": "Metcalf Motorcycle County Park",
+      "distanceM": 89086,
+      "latitude": 37.236253,
+      "longitude": -121.720146
+    },
+    {
+      "name": "San Felipe Road waypoint",
+      "distanceM": 97637,
+      "latitude": 37.259763,
+      "longitude": -121.709304
+    },
+    {
+      "name": "Return to Saratoga",
+      "distanceM": 133806,
+      "latitude": 37.271748,
+      "longitude": -122.018424
+    }
+  ],
+  "credit": "Route and driving estimate / Valhalla / OpenStreetMap contributors. Stop times are planning allowances.",
+  "conditionsRoads": [
+    "Crestbrook Drive",
+    "Saratoga Avenue",
+    "Fruitvale Avenue",
+    "Saratoga-Los Gatos Road",
+    "CA 9",
+    "Los Gatos Boulevard",
+    "Kennedy Road",
+    "Shannon Road",
+    "Hicks Road",
+    "Alamitos Road",
+    "Almaden Road",
+    "McKean Road",
+    "CR G8",
+    "Bailey Avenue",
+    "Uvas Road",
+    "Oak Glen Avenue",
+    "Willow Springs Road",
+    "Hale Avenue",
+    "West Main Avenue",
+    "East Main Avenue",
+    "Monterey Road",
+    "Metcalf Road",
+    "San Felipe Road",
+    "Farnsworth Drive",
+    "Silver Creek Valley Road",
+    "Blossom Hill Road",
+    "North Santa Cruz Avenue"
+  ],
+  "countySnapshot": {
+    "date": "Nov 10, 2026",
+    "notices": []
+  }
+}

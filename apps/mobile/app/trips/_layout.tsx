@@ -21,6 +21,7 @@ export default function TripsLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ title: 'TRIP HISTORY' }} />
+      <Stack.Screen name="personal-records" options={{ title: 'MY RUN RECORDS' }} />
       <Stack.Screen name="record" options={{ title: 'RECORD DRIVE' }} />
       <Stack.Screen name="[id]" options={{ title: 'TRIP' }} />
     </Stack>

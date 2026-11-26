@@ -25,6 +25,7 @@ export type SessionEngineOptions = {
   idFactory?: (prefix: string) => string;
   nowMs?: () => number;
   vehicleId?: string | null;
+  vehicleLabel?: string | null;
   curatedRouteId?: string | null;
   classification?: TripClassification;
 };
@@ -39,6 +40,7 @@ function baseSession(
     status: 'idle',
     classification: opts.classification ?? 'ordinary',
     vehicleId: opts.vehicleId ?? null,
+    vehicleLabel: opts.vehicleLabel ?? null,
     curatedRouteId: opts.curatedRouteId ?? null,
     serverVerifiedRunId: null,
     startedAtMs: null,
@@ -374,6 +376,7 @@ export function toTripSummary(state: SessionEngineState): TripSummary | null {
     startLabel: session.startLabel,
     finishLabel: session.finishLabel,
     vehicleId: session.vehicleId,
+    vehicleLabel: session.vehicleLabel ?? null,
     gpsQuality: session.gpsQuality,
     classification: session.classification,
     sampleCount: samples.length,

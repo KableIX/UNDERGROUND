@@ -1,0 +1,5 @@
+The showroom illumination and environment are adapted from Empty Warehouse 01 (Poly Haven).
+https://polyhaven.com/a/empty_warehouse_01
+CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
+Adaptation: neutral color grade, cube projection, separate glossy and diffuse lighting fields.
+The higher resolution vehicle meshes, STO UVs, factory albedo maps and occlusion fields are adaptations of the models credited in r8-reference-LICENSE.txt and sto-reference-LICENSE.txt under CC BY 4.0.

@@ -27,7 +27,7 @@ export default function LoginScreen() {
     try {
       const result = liveAuthConfigured
         ? await signInWithEmail(email, password)
-        : canDevBypass ? signInExistingMember(fixtureName)
+        : canDevBypass ? await signInExistingMember(fixtureName)
         : { ok: false as const, error: 'authentication_not_configured' };
       if (!result.ok) {
         setError(result.error);

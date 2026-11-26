@@ -1,0 +1,8 @@
+Audi R8 by lotus_overlord
+https://sketchfab.com/3d-models/audi-r8-2dee503c05f940739ff6f9e2b3562337
+Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+Source geometry obtained from the Objaverse 1.0 distribution of the artist's model.
+Mobile adaptation: simplified and quantized geometry, new paint and materials,
+new showroom lighting and presentation. The bundled showroom poster is a rendering
+of the adapted model. The creator does not endorse this adaptation.

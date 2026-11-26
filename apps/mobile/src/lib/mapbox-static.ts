@@ -14,7 +14,7 @@ export const MONTEREY_CAMERA = {
 } as const;
 
 /**
- * Mapbox Static Images URL for dark tactical satellite backdrop.
+ * Mapbox Static Images URL for satellite backdrop.
  * Returns null when token absent — callers must use the dark fallback plane.
  */
 export function buildMapboxSatelliteUrl(input: {
@@ -30,7 +30,6 @@ export function buildMapboxSatelliteUrl(input: {
 
   const w = Math.min(1280, Math.max(320, Math.round(input.width)));
   const h = Math.min(1280, Math.max(240, Math.round(input.height)));
-  // satellite-v9 + dark overlay via style — pure satellite for tactical base
   return (
     `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/` +
     `${input.longitude},${input.latitude},${input.zoom},0/${w}x${h}@2x` +

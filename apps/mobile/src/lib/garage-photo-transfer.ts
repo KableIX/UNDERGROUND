@@ -11,7 +11,7 @@ type UploadIntent = {
   sortOrder: number;
 };
 
-type UploadResult = { ok: true; plan: GarageMediaUploadPlan } |
+type UploadResult = { ok: true; mediaId: string; plan: GarageMediaUploadPlan } |
   { ok: false; error: string };
 
 async function memberApi(path: string, jwt: string, body: object): Promise<Response> {
@@ -90,9 +90,9 @@ export async function uploadPrivateGarageJpeg(input: UploadIntent): Promise<Uplo
     if (!committed.ok) {
       return { ok: false, error: 'photo_uploaded_but_registration_failed' };
     }
-    const body = await committed.json() as { ok: boolean };
-    if (!body.ok) return { ok: false, error: 'photo_registration_failed' };
-    return { ok: true, plan };
+    const body = await committed.json() as { ok: boolean; mediaId?: string };
+    if (!body.ok || !body.mediaId) return { ok: false, error: 'photo_registration_failed' };
+    return { ok: true, mediaId: body.mediaId, plan };
   } catch {
     return { ok: false, error: 'garage_upload_unavailable' };
   }

@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { Screen, Text } from '@underground/ui';
 import { formatDistanceM, formatDurationMs, gpsQualityLabel } from '../../src/drive/format';
 import { usePersistentDrive } from '../../src/drive/use-persistent-drive';
-import { localSeedVehicleId } from '../../src/drive/vehicle-label';
+import {GarageVehicleSelect,useGarageVehicles} from '../../src/drive/GarageVehicleSelect';
 import { shell } from '../../src/theme/shell';
 
 /**
@@ -14,7 +14,7 @@ export default function RecordDriveScreen() {
   const router = useRouter();
   const drive = usePersistentDrive();
   const status = drive.state.session.status;
-  const vehicleId = localSeedVehicleId();
+  const garage=useGarageVehicles();
   const privateKph =
     drive.privateSpeedMps != null ? Math.round(drive.privateSpeedMps * 3.6) : null;
 
@@ -53,13 +53,14 @@ export default function RecordDriveScreen() {
             Interrupted session recoverable. Resume or end to save.
           </Text>
         )}
+        {['idle','ended','permission_denied','unavailable'].includes(status)?<GarageVehicleSelect garage={garage}/>:<Text>{drive.summary?.vehicleLabel}</Text>}
         <View style={styles.actions}>
           {(status === 'idle' ||
             status === 'ended' ||
             status === 'permission_denied' ||
             status === 'unavailable') && (
             <Pressable
-              onPress={() => void drive.start({ vehicleId })}
+              disabled={garage.loading || (garage.cars.length>1&&!garage.selected)} onPress={() => void drive.start(garage.trip)}
               style={styles.btn}
               accessibilityRole="button"
               accessibilityLabel="Start drive recording"

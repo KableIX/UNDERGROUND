@@ -6,6 +6,7 @@ export type MapPosition = {
   longitude: number;
   latitude: number;
   accuracyM: number | null;
+  speedMps?: number | null;
   timestamp: number;
 };
 
@@ -21,7 +22,7 @@ function validPosition(position: MapPosition): boolean {
 /** Foreground-only location for displaying the user's position on the map.
  * Does not record a drive, upload GPS, or award any territory ownership.
  */
-export function useMapLocation() {
+export function useMapLocation(navigating = false) {
   const [status, setStatus] = useState<MapLocationStatus>('requesting');
   const [position, setPosition] = useState<MapPosition | null>(null);
   const subRef = useRef<Subscription | null>(null);
@@ -55,6 +56,7 @@ export function useMapLocation() {
           longitude: fix.coords.longitude,
           latitude: fix.coords.latitude,
           accuracyM: fix.coords.accuracy,
+          speedMps: fix.coords.speed,
           timestamp: fix.timestamp,
         };
         // A low-accuracy fix is still preferable to an unrelated default-city camera.
@@ -74,15 +76,15 @@ export function useMapLocation() {
       } catch { /* A cache miss cannot prevent live positioning. */ }
 
       // Don't block the GPS watch while waiting for a high-quality first fix.
-      void Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      void Location.getCurrentPositionAsync({ accuracy: navigating ? Location.Accuracy.High : Location.Accuracy.Balanced })
         .then(accept)
         .catch(() => undefined);
 
       if (generation !== generationRef.current) return;
       const subscription = await Location.watchPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-        distanceInterval: 10,
-        timeInterval: 4000,
+        accuracy: navigating ? Location.Accuracy.High : Location.Accuracy.Balanced,
+        distanceInterval: navigating ? 3 : 10,
+        timeInterval: navigating ? 1000 : 4000,
       }, accept);
       if (generation !== generationRef.current) {
         subscription.remove();
@@ -92,7 +94,7 @@ export function useMapLocation() {
     } catch {
       if (generation === generationRef.current) setStatus('unavailable');
     }
-  }, [stopWatching]);
+  }, [stopWatching, navigating]);
 
   useFocusEffect(useCallback(() => {
     void startWatching();

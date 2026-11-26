@@ -62,6 +62,7 @@ export type DriveSession = {
   classification: TripClassification;
   /** Optional garage vehicle id — local association only. */
   vehicleId: string | null;
+  vehicleLabel?: string | null;
   /** Optional curated route id when marking territory_attempt (no ownership). */
   curatedRouteId: string | null;
   /** Server run id once a capture is verified — never invent. */
@@ -93,6 +94,7 @@ export type TripSummary = {
   startLabel: string | null;
   finishLabel: string | null;
   vehicleId: string | null;
+  vehicleLabel?: string | null;
   gpsQuality: GpsQualityBand;
   classification: TripClassification;
   sampleCount: number;

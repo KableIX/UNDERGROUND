@@ -37,11 +37,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     plugins: [
       ...(config.plugins ?? []),
       ...mapboxPlugins,
+      ['expo-av', { microphonePermission: false }],
       // react-native-maps + expo-linear-gradient autolink (no Expo config plugin).
       // They must be dependencies of the EAS build; Fast Refresh cannot add them.
       'expo-secure-store',
       'expo-file-system',
-      'expo-image-picker',
+      ['expo-image-picker', {
+        cameraPermission: 'Take a photo for Spotted, your garage, or run verification.',
+        photosPermission: 'Choose a photo for Spotted or your garage.',
+      }],
       'expo-sqlite',
       ['expo-location', {
         locationWhenInUsePermission: 'UNDERGROUND uses your location to show your position on the map and, when you choose Start Drive, record your trip.',

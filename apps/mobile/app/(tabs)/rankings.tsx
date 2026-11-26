@@ -1,14 +1,31 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { FOUNDER_DISPLAY_NAME, FOUNDER_MEMBER_NUMBER, rankMembers } from '@underground/domain';
+import { rankMembers } from '@underground/domain';
 import { GoldRule, Screen, Text } from '@underground/ui';
-import { rankingFixtures } from '../../src/data/rankings';
+import {useCallback,useState} from 'react';
+import {useFocusEffect} from 'expo-router';
+import type {RankingEntry} from '@underground/domain';
+import {getMobileSupabaseClient,isLiveAuthConfigured} from '../../src/session/supabase-session';
 import { shell } from '../../src/theme/shell';
 
 /**
  * Rankings — CLOUT / territory standings from fixtures until live ledgers persist.
  */
 export default function RankingsScreen() {
-  const ranked = rankMembers(rankingFixtures);
+  const [ranked,setRanked]=useState<RankingEntry[]>([]);
+  const [status,setStatus]=useState('');
+  useFocusEffect(useCallback(()=>{
+    let active=true;
+    async function load(){
+      setRanked([]);
+      if(!isLiveAuthConfigured()){setStatus('Verified standings will appear when this beta connects to the club.');return;}
+      setStatus('Loading standings…');
+      const client=getMobileSupabaseClient();if(!client)throw Error();
+      const {data,error}=await client.rpc('member_standings');if(error)throw error;
+      if(active){setRanked(rankMembers(data??[]));setStatus(data?.length?'':'No verified standings yet.');}
+    }
+    void load().catch(()=>{if(active)setStatus('Standings are unavailable.');});
+    return ()=>{active=false;};
+  },[]));
 
   return (
     <Screen padded={false}>
@@ -16,14 +33,8 @@ export default function RankingsScreen() {
         <Text variant="title" gold>
           Rankings
         </Text>
-        <Text variant="caption" style={styles.meta}>
-          FIXTURE STANDINGS · NOT LIVE LEDGERS
-        </Text>
         <GoldRule />
-        <Text style={styles.body}>
-          {FOUNDER_DISPLAY_NAME} #{FOUNDER_MEMBER_NUMBER} appears from seed CLOUT only — founder
-          status confers no ranking privilege. Simulation captures never move these ranks.
-        </Text>
+        {!!status && <Text style={styles.body}>{status}</Text>}
         {ranked.map((entry) => (
           <View key={entry.memberId} style={styles.row}>
             <Text variant="caption" gold style={styles.rank}>

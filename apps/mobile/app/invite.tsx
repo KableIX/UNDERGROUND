@@ -1,6 +1,7 @@
+import { ClubEntry } from '../src/components/clubs/ClubEntry';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { Redirect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@underground/ui';
 import { CinematicBackdrop } from '../src/components/brand/CinematicBackdrop';
@@ -12,14 +13,15 @@ import { shell } from '../src/theme/shell';
 export default function InviteScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { state, redeemInvite } = useSession();
+  const { state, redeemInvite, liveAuthConfigured } = useSession();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   if (state.status === 'authenticated') {
-    return <Redirect href="/(tabs)" />;
+    return null;
   }
 
+  if (liveAuthConfigured) return <ClubEntry />;
   return (
     <CinematicBackdrop>
       <View style={[styles.root, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
@@ -62,7 +64,6 @@ export default function InviteScreen() {
               setError(result.error);
               return;
             }
-            router.replace('/(tabs)');
           }}
           accessibilityRole="button"
         >

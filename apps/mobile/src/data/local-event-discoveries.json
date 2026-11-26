@@ -1,0 +1,38 @@
+[
+  {
+    "id": "100oct/holiday-2026",
+    "organizer": "100|OCT",
+    "title": "Cars & Croissants on The Row",
+    "place": "Santana Row, San Jose",
+    "url": "https://santanarow.com/event/cars-croissants-on-the-row/",
+    "starts": 1797181200000,
+    "ends": 1797192000000,
+    "checked": 1794478654673,
+    "cancelled": false,
+    "kind": "Cars & Coffee"
+  },
+  {
+    "id": "breakfast-club-rally/btf2026",
+    "organizer": "Breakfast Club Rally",
+    "title": "Blacktop Friday (vintage entries only)",
+    "place": "Oakville to Calistoga",
+    "kind": "Organized drive",
+    "url": "https://www.breakfastclubrally.com/events/btf2026",
+    "starts": 1795795200000,
+    "ends": 1795809600000,
+    "checked": 1794494188610,
+    "cancelled": false
+  },
+  {
+    "id": "breakfast-club-rally/bcr12122026",
+    "organizer": "Breakfast Club Rally",
+    "title": "Breakfast Club Rally (vintage entries only)",
+    "place": "Sonoma County",
+    "kind": "Organized drive",
+    "url": "https://www.breakfastclubrally.com/events/bcr12122026",
+    "starts": 1797091200000,
+    "ends": 1797105600000,
+    "checked": 1794494189085,
+    "cancelled": false
+  }
+]

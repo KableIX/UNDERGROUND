@@ -32,7 +32,7 @@ export default function WelcomeScreen() {
   }
 
   return (
-    <CinematicBackdrop>
+    <CinematicBackdrop entrance>
       <View style={[styles.root, { paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }]}>
         <Animated.View style={{ opacity, transform: [{ translateY: rise }] }}>
           <UndergroundMark size="hero" showWordmark showTagline />

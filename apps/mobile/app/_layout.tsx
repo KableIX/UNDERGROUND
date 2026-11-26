@@ -1,5 +1,6 @@
+import { syncResults } from '../src/drive/result-store';
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, AppState, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Cinzel_600SemiBold } from '@expo-google-fonts/cinzel';
@@ -11,6 +12,15 @@ import { shell } from '../src/theme/shell';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { state } = useSession();
+  const member = state.status === 'authenticated' ? state.member.memberId : undefined;
+  useEffect(() => {
+    if (!member) return;
+    const sync = () => { void syncResults(member).catch(() => undefined); };
+    sync();
+    const listener = AppState.addEventListener('change', next => { if (next === 'active') sync(); });
+    const interval = setInterval(() => { if (AppState.currentState === 'active') sync(); }, 60000);
+    return () => { listener.remove(); clearInterval(interval); };
+  },[member]);
   const segments = useSegments();
   const router = useRouter();
 
@@ -23,7 +33,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       return;
     }
     if (state.status === 'authenticated' && (root === 'welcome' || root === 'login' || root === 'invite' || String(root) === 'index')) {
-      router.replace('/(tabs)');
+      router.replace(root === 'invite' && state.via === 'invite'
+        ? { pathname: '/edit-profile', params: { setup: '1' } }
+        : root === 'invite' ? '/(tabs)/friends' : '/(tabs)');
     }
   }, [state.status, segments, router]);
 
@@ -32,6 +44,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 function RootNavigator() {
   const [fontsLoaded] = useFonts({
+    RunDigits: require('../assets/fonts/RunDigits.ttf'),
     Cinzel_600SemiBold,
     DMSans_400Regular,
     DMSans_500Medium,
@@ -66,7 +79,9 @@ function RootNavigator() {
         <Stack.Screen name="welcome" />
         <Stack.Screen name="login" />
         <Stack.Screen name="invite" />
-        <Stack.Screen name="newswire" options={{ headerShown: true, title: 'NEWSWIRE', headerStyle: { backgroundColor: shell.background }, headerTintColor: shell.accent }} />
+        <Stack.Screen name="newswire" options={{ headerShown: true, title: 'UNDERGROUND', headerBackButtonDisplayMode: 'minimal', headerStyle: { backgroundColor: shell.background }, headerTintColor: shell.accent }} />
+        <Stack.Screen name="local-events" options={{headerShown:true,title:'Local events',headerStyle:{backgroundColor:shell.background},headerTintColor:shell.accent,animation:'slide_from_right'}} />
+        <Stack.Screen name="edit-profile" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="(tabs)" />
         {/* Trip History standalone stack — see docs/TRIP_HISTORY_NAV_INTEGRATION.md */}
         <Stack.Screen name="trips" options={{ headerShown: false, animation: 'slide_from_right' }} />
