@@ -17,7 +17,7 @@ describe('California catalog', () => {
   it('keeps distinct catalog IDs, slugs, territory assignments and the original ten priorities', () => {
     expect(new Set(catalog.map(r => r.id)).size).toBe(catalog.length);
     expect(new Set(catalog.map(r => r.slug)).size).toBe(catalog.length);
-    expect(['RUN','CRUISE','TEST'].map(c => catalog.filter(r=>r.category===c).length)).toEqual([43,12,5]);
+    expect(['RUN','CRUISE','TEST'].map(c => catalog.filter(r=>r.category===c).length)).toEqual([43,13,5]);
     expect(catalog.every(r => r.region && r.district && r.territory)).toBe(true);
     expect(catalog.filter(r => r.territory === 'Big Sur Coast').map(r => r.id)).toEqual(['M01','M02','M03']);
     expect(catalog.filter(r=>r.shortlist).map(r=>r.id).sort()).toEqual(['H03','H04','M01','M02','M03','N03','N04','S01','S03','S05']);

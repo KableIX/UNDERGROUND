@@ -27,7 +27,7 @@ describe('California beta camera map',()=>{
   it('handles unavailable data and hides pins when zoomed out or both toggles are off',()=>{
     expect(cameraPins(null,square(-122,37,0.02),enabled)).toEqual([]);
     expect(cameraPins(db,square(-122,37,2),enabled)).toEqual([]);
-    expect(cameraPins(db,square(-122,37,0.02),initialLayers)).toEqual([]);
+    expect(cameraPins(db,square(-122,37,0.02),{plate:false,speed:false,history:false})).toEqual([]);
     expect(cameraPins(db,square(-80,27,0.02),enabled)).toEqual([]);
   });
   it('replays the Saratoga road book without changing route geometry or guidance distances',()=>{

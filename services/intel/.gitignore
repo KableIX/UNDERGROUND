@@ -1,0 +1,4 @@
+# Local shadow database and caches stay on Atlas
+*.sqlite3
+*.sqlite3-*
+__pycache__/

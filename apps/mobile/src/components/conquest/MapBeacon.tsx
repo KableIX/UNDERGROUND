@@ -1,4 +1,5 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
 import { SV_LANDMARK_CAMERA } from '../../data/landmarks';
 
 export const campusPoint = { latitude: SV_LANDMARK_CAMERA.latitude, longitude: SV_LANDMARK_CAMERA.longitude };
@@ -19,17 +20,38 @@ export function BeaconLight({ location }: { location: boolean }) {
   </>;
 }
 
+function MeetupLight() {
+  const phase = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const animation = Animated.loop(Animated.timing(phase, {toValue:1,duration:2400,easing:Easing.linear,useNativeDriver:true}));
+    animation.start();
+    return () => animation.stop();
+  }, [phase]);
+  return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    {[0,1,2,3,4].map(i => <Animated.View key={i} style={[styles.smoke,{left:42+i*3,opacity:phase.interpolate({inputRange:[0,0.25,1],outputRange:[0,0.40-i*0.045,0]}),transform:[{translateY:phase.interpolate({inputRange:[0,1],outputRange:[0,-48-i*6]})},{translateX:phase.interpolate({inputRange:[0,1],outputRange:[0,(i-2)*9]})},{scale:phase.interpolate({inputRange:[0,1],outputRange:[0.55,2.8]})}]}]} />)}
+    <View style={styles.redHalo}/>
+    <View style={styles.redCore}/>
+    <View style={styles.redPin}/>
+  </View>;
+}
+
 export function MapBeacon({ label, location = false }: { label: string; location?: boolean }) {
-  const tint = location ? '#77E8D9' : '#EDAD5E';
+  const meetup = !location && label === 'MEETUP';
+  const tint = meetup ? '#FF4545' : location ? '#77E8D9' : '#EDAD5E';
   return (
     <View collapsable={false} accessible accessibilityLabel={label} style={[styles.marker, location && styles.locationMarker]}>
-      <BeaconLight location={location} />
+      {meetup ? <MeetupLight /> : <BeaconLight location={location} />}
       <View style={[styles.leader, location && styles.locationLeader, { backgroundColor: tint }]} />
       <Text numberOfLines={1} style={[styles.label, location && styles.locationLabel, { borderColor: tint }]}>{label}</Text>
     </View>
   );
 }
 const styles = StyleSheet.create({
+  smoke: {position:'absolute',top:64,width:22,height:25,borderRadius:15,backgroundColor:'#D74B4B',shadowColor:'#FF3434',shadowOpacity:0.9,shadowRadius:12,shadowOffset:{width:0,height:0}},
+  redHalo: {position:'absolute',left:35,top:65,width:38,height:38,borderRadius:19,backgroundColor:'rgba(255,28,36,0.19)',shadowColor:'#FF2028',shadowOpacity:1,shadowRadius:17,shadowOffset:{width:0,height:0}},
+  redCore: {position:'absolute',left:47,top:77,width:14,height:14,borderRadius:7,backgroundColor:'#FF272F',shadowColor:'#FF2929',shadowOpacity:1,shadowRadius:12,shadowOffset:{width:0,height:0}},
+  redPin: {position:'absolute',left:51,top:81,width:6,height:6,borderRadius:3,backgroundColor:'#FFF0E8'},
+
   marker: { width: 144, height: 132 },
   locationMarker: { width: locationWidth },
   locationLeader: { left: 65, top: 52, width: 55, height: 2, transform: [{ rotate: '-39deg' }] },

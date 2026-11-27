@@ -1,0 +1,16 @@
+[Unit]
+Description=UNDERGROUND Expo development server
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/data/underground/apps/mobile
+Environment=CI=1
+Environment=EXPO_NO_TELEMETRY=1
+Environment=REACT_NATIVE_PACKAGER_HOSTNAME=10.0.0.93
+ExecStart=/usr/bin/node /data/underground/node_modules/expo/bin/cli start --dev-client --lan --port 8081
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
