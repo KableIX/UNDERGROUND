@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { FinishWrite } from './routes/route-finishes';
 import type { RunAttemptWrite } from './routes/run-attempts';
 import type { RuntimeEnv } from './env';
+import type { IntegrityStore } from './integrity/photo-proof';
 
 const UuidSchema = z.string().uuid();
 
@@ -24,7 +25,7 @@ export interface RunLogGateway {
   recordRunAttempt(member: string, write: RunAttemptWrite): Promise<void>;
 }
 
-export function createSupabaseMemberGateway(env: RuntimeEnv): (MemberGateway & RunLogGateway) | null {
+export function createSupabaseMemberGateway(env: RuntimeEnv): (MemberGateway & RunLogGateway & IntegrityStore) | null {
   if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return null;
   }
@@ -96,11 +97,49 @@ export function createSupabaseMemberGateway(env: RuntimeEnv): (MemberGateway & R
         dash_taken_at: dash ? new Date(dash.takenAtMs).toISOString() : null,
         car_image_sha256: car?.imageSha256 ?? null,
         dash_image_sha256: dash?.imageSha256 ?? null,
+        attested: credit.attested,
+        nonce_jti: credit.nonceJti,
         // First accepted credit is final; a retry never rewrites it.
       }, { onConflict: 'member_id,attempt_id', ignoreDuplicates: true });
       if (result.error?.code === '23503') throw new Error('finish_not_recorded');
       if (result.error?.code === '23505') throw new Error('photo_reused');
       if (result.error) throw new Error('run_credit_unavailable');
+    },
+
+    async saveDeviceKey(input) {
+      const result = await admin.from('device_attest_keys').insert({
+        key_id: input.keyId, member_id: input.member, platform: input.platform,
+        public_key_pem: input.publicKeyPem, environment: input.environment, sign_count: 0,
+      });
+      if (result.error?.code === '23505') return 'exists';
+      if (result.error) throw new Error('device_key_unavailable');
+      return 'saved';
+    },
+
+    async loadDeviceKey(keyId) {
+      const { data, error } = await admin.from('device_attest_keys')
+        .select('member_id, public_key_pem, sign_count').eq('key_id', keyId).maybeSingle();
+      if (error) throw new Error('device_key_unavailable');
+      return data ? { member: data.member_id as string, publicKeyPem: data.public_key_pem as string, signCount: Number(data.sign_count) } : null;
+    },
+
+    async advanceDeviceCounter(keyId, from, to) {
+      const { data, error } = await admin.from('device_attest_keys')
+        .update({ sign_count: to, last_used_at: new Date().toISOString() })
+        .eq('key_id', keyId).eq('sign_count', from).select('key_id');
+      if (error) throw new Error('device_key_unavailable');
+      return (data?.length ?? 0) === 1;
+    },
+
+    async consumeFinishNonce(input) {
+      const inserted = await admin.from('run_finish_nonce_uses').insert({
+        jti: input.jti, member_id: input.member, attempt_id: input.attempt, route_slug: input.route,
+      });
+      if (!inserted.error) return true;
+      if (inserted.error.code !== '23505') throw new Error('finish_nonce_unavailable');
+      // Already redeemed: only a retry of the same attempt by the same member is allowed.
+      const { data } = await admin.from('run_finish_nonce_uses').select('member_id, attempt_id').eq('jti', input.jti).maybeSingle();
+      return !!data && data.member_id === input.member && data.attempt_id === input.attempt;
     },
 
     async verifyUserJwt(jwt) {

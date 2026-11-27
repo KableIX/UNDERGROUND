@@ -28,7 +28,8 @@ const request = z.discriminatedUnion('kind', [
   z.object({kind: z.literal('RUN'), route: z.string(), attempt: z.string().min(1).max(100), trace: z.array(fix).min(2).max(100000)}).strict(),
   z.object({kind: z.literal('CRUISE'), route: z.string()}).strict(),
 ]);
-export type FinishWrite = {route: string; attempt: string; duration: number} | {route: string};
+/** RUN: `finishedAtMs` is the phone time of the fix that crossed the finish (start fix + verified duration). */
+export type FinishWrite = {route: string; attempt: string; duration: number; finishedAtMs: number} | {route: string};
 export function validateFinish(body: unknown, now = Date.now()): FinishWrite | null {
   const parsed = request.safeParse(body);
   if (!parsed.success) return null;
@@ -38,7 +39,7 @@ export function validateFinish(body: unknown, now = Date.now()): FinishWrite | n
   if (data.kind === 'CRUISE') return {route: data.route};
   if (data.trace.some((point, i) => point[3] > now + 15000 || (i > 0 && point[3] <= data.trace[i - 1]![3]))) return null;
   const duration = verifiedDuration(catalog.road.coordinates as RoutePoint[], data.trace, catalog.road.signalGap);
-  return duration === null ? null : {route: data.route, attempt: data.attempt, duration};
+  return duration === null ? null : {route: data.route, attempt: data.attempt, duration, finishedAtMs: data.trace[0]![3] + duration};
 }
 
 /** Finish point of a catalog Run (last mapped coordinate). Null for Cruises, test loops and unknown routes. */

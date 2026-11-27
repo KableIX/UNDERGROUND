@@ -318,12 +318,29 @@ export const FinishPhotoClaimSchema = z
   .strict();
 export type FinishPhotoClaim = z.infer<typeof FinishPhotoClaimSchema>;
 
-export type FinishPhotoStatus = 'accepted' | 'early' | 'late' | 'off_location' | 'no_location';
+/**
+ * - library: picked from the photo library. Earns nothing; only the in-app camera counts.
+ * - unverified: the finish nonce or device attestation did not check out. Earns nothing.
+ */
+export type FinishPhotoStatus = 'accepted' | 'early' | 'late' | 'off_location' | 'no_location' | 'library' | 'unverified';
+
+/** A finish nonce may only be issued this soon after the GPS finish. */
+export const FINISH_NONCE_ISSUE_MAX_DELAY_MS = 10 * 60 * 1000;
+/** Finish nonce lifetime past the photo window: proofs must be redeemed by then. */
+export const FINISH_NONCE_GRACE_MS = 15 * 60 * 1000;
+/** Clock skew allowed between the phone's capture time and the nonce issue time. */
+export const FINISH_NONCE_SKEW_MS = 15 * 1000;
+
+/** Proof checks beyond time and place. `notBeforeMs`: the finish nonce issue time. */
+export type FinishProofOptions = { notBeforeMs?: number };
 
 export type FinishPoint = { latitude: number; longitude: number; finishedAtMs: number };
 
-export function checkFinishPhoto(claim: FinishPhotoClaim, finish: FinishPoint): FinishPhotoStatus {
+export function checkFinishPhoto(claim: FinishPhotoClaim, finish: FinishPoint, options: FinishProofOptions = {}): FinishPhotoStatus {
+  // Only in-app camera photos, taken after the finish nonce was issued, can earn credit.
+  if (claim.source !== 'camera') return 'library';
   if (claim.takenAtMs < finish.finishedAtMs - FINISH_PHOTO_EARLY_GRACE_MS) return 'early';
+  if (options.notBeforeMs != null && claim.takenAtMs < options.notBeforeMs - FINISH_NONCE_SKEW_MS) return 'early';
   if (claim.takenAtMs > finish.finishedAtMs + FINISH_PHOTO_WINDOW_MS) return 'late';
   if (claim.latitude == null || claim.longitude == null) return 'no_location';
   if (claim.accuracyM != null && claim.accuracyM > FINISH_PHOTO_MAX_ACCURACY_M) return 'no_location';
@@ -347,9 +364,10 @@ export function finishCredit(
   photos: readonly FinishPhotoClaim[],
   finish: FinishPoint,
   gpsCompleted: boolean,
+  options: FinishProofOptions = {},
 ): FinishCredit {
   const best = (kind: FinishPhotoKind): FinishPhotoStatus | null => {
-    const statuses = photos.filter(p => p.kind === kind).map(p => checkFinishPhoto(p, finish));
+    const statuses = photos.filter(p => p.kind === kind).map(p => checkFinishPhoto(p, finish, options));
     if (!statuses.length) return null;
     return statuses.includes('accepted') ? 'accepted' : statuses[0]!;
   };
@@ -378,6 +396,31 @@ export type FinishPhotoProof = z.infer<typeof FinishPhotoProofSchema>;
 export type VerifiedFinishPhoto = Pick<FinishPhotoProof, 'kind' | 'takenAtMs' | 'source' | 'imageSha256'>;
 export function dropPhotoLocation(proof: FinishPhotoProof): VerifiedFinishPhoto {
   return { kind: proof.kind, takenAtMs: proof.takenAtMs, source: proof.source, imageSha256: proof.imageSha256 };
+}
+
+/** Credit when the proof could not be trusted (bad nonce or attestation): every photo is unverified. */
+export function unverifiedCredit(photos: readonly Pick<FinishPhotoClaim, 'kind'>[]): FinishCredit {
+  const has = (kind: FinishPhotoKind) => (photos.some(p => p.kind === kind) ? 'unverified' as const : null);
+  return { tier: 'none', points: 0, car: has('car'), dash: has('dash') };
+}
+
+/**
+ * Canonical JSON (sorted keys, no whitespace) of a proof payload. The phone signs exactly
+ * this string with its App Attest key, and the server rebuilds it from the parsed body.
+ */
+export function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value ?? null);
+  if (Array.isArray(value)) return '[' + value.map(v => canonicalJson(v === undefined ? null : v)).join(',') + ']';
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return '{' + entries.map(([k, v]) => JSON.stringify(k) + ':' + canonicalJson(v)).join(',') + '}';
+}
+
+/** The signed client data for a run proof: the request body without its attestation field. */
+export function proofClientData(body: Record<string, unknown>): string {
+  const { attestation: _ignored, ...rest } = body;
+  return canonicalJson(rest);
 }
 
 /** Fields of a photo claim that may ever leave the owner's private record. Location never does. */

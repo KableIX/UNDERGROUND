@@ -193,3 +193,33 @@ describe('finish photo proof (image stays on the phone)', () => {
     expect(Object.keys(kept)).not.toEqual(expect.arrayContaining(['latitude']));
   });
 });
+
+describe('anti-cheat: camera after the finish nonce', () => {
+  const finish = { latitude: 36.27, longitude: -121.8, finishedAtMs: T0 };
+  const claim = (over: Record<string, unknown> = {}) => ({
+    kind: 'car' as const, takenAtMs: T0 + 60_000, latitude: 36.27, longitude: -121.8, accuracyM: 8, source: 'camera' as const, ...over,
+  });
+  it('library photos earn nothing and are flagged', async () => {
+    const m = await import('../src/run-log');
+    expect(m.checkFinishPhoto(claim({ source: 'library' }), finish)).toBe('library');
+    expect(m.finishCredit([claim({ source: 'library' }), claim({ kind: 'dash', source: 'library' })], finish, true))
+      .toEqual({ tier: 'none', points: 0, car: 'library', dash: 'library' });
+  });
+  it('a photo taken before the nonce was issued is early', async () => {
+    const m = await import('../src/run-log');
+    expect(m.checkFinishPhoto(claim(), finish, { notBeforeMs: T0 + 30_000 })).toBe('accepted');
+    expect(m.checkFinishPhoto(claim({ takenAtMs: T0 + 20_000 }), finish, { notBeforeMs: T0 + 30_000 })).toBe('accepted'); // within skew
+    expect(m.checkFinishPhoto(claim({ takenAtMs: T0 }), finish, { notBeforeMs: T0 + 60_000 })).toBe('early');
+  });
+  it('untrusted proofs mark every photo unverified', async () => {
+    const m = await import('../src/run-log');
+    expect(m.unverifiedCredit([{ kind: 'dash' }])).toEqual({ tier: 'none', points: 0, car: null, dash: 'unverified' });
+  });
+  it('canonical client data is stable and excludes the attestation', async () => {
+    const m = await import('../src/run-log');
+    const a = m.proofClientData({ b: 1, a: { y: [1, { d: 2, c: null }], x: 'é' }, attestation: { keyId: 'k' } });
+    const b = m.proofClientData({ a: { x: 'é', y: [1, { c: null, d: 2 }] }, b: 1 });
+    expect(a).toBe(b);
+    expect(a).toBe('{"a":{"x":"é","y":[1,{"c":null,"d":2}]},"b":1}');
+  });
+});

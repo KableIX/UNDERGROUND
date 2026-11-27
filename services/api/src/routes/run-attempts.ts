@@ -5,12 +5,14 @@ import {
   RunOutcomeSchema,
   dropPhotoLocation,
   finishCredit,
+  unverifiedCredit,
   type FinishCredit,
   type RunAbortReason,
   type RunOutcome,
   type VerifiedFinishPhoto,
 } from '@underground/domain';
 import { runFinishPoint } from './route-finishes';
+import { AttestationSchema, type ProofDecision } from '../integrity/photo-proof';
 
 /**
  * Private run log: one record per attempt (completed or aborted) with the member's own
@@ -70,6 +72,10 @@ const RequestSchema = z
     startLabel: z.string().max(40).nullable(),
     analytics: AnalyticsSchema,
     photos: z.array(PhotoSchema).max(4),
+    /** Signed finish nonce from POST /v1/route-finishes. Required for photo credit. */
+    finishNonce: z.string().max(2000).nullable().optional(),
+    /** App Attest assertion (or Play Integrity token) over the canonical body without this field. */
+    attestation: AttestationSchema.nullable().optional(),
   })
   .strict();
 
@@ -87,12 +93,24 @@ export type RunAttemptWrite = {
   startLabel: string | null;
   analytics: RunAnalyticsBody;
   /** Present only for completed runs that sent at least one finish photo. No location. */
-  credit: (FinishCredit & { photos: VerifiedFinishPhoto[] }) | null;
+  credit: (FinishCredit & {
+    photos: VerifiedFinishPhoto[];
+    /** Proof came from an attested app instance. */
+    attested: boolean;
+    /** Finish nonce redeemed for this credit, if any. */
+    nonceJti: string | null;
+    /** Why the photo proof was not trusted (credit is then none). */
+    proofError: string | null;
+  }) | null;
 };
 
 export type RunAttemptResult = { ok: true; write: RunAttemptWrite } | { ok: false; error: string };
 
-export function validateRunAttempt(body: unknown, _member: string, now = Date.now()): RunAttemptResult {
+/**
+ * `proof`: the anti-cheat decision from assessPhotoProof. Undefined only in development
+ * without a nonce secret, where photos are checked against the client's finish time.
+ */
+export function validateRunAttempt(body: unknown, _member: string, now = Date.now(), proof?: ProofDecision): RunAttemptResult {
   const parsed = RequestSchema.safeParse(body);
   if (!parsed.success) return { ok: false, error: 'invalid_run_attempt' };
   const data = parsed.data;
@@ -119,18 +137,27 @@ export function validateRunAttempt(body: unknown, _member: string, now = Date.no
   }
   const hashes = data.photos.map(p => p.imageSha256).filter((h): h is string => !!h);
   if (new Set(hashes).size !== hashes.length) return { ok: false, error: 'duplicate_photo' };
+  const result = (): FinishCredit => {
+    if (proof && !proof.trusted) return unverifiedCredit(data.photos);
+    return finishCredit(
+      data.photos,
+      // With a finish nonce, the server-signed finish time is used, not the client's claim.
+      { latitude: finish.latitude, longitude: finish.longitude, finishedAtMs: proof?.trusted ? proof.finishedAtMs : data.finishedAtMs! },
+      // GPS completion is enforced by the database: a credit row must reference a
+      // server-validated route_run_finishes row for the same attempt.
+      true,
+      proof?.trusted ? { notBeforeMs: proof.notBeforeMs } : {},
+    );
+  };
   const credit =
     data.outcome === 'completed' && data.photos.length
       ? {
-          ...finishCredit(
-            data.photos,
-            { latitude: finish.latitude, longitude: finish.longitude, finishedAtMs: data.finishedAtMs! },
-            // GPS completion is enforced by the database: a credit row must reference a
-            // server-validated route_run_finishes row for the same attempt.
-            true,
-          ),
+          ...result(),
           // Verified: keep the result, drop the location now.
           photos: data.photos.map(dropPhotoLocation),
+          attested: proof?.trusted ? proof.attested : false,
+          nonceJti: proof?.trusted ? proof.nonceJti : null,
+          proofError: proof && !proof.trusted ? proof.error : null,
         }
       : null;
   return {
