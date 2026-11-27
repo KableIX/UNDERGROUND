@@ -3,9 +3,10 @@ import { publicEnv } from '../lib/env';
 import { getMobileSupabaseClient, isLiveAuthConfigured } from '../session/supabase-session';
 import type { SessionMember } from '../session/types';
 import { resultSchema, recordLocalResult, localTopThree, mergePersonalTimes, type CruiseResult, type RunResult, type RecordRow,
-  recordLocalAttempt, saveLocalFinishPhoto, localFinishPhotos, localFinishCredit, localRouteHistory, pendingAttempts, attemptPayload,
+  recordLocalAttempt, saveLocalFinishPhoto, purgeLocalRunAnalytics, localFinishPhotos, localFinishCredit, localRouteHistory, pendingAttempts, attemptPayload,
   type AttemptRecord } from './result-sql';
-import type { FinishPhotoClaim, RouteHistory } from '@underground/domain';
+import { rawTrackCutoffMs, type FinishPhotoClaim, type RouteHistory } from '@underground/domain';
+import { getTripStore } from './trip-store';
 import { uploadRunPhoto } from './finish-photo-upload';
 export type { RecordRow, AttemptRecord } from './result-sql';
 
@@ -87,22 +88,18 @@ export async function cruiseCompleted(member: string, route: string) {
   return !!data;
 }
 
+/** Your own best times (all routes, or one). Private: never compared with other members. */
 export async function readTimes(member: string, route?: string): Promise<RecordRow[]> {
   const db = await database();
-  if (!isLiveAuthConfigured()) return localTopThree(db,member,route);
+  const local = await localTopThree(db,member,route);
+  if (!isLiveAuthConfigured()) return local;
   const client = getMobileSupabaseClient();
-  if (route) {
-    if (!client) throw Error('Club connection unavailable');
-    const {data,error} = await client.rpc('route_top_three',{target_route:route});
-    if (error) throw error;
-    return data ?? [];
-  }
-  const local = await localTopThree(db,member);
   try {
     if (!client) throw Error('Club connection unavailable');
     const {data,error} = await client.rpc('my_run_top_threes');
     if (error) throw error;
-    return mergePersonalTimes(data ?? [],local);
+    const mine = ((data ?? []) as RecordRow[]).filter(row => !route || row.route === route);
+    return mergePersonalTimes(mine,local);
   } catch (error) {
     if (local.length) return local;
     throw error;
@@ -185,4 +182,12 @@ export async function readRouteHistory(member: string, route: string): Promise<R
   } catch {
     return local;
   }
+}
+
+/** 90-day retention on the device: drop raw GPS samples of old trips and speed detail of old runs. */
+export async function purgeLocalRawRunData(nowMs: number = Date.now()) {
+  const cutoff = rawTrackCutoffMs(nowMs);
+  const store = getTripStore() as { purgeRawSamples?: (cutoffMs: number) => Promise<number> };
+  await store.purgeRawSamples?.(cutoff);
+  await purgeLocalRunAnalytics(await database(), cutoff);
 }

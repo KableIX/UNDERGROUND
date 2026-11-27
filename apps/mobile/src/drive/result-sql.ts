@@ -133,6 +133,17 @@ export async function pendingAttempts(db: ResultDatabase, member: string) {
   return db.getAllAsync<AttemptRow>('SELECT * FROM run_attempts WHERE member=? AND pending=1 ORDER BY ended_at', member);
 }
 
+/**
+ * 90-day retention on the device: speed-derived detail is removed from local run analytics
+ * of attempts that ended before the cutoff. Summary (avg speed, time, distance) stays.
+ */
+export async function purgeLocalRunAnalytics(db: ResultDatabase, cutoffMs: number) {
+  await db.runAsync(
+    `UPDATE run_attempts SET analytics=json_set(analytics,'$.maxSpeedMps',json('null'),'$.avgMovingSpeedMps',json('null'))
+     WHERE ended_at < ? AND (json_extract(analytics,'$.maxSpeedMps') IS NOT NULL OR json_extract(analytics,'$.avgMovingSpeedMps') IS NOT NULL)`,
+    cutoffMs);
+}
+
 /** Body for POST /v1/run-attempts. Photos are included only once uploaded (stripped). */
 export function attemptPayload(row: AttemptRow, photos: Array<{claim: FinishPhotoClaim; storagePath: string | null}>) {
   return {
@@ -165,9 +176,10 @@ export async function recordLocalResult(db: ResultDatabase, member: Pick<Session
   }
 }
 
+/** Your own best three per route. Times are private: never ranked against other members. */
 export async function localTopThree(db: ResultDatabase, member: string, route?: string): Promise<RecordRow[]> {
   if (route) return db.getAllAsync<RecordRow>(
-    'SELECT attempt,route,name,millis,row_number() OVER (ORDER BY millis,member,attempt) AS place FROM finishes WHERE route=? ORDER BY millis,member,attempt LIMIT 3',route);
+    'SELECT attempt,route,name,millis,row_number() OVER (ORDER BY millis,attempt) AS place FROM finishes WHERE member=? AND route=? ORDER BY millis,attempt LIMIT 3',member,route);
   return db.getAllAsync<RecordRow>(`SELECT * FROM (
     SELECT attempt,route,name,millis,row_number() OVER(PARTITION BY route ORDER BY millis,attempt) AS place
     FROM personal_bests JOIN finishes USING(member,route,attempt) WHERE member=?) WHERE place<=3 ORDER BY route,place`,member);

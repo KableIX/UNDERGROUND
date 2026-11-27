@@ -4,7 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import { Text } from '@underground/ui';
 import { getCuratedRun } from '../../data/curated-runs';
 import { useSession } from '../../session/SessionContext';
-import { cruiseCompleted, onResultChange, readTimes, type RecordRow } from '../../drive/result-store';
+import { cruiseCompleted, onResultChange, readRouteHistory, readTimes, type RecordRow } from '../../drive/result-store';
 import { shell } from '../../theme/shell';
 
 type Props = { route?: string; cruise?: boolean };
@@ -13,6 +13,7 @@ export function RouteRecords({route, cruise = false}: Props) {
   const member = state.status === 'authenticated' ? state.member.memberId : undefined;
   const [rows, setRows] = useState<RecordRow[]>([]);
   const [status, setStatus] = useState('');
+  const [tally, setTally] = useState('');
   useFocusEffect(useCallback(() => {
     let version = 0;
     async function load() {
@@ -25,20 +26,26 @@ export function RouteRecords({route, cruise = false}: Props) {
         } else {
           const times = await readTimes(member, route);
           if (ticket === version) { setRows(times); setStatus(times.length ? '' : 'No finishes yet.'); }
+          if (route) {
+            const history = await readRouteHistory(member, route);
+            if (ticket === version) setTally(history.attempts ? `Completed ${history.completed}. Ended early ${history.aborted}.` : '');
+          }
         }
       } catch { if (ticket === version) setStatus('Results unavailable.'); }
     }
-    setRows([]); setStatus('Loading…');
+    setRows([]); setTally(''); setStatus('Loading…');
     void load();
     const unsubscribe = onResultChange(() => { void load(); });
     return () => { version++; unsubscribe(); };
   },[member,route,cruise]));
   return <View style={s.section}>
-    {route && <Text gold variant="caption">{cruise ? 'YOUR CRUISE' : 'RUN TOP 3'}</Text>}
+    {/* Private: your own times only. Times are never ranked between members. */}
+    {route && <Text gold variant="caption">{cruise ? 'YOUR CRUISE' : 'YOUR BEST TIMES'}</Text>}
     {!!status && <Text style={s.muted}>{status}</Text>}
+    {!!tally && <Text style={s.muted}>{tally}</Text>}
     {rows.map((row,i) => <View key={row.route + ':' + row.place}>
       {!route && rows[i-1]?.route !== row.route && <Text gold style={s.heading}>{getCuratedRun(row.route)?.title ?? row.route}</Text>}
-      <View style={s.line}><Text>#{row.place}{route ? '  ' + row.name : ''}</Text>
+      <View style={s.line}><Text>#{row.place}</Text>
         <Text style={s.time}>{formatResult(row.millis)}</Text></View>
     </View>)}
   </View>;
