@@ -18,7 +18,7 @@ describe('California beta camera map',()=>{
   it('keeps camera types distinct and preserves city status when supplied',()=>{
     for(const source of ['sj','sf','oak','la','osm']){
       const p=Object.values(db.cells).flat().find(r=>r[3]===source)!;
-      const visible=cameraPins(db,square(p[0],p[1],0.012),{...initialLayers,speed:true});
+      const visible=cameraPins(db,square(p[0],p[1],0.012),{plate:false,speed:true,history:false});
       expect(visible.every(pin=>pin.kind==='speed')).toBe(true);
       const selected=visible.find(pin=>pin.id===source+'/'+p[4])!;
       expect(selected.detail).toContain(p[6] || 'Operating status unknown');
