@@ -1,6 +1,6 @@
 export type Layer = 'plate' | 'speed' | 'history';
 export type Layers = Readonly<Record<Layer, boolean>>;
-export const initialLayers: Layers = { plate: false, speed: false, history: false };
+export const initialLayers: Layers = { plate: true, speed: true, history: true };
 export type Box = { west: number; south: number; east: number; north: number };
 type Source = 'reader' | 'osm' | 'sf' | 'sj' | 'oak' | 'la';
 type Row = [number, number, 'plate' | 'speed', Source, string, string, string];

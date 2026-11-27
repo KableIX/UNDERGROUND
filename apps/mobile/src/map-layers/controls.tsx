@@ -1,19 +1,14 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@underground/ui';
 import { initialLayers, snapshot, type Layer, type Layers } from './cameras';
 import { getMobileSupabaseClient } from '../session/supabase-session';
 import { type Zone } from './history';
 
-let enabled: Layers=initialLayers;
-const listeners=new Set<()=>void>();
-function subscribe(fn:()=>void) { listeners.add(fn); return ()=>{listeners.delete(fn);}; }
-export function useLayers() {return useSyncExternalStore(subscribe,()=>enabled,()=>initialLayers);}
-function toggle(key:Layer,value:boolean) { enabled={...enabled,[key]:value}; listeners.forEach(fn=>fn()); }
+export function useLayers(): Layers { return initialLayers; }
 const labels: Record<Layer,string>={plate:'Plate readers',speed:'Speed cameras',history:'Recurring speed checks'};
 
 export function MapLayersButton({compact=false}:{compact?:boolean}) {
-  const settings=useLayers();
   const [open,setOpen]=useState(false);
   const data=open ? snapshot() : null;
   return <>
@@ -25,7 +20,7 @@ export function MapLayersButton({compact=false}:{compact?:boolean}) {
         <Text accessibilityRole="header" style={s.title}>Map layers</Text>
         {(Object.keys(labels) as Layer[]).map(k=><View style={s.row} key={k}>
           <Text style={s.text}>{labels[k]}</Text>
-          <Switch accessibilityLabel={labels[k]} value={settings[k]} onValueChange={v=>toggle(k,v)}/>
+          <Text style={{color: '#A1F572', fontSize: 12}}>ALWAYS ON</Text>
         </View>)}
         <Text style={s.note}>{data ? 'California · saved '+data.retrieved+' · works offline. Zoom to street level for camera points. Coverage varies by area.' : 'Camera data unavailable.'}</Text>
         <Text style={s.note}>Recurring checks appear on routes with reports from at least three members on three separate days in 90 days.</Text>
