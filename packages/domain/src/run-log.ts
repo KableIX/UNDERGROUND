@@ -259,24 +259,49 @@ export function coarseStartLabel(sample: { latitude: number; longitude: number }
 export const FinishPhotoKindSchema = z.enum(['car', 'dash']);
 export type FinishPhotoKind = z.infer<typeof FinishPhotoKindSchema>;
 
-/** Photo must be taken within this window after the GPS finish (unlocking the phone included). */
+/** Final (TJ, 2026-11-27). Photo must be taken within this window after the GPS finish, unlocking the phone included. */
 export const FINISH_PHOTO_WINDOW_MS = 30 * 60 * 1000;
 /** Small allowance for clock skew between the GPS fix and the camera. */
 export const FINISH_PHOTO_EARLY_GRACE_MS = 2 * 60 * 1000;
-/** Photo location must be within this distance of the route finish. */
+/** Final (TJ, 2026-11-27). Photo location must be within this distance of the route finish. */
 export const FINISH_PHOTO_RADIUS_M = 250;
 /** Worse than this, a photo location cannot confirm anything. */
 export const FINISH_PHOTO_MAX_ACCURACY_M = 100;
 
 export type FinishTier = 'none' | 'verified' | 'car' | 'top';
 
-/** Points per tier. Values are placeholders until TJ sets them; only the order is decided. */
+/** Final points per tier (TJ, 2026-11-27): dash only 10, car only 20, both 30. */
+export const FINISH_POINTS_DASH = 10;
+export const FINISH_POINTS_CAR = 20;
+export const FINISH_POINTS_BOTH = 30;
 export const FINISH_TIER_POINTS: Record<FinishTier, number> = {
   none: 0,
-  verified: 10,
-  car: 20,
-  top: 30,
+  verified: FINISH_POINTS_DASH,
+  car: FINISH_POINTS_CAR,
+  top: FINISH_POINTS_BOTH,
 };
+
+// ---------------------------------------------------------------------------
+// Retention
+// ---------------------------------------------------------------------------
+
+/**
+ * Raw per-point GPS, speed and track data is kept for 90 days, then purged.
+ * After that only the summary stays: average speed, completion time, distance
+ * (plus non-speed counts). Server: public.purge_raw_run_data(). Device: purgeLocalRawRunData().
+ */
+export const RAW_TRACK_RETENTION_DAYS = 90;
+export const RAW_TRACK_RETENTION_MS = RAW_TRACK_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+/** Epoch ms before which raw run data must be gone. */
+export function rawTrackCutoffMs(nowMs: number = Date.now()): number {
+  return nowMs - RAW_TRACK_RETENTION_MS;
+}
+
+/** Summary analytics kept after the retention window: speed-derived detail removed. */
+export function retainedAnalytics(a: RunAnalytics): RunAnalytics {
+  return { ...a, maxSpeedMps: null, avgMovingSpeedMps: null };
+}
 
 export const FinishPhotoClaimSchema = z
   .object({

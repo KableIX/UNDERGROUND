@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@underground/ui';
-import { FINISH_PHOTO_WINDOW_MS, type FinishCredit, type FinishPhotoKind } from '@underground/domain';
+import { FINISH_PHOTO_WINDOW_MS, FINISH_POINTS_BOTH, FINISH_POINTS_CAR, FINISH_POINTS_DASH, type FinishCredit, type FinishPhotoKind } from '@underground/domain';
 import { captureFinishPhoto } from './finish-photo';
 import { addFinishPhoto, readFinishCredit } from './result-store';
 
@@ -9,9 +9,9 @@ type Props = { member: string; attempt: string; finishedAtMs: number };
 
 const TIER_LINE: Record<FinishCredit['tier'], string> = {
   none: 'GPS finish recorded. Add a photo for credit.',
-  verified: 'Dash photo. Run verified.',
-  car: 'Car at the finish. More points.',
-  top: 'Car and dash. Top points.',
+  verified: `Dash photo. Run verified. ${FINISH_POINTS_DASH} points.`,
+  car: `Car at the finish. ${FINISH_POINTS_CAR} points.`,
+  top: `Car and dash. ${FINISH_POINTS_BOTH} points.`,
 };
 
 /**
@@ -68,11 +68,11 @@ export function FinishPhotoPanel({ member, attempt, finishedAtMs }: Props) {
           {(['car', 'dash'] as const).map(kind => (
             <Pressable key={kind} disabled={!!busy} accessibilityRole="button" style={[s.slot, credit?.[kind] === 'accepted' && s.done]} onPress={() => take(kind)}>
               <Text style={s.slotText}>{kind === 'car' ? 'Car at finish' : 'Dash'}</Text>
-              <Text style={s.slotNote}>{busy === kind ? 'Saving…' : status(kind) ?? (kind === 'car' ? 'More points' : 'Verifies')}</Text>
+              <Text style={s.slotNote}>{busy === kind ? 'Saving…' : status(kind) ?? (kind === 'car' ? `${FINISH_POINTS_CAR} points` : `Verifies · ${FINISH_POINTS_DASH}`)}</Text>
             </Pressable>
           ))}
         </View>
-        <Text style={s.note}>Both earn top points. Window closes in {minutes} min.</Text>
+        <Text style={s.note}>Both: {FINISH_POINTS_BOTH} points. Window closes in {minutes} min.</Text>
       </> : <Text style={s.note}>Photo window closed.</Text>}
     </View>
   );

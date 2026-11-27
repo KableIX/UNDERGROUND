@@ -153,3 +153,22 @@ describe('route history', () => {
     expect(routeTrend([100, 100, 100, 110, 110, 110])).toBe('slower');
   });
 });
+
+describe('final values and retention', () => {
+  it('uses the final points, radius and window', async () => {
+    const m = await import('../src/run-log');
+    expect([m.FINISH_POINTS_DASH, m.FINISH_POINTS_CAR, m.FINISH_POINTS_BOTH]).toEqual([10, 20, 30]);
+    expect(m.FINISH_TIER_POINTS).toEqual({ none: 0, verified: 10, car: 20, top: 30 });
+    expect(m.FINISH_PHOTO_RADIUS_M).toBe(250);
+    expect(m.FINISH_PHOTO_WINDOW_MS).toBe(30 * 60 * 1000);
+  });
+
+  it('keeps raw data 90 days, then only the summary', async () => {
+    const m = await import('../src/run-log');
+    expect(m.RAW_TRACK_RETENTION_DAYS).toBe(90);
+    expect(m.rawTrackCutoffMs(T0)).toBe(T0 - 90 * 86_400_000);
+    const a = computeRunAnalytics({ samples: drive({ seconds: 60, mps: 20 }), activeMs: 60_000, distanceM: 1200, startedAtMs: T0 });
+    const kept = m.retainedAnalytics(a);
+    expect(kept).toMatchObject({ avgSpeedMps: a.avgSpeedMps, activeMs: 60_000, distanceM: 1200, maxSpeedMps: null, avgMovingSpeedMps: null });
+  });
+});
