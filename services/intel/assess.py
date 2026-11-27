@@ -76,33 +76,62 @@ def weather_segments(line, polygon):
   if 2<=len(coordinates)<=1200: result.append([list(c) for c in coordinates])
  return result
 
+def route_inventory(data_path):
+ """Resolve the same saved geometry as the mobile catalog, including legacy routes."""
+ def load(name):
+  return json.loads((data_path/name).read_text())
+ ca=load('california-catalog.json')
+ fl=load('florida-catalog.json')
+ roads=load('california-road-routes.json')
+ florida=load('florida-road-routes.json')
+ local=load('silicon-valley-road-routes.json')
+ roads['EB01']=load('jacobs-pass-route.json')
+ out={}
+ for state,catalog,geometries in [('CA',ca,roads),('FL',fl,florida)]:
+  for row in catalog:
+   road=geometries.get(row['id']) or (local.get(row['slug']) if state=='CA' else None)
+   out[row['slug']]={'state':state,'coordinates':(road or {}).get('coordinates',[])}
+ for slug,road in [('half-moon-bay-coast',roads.get('HMB')),('skyline-ridge-cruise',local.get('skyline-ridge-cruise')),('la-honda-highway-84',local.get('la-honda-highway-84'))]:
+  if slug not in out:out[slug]={'state':'CA','coordinates':(road or {}).get('coordinates',[])}
+ first=roads.get('N04',{}).get('coordinates',[])
+ last=roads.get('N06',{}).get('coordinates',[])
+ out['jenner-to-point-arena']={'state':'CA','coordinates':first+last[1:] if first and last and first[-1]==last[0] else []}
+ out['saratoga-club-loop']={'state':'CA','coordinates':load('saratoga-club-route.json')['geometry']['coordinates']}
+ return out
+
+def route_line(coordinates):
+ if len(coordinates)<2:return None
+ try:
+  if any(len(p)!=2 or not all(math.isfinite(v) for v in p) or not (-180<=p[0]<=180 and -90<=p[1]<=90) for p in coordinates):return None
+  line=LineString(coordinates)
+  return line if line.is_valid and not line.is_empty and line.length>0 else None
+ except (TypeError,ValueError):return None
+
 def assess(now=None, db_path=None, data_path=None):
  now=time.time() if now is None else now
  data_path=Path(data_path or DATA)
- events=[]; health={}
+ events=[]; health={}; weather_snapshots={}
  with sqlite3.connect(db_path or ROOT/'shadow.sqlite3') as db:
   for name,checked,ok,detail in db.execute('select * from health'): health[name]={'checked_at':checked,'ok':bool(ok),'detail':detail}
   for name,url,fetched,payload,count in db.execute('select * from snapshots'):
    if name not in ('nws-CA','nws-FL') or not 0<=now-fetched<=900 or not fresh_source(health,name,now): continue
-   events.extend(normalize(name,json.loads(payload),now))
+   document=json.loads(payload)
+   if not isinstance(document.get('features'),list):continue
+   weather_snapshots[name]=fetched
+   events.extend(normalize(name,document,now))
   events.extend(road_candidates(db,health,now))
  tree=STRtree([e['geometry'] for e in events])
  routes={}
- for state in ('california','florida'):
-  catalog=json.loads((data_path/(state+'-catalog.json')).read_text())
-  roads=json.loads((data_path/(state+'-road-routes.json')).read_text())
-  for row in catalog:
-   road=roads.get(row['id'])
-   if not road or len(road.get('coordinates',[]))<2: continue
-   line=LineString(road['coordinates'])
-   matches=[]
+ for slug,route in route_inventory(data_path).items():
+  state=route['state']
+  line=route_line(route['coordinates'])
+  matches=[]
+  if line is not None:
    for idx in tree.query(line.buffer(0.0003)):
     e=events[int(idx)]
-    if e['source'].startswith('nws') and not e['source'].endswith('CA' if state=='california' else 'FL'): continue
-    if e['kind']=='weather' and not line.intersects(e['geometry']): continue
-    if e['kind']=='roadwork' and state!='california': continue
-    if e['kind']=='roadwork' and line.distance(e['geometry'])>0.0003: continue
-    # Proximity is not road identity. Keep roadwork candidates internal.
+    if e['source'].startswith('nws') and e['source']!='nws-'+state:continue
+    if e['kind']=='weather' and not line.intersects(e['geometry']):continue
+    if e['kind']=='roadwork' and (state!='CA' or line.distance(e['geometry'])>0.0003):continue
     item={k:v for k,v in e.items() if k!='geometry'}
     if e['kind']=='weather':
      item['segments']=weather_segments(line,e['geometry'])
@@ -110,8 +139,11 @@ def assess(now=None, db_path=None, data_path=None):
      item['road_identity']='unverified'
      item['publication']='shadow'
     matches.append(item)
-   routes[row['slug']]={'status':'CAUTION' if any(m['kind']=='weather' for m in matches) else 'UNKNOWN','candidates':matches,'coverage':'partial','publication':'shadow'}
- return {'generated_at':int(now),'mode':'shadow','health':health,'normalized_candidates':len(events),'routes':routes}
+  routes[slug]={'state':state,'geometry_status':'mapped' if line is not None else 'unmapped',
+                'status':'CAUTION' if any(m['kind']=='weather' for m in matches) else 'UNKNOWN',
+                'candidates':matches,'coverage':'partial','publication':'shadow'}
+
+ return {'generated_at':int(now),'mode':'shadow','health':health,'weather_snapshots':weather_snapshots,'normalized_candidates':len(events),'routes':routes}
 if __name__=='__main__':
  result=assess()
  tmp=ROOT/'assessments.tmp'; tmp.write_text(json.dumps(result)); tmp.replace(ROOT/'assessments.json')

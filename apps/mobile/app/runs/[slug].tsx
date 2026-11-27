@@ -1,3 +1,5 @@
+import {IntelRouteStatus} from '../../src/components/play/IntelRouteStatus';
+import {runAdvisories,winterNavigationPaused} from '../../src/data/route-advisories';
 import { RouteRecords } from '../../src/components/play/RouteRecords';
 import { DrivePhoto } from '../../src/components/play/DrivePhoto';
 import { RoutePhotoCredit } from '../../src/components/play/RoutePhotoCredit';
@@ -52,6 +54,8 @@ export default function RunDetailScreen() {
             <Text variant="caption" gold>VIEW ROUTE MAP / START &amp; FINISH</Text>
           </Pressable>
         ) : null}
+        <IntelRouteStatus slug={null} state={run.catalog?.state??'CA'}
+          notices={runAdvisories(run.slug,run.catalog?.id)} seasonalClosure={winterNavigationPaused(run.catalog?.id)}/>
         <Text style={styles.section}>PROPOSED ROUTE</Text>
         {run.sequence.map((segment, index) => (
           <View key={index} style={styles.step}>

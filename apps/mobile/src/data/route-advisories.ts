@@ -26,3 +26,7 @@ export const cedarGroveWinterClosure = Date.parse('2026-11-13T00:00:00-08:00');
 export function winterNavigationPaused(id: string | undefined, now = Date.now()) {
   return id === 'KS01' && now >= cedarGroveWinterClosure;
 }
+
+export function runAdvisories(slug:string,id:string|undefined,now=Date.now()){
+ return slug==='jenner-to-point-arena'?[...routeAdvisories('N04',now),...routeAdvisories('N06',now)]:routeAdvisories(id??'',now);
+}
