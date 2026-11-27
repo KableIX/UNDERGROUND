@@ -12,6 +12,7 @@ export const supercargoCopy = {
   commissionsNote: 'This week\'s commissions. Counts only.',
   commissionsEmpty: 'No commissions posted this week.',
   exchangeEmpty: 'No offers yet. Propose one with a member\'s number.',
+  tradeableEmpty: 'No envelope folios yet. Open sealed envelopes to get folios you can exchange.',
   mapEmpty: 'Nothing nearby in the last three days.',
   offline: 'Turn on SupercarGO to see sightings, envelopes and the Ledger.',
   originalKept: 'The original stays on your phone. Only a blurred copy is shared.',

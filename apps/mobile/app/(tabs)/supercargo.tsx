@@ -16,6 +16,7 @@ import {
   readMap,
   readMyModeration,
   readSettings,
+  readTradeable,
   saveSettings,
   type ClubMarks,
   type Commission,
@@ -24,6 +25,7 @@ import {
   type MapSighting,
   type ModerationNote,
   type SealedEnvelope,
+  type TradeFolio,
 } from '../../src/supercargo/client';
 import {
   decisionText,
@@ -40,6 +42,7 @@ import {
   type SupercargoSection,
 } from '../../src/supercargo/copy';
 import { currentFix } from '../../src/supercargo/location';
+import { firstQueryBounds, hoursUntilTradeable } from '../../src/supercargo/map';
 import { SightingsLayer } from '../../src/supercargo/SightingsLayer';
 import { TierMark } from '../../src/supercargo/TierMark';
 import { Action, Caption, Rule, ui } from '../../src/supercargo/ui';
@@ -204,6 +207,7 @@ function MapSection({ tick, onMessage }: { tick: number; onMessage: (m: string) 
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [featured, setFeatured] = useState<Awaited<ReturnType<typeof readFeatured>>>(null);
   const [busy, setBusy] = useState(false);
+  const [showList, setShowList] = useState(true);
 
   useEffect(() => {
     let live = true;
@@ -212,8 +216,8 @@ function MapSection({ tick, onMessage }: { tick: number; onMessage: (m: string) 
         const fix = await currentFix();
         if (!live) return;
         setCenter({ lat: fix.lat, lng: fix.lng });
-        const span = 0.25;
-        const bounds = { west: fix.lng - span, east: fix.lng + span, south: fix.lat - span, north: fix.lat + span };
+        // Wide enough for the whole local scene; panning the map loads more.
+        const bounds = firstQueryBounds(fix);
         queried.current = bounds;
         const [map, near, feat] = await Promise.all([
           readMap(bounds),
@@ -273,13 +277,23 @@ function MapSection({ tick, onMessage }: { tick: number; onMessage: (m: string) 
     }
   }
 
+  const report = useCallback(
+    (x: MapSighting) => router.push({ pathname: '/supercargo/report', params: { id: x.id, title: `${x.make} ${x.model}` } }),
+    [router],
+  );
+
   if (sightings === null) return <ActivityIndicator color="#C6B08B" />;
   return (
     <View style={{ gap: 14 }}>
-      <SightingsLayer sightings={sightings} envelopes={envelopes} center={center} onBounds={onBounds} />
+      <SightingsLayer sightings={sightings} envelopes={envelopes} center={center} onBounds={onBounds} onReport={report} />
       <Caption>{supercargoCopy.mapNote.toUpperCase()}</Caption>
       {sightings.length === 0 ? <Text style={ui.body}>{supercargoCopy.mapEmpty}</Text> : null}
-      {sightings.slice(0, 8).map((x) => (
+      {sightings.length > 0 ? (
+        <Pressable accessibilityRole="button" onPress={() => setShowList((v) => !v)} hitSlop={8}>
+          <Text style={s.report}>{showList ? 'HIDE LIST' : `SHOW LIST · ${sightings.length}`}</Text>
+        </Pressable>
+      ) : null}
+      {(showList ? sightings.slice(0, 50) : []).map((x) => (
         <View key={x.id} style={s.line}>
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={ui.notice}>
@@ -291,7 +305,7 @@ function MapSection({ tick, onMessage }: { tick: number; onMessage: (m: string) 
             accessibilityRole="button"
             accessibilityLabel={`Report ${x.make} ${x.model}`}
             hitSlop={10}
-            onPress={() => router.push({ pathname: '/supercargo/report', params: { id: x.id, title: `${x.make} ${x.model}` } })}
+            onPress={() => report(x)}
           >
             <Text style={s.report}>REPORT</Text>
           </Pressable>
@@ -433,10 +447,23 @@ function ExchangeSection({
   onMessage: (m: string) => void;
 }) {
   const router = useRouter();
+  const { state } = useSession();
+  const myNumber = state.status === 'authenticated' ? state.member.memberNumber : '';
   const [rows, setRows] = useState<ExchangeRow[] | null>(null);
+  const [tradeable, setTradeable] = useState<TradeFolio[]>([]);
+  const [holding, setHolding] = useState<Folio[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(() => {
+    // Your own envelope folios: tradeable after 24 hours (same rule the server enforces).
+    if (myNumber) {
+      readTradeable(myNumber)
+        .then(setTradeable)
+        .catch(() => setTradeable([]));
+    }
+    readLedger()
+      .then((f) => setHolding(f.filter((x) => x.origin === 'envelope' && hoursUntilTradeable(x.acquired_at) > 0)))
+      .catch(() => setHolding([]));
     readExchanges()
       .then((r) => {
         setRows(r);
@@ -446,7 +473,7 @@ function ExchangeSection({
         setRows([]);
         onMessage(e instanceof Error ? e.message : 'The Exchange is unavailable.');
       });
-  }, [onWaiting, onMessage]);
+  }, [onWaiting, onMessage, myNumber]);
   useEffect(() => load(), [load, tick]);
 
   async function decide(id: string, accept: boolean) {
@@ -468,6 +495,31 @@ function ExchangeSection({
     <View style={{ gap: 14 }}>
       <Action primary title="Propose an exchange" onPress={() => router.push('/supercargo/propose')} />
       <Text style={ui.body}>{supercargoCopy.exchangeNote}</Text>
+
+      <Caption>{`YOUR TRADEABLE FOLIOS · ${tradeable.length}`}</Caption>
+      {tradeable.length === 0 && holding.length === 0 ? <Text style={ui.body}>{supercargoCopy.tradeableEmpty}</Text> : null}
+      {tradeable.map((f) => (
+        <View key={f.id} style={[ui.card, f.tier === 'singular' && { borderColor: '#8F7A52' }]}>
+          <Text style={ui.cardTitle}>
+            {f.make} {f.model}
+          </Text>
+          <TierMark tier={f.tier} />
+          <Text style={ui.body}>Envelope · ready to exchange</Text>
+        </View>
+      ))}
+      {holding.map((f) =>
+        f.supercargo_catalog ? (
+          <View key={f.id} style={[ui.card, { opacity: 0.7 }]}>
+            <Text style={ui.cardTitle}>
+              {f.supercargo_catalog.make} {f.supercargo_catalog.model}
+            </Text>
+            <TierMark tier={f.supercargo_catalog.tier} />
+            <Text style={ui.body}>Envelope · exchangeable in {hoursUntilTradeable(f.acquired_at)} h</Text>
+          </View>
+        ) : null,
+      )}
+
+      <Caption>OFFERS</Caption>
       {rows.length === 0 ? <Text style={ui.body}>{supercargoCopy.exchangeEmpty}</Text> : null}
       {rows.map((x) => (
         <View key={x.id} style={ui.card}>
