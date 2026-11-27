@@ -324,7 +324,7 @@ function ActiveRouteNav(props: Props & { fitCoordinates: [number, number][]; qui
               <Text style={{color:'#111',fontSize:22,fontWeight:'700'}}>{speedLimit===null?'?':Math.round(speedLimit)}</Text>
             </View>
             <View style={{flex:1}}>
-              <Text style={{color:'#E7C892'}}>{speedLimit===null?'Speed limit unavailable':'Map data ? MPH'}</Text>
+              <Text style={{color:'#E7C892'}}>{speedLimit===null?'Speed limit unavailable':'Map data · MPH'}</Text>
               <Text style={{fontSize:11,color:'#ADB7BE'}}>Obey posted signs. Map limits may differ.</Text>
             </View>
           </View>

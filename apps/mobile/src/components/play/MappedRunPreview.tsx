@@ -61,8 +61,8 @@ export function MappedRunPreview({ run, route }: Props) {
         <Text style={styles.distance}>{(route.distanceMeters / 1609.344).toFixed(1)} mi · {loop ? 'Loop' : 'One way'}</Text>
         {run.category !== 'TEST' && <RouteRecords route={run.slug} cruise={run.category === 'CRUISE'} />}
         <Text style={styles.copy}>{run.subtitle}</Text>
-        <Text style={styles.note}>{Math.round(route.durationSeconds / 60)} min estimated driving ? {sequence.length} stops</Text>
-        <Text gold>{sequence[0]} ? {sequence[sequence.length - 1]}</Text>
+        <Text style={styles.note}>{Math.round(route.durationSeconds / 60)} min estimated driving · {sequence.length} stops</Text>
+        <Text gold>{sequence[0]} → {sequence[sequence.length - 1]}</Text>
         {mirrored && <Text style={styles.note}>Reverse preview only. Navigation is unavailable until reverse road routing is validated.</Text>}
         {(id === 'N04' || id === 'N06') && <Pressable accessibilityRole="button" style={styles.locationButton} onPress={() => router.push('/runs/jenner-to-point-arena')}>
           <Text gold>Drive both Runs from Jenner to Point Arena</Text>

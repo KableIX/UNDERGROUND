@@ -126,7 +126,7 @@ export function DriveMenu() {
       {entries.filter(row => row.run?.category === 'CRUISE' && row.state === 'CA').sort((a,b) => Number(b.run?.slug === 'highway-1-cruise') - Number(a.run?.slug === 'highway-1-cruise')).map(({run,art}) => run && (
         <Pressable key={run.slug} accessibilityRole="button" accessibilityLabel={'View ' + run.title} style={s.route} onPress={() => router.push({pathname:'/runs/[slug]',params:{slug:run.slug}})}>
           {art.cover && <DrivePhoto source={art.cover} />}
-          <View style={s.routeBody}><Text style={s.meta}>{run.catalog?.id} ? CRUISE</Text><Text style={s.routeTitle}>{run.title}</Text><Text style={s.note}>{run.sequence[0]} ? {run.sequence[run.sequence.length-1]}</Text></View>
+          <View style={s.routeBody}><Text style={s.meta}>{run.catalog?.id} · CRUISE</Text><Text style={s.routeTitle}>{run.title}</Text><Text style={s.note}>{run.sequence[0]} → {run.sequence[run.sequence.length-1]}</Text></View>
         </Pressable>
       ))}
       <Choice title="Club Drives" detail="Saved drives and scheduled meetups" onPress={() => router.push('/club-drives')} />
@@ -211,7 +211,7 @@ function CatalogBrowser({conquestOnly = false, onExit}: {conquestOnly?: boolean;
           {onExit && <Choice title="Back to Drive" onPress={onExit} />}
           {!conquestOnly && <Choice title="Cruises" detail={count(cruises.length, 'scenic and social drive')} onPress={() => setBrowseCruises(true)} />}
           {!conquestOnly && <Choice title="Runs" detail={count(runs.length, 'curated route')} onPress={() => setBrowseRuns(true)} />}
-          {featured?.run && <Choice title="Highway 1 Cruise" detail="Featured cruise ? Moss Landing ? Venice Beach" art={featured.art} onPress={() => router.push({ pathname: '/runs/[slug]', params: { slug: 'highway-1-cruise' } })} />}
+          {featured?.run && <Choice title="Highway 1 Cruise" detail="Featured cruise · Moss Landing → Venice Beach" art={featured.art} onPress={() => router.push({ pathname: '/runs/[slug]', params: { slug: 'highway-1-cruise' } })} />}
           <Choice title="Club Drives" detail="Saved drives and scheduled meetups" onPress={() => router.push('/club-drives')} />
           <Text accessibilityRole="header" style={s.section}>Explore by location</Text>
           <View style={s.books}>
