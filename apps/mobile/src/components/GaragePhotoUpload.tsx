@@ -15,12 +15,14 @@ type Props = {
   vehicleId: string;
   memberId: string;
   onPlanned?: (plan: GarageMediaUploadPlan) => void;
+  onLocalPreview?: (uri: string) => Promise<void>;
+  onRegistered?: (id:string) => Promise<void>;
+  hasPhoto?:boolean;
 };
 
 type PickerModule = {
-  requestMediaLibraryPermissionsAsync: () => Promise<{ granted: boolean }>;
   launchImageLibraryAsync: (opts: {
-    mediaTypes: string;
+    mediaTypes: string[];
     quality: number;
     allowsMultipleSelection: boolean;
   }) => Promise<{
@@ -40,8 +42,8 @@ function tryLoadImagePicker(): PickerModule | null {
 }
 
 /** In-memory preview in development; authenticated private upload in live mode. */
-export function GaragePhotoUpload({ vehicleId, memberId, onPlanned }: Props) {
-  const [status, setStatus] = useState('Add an actual garage photograph.');
+export function GaragePhotoUpload({ vehicleId, memberId, onPlanned, onLocalPreview, onRegistered, hasPhoto }: Props) {
+  const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const { state } = useSession();
 
@@ -54,13 +56,8 @@ export function GaragePhotoUpload({ vehicleId, memberId, onPlanned }: Props) {
     }
     setBusy(true);
     try {
-      const permission = await picker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        setStatus('Photo-library permission denied; nothing was uploaded.');
-        return;
-      }
       const selected = await picker.launchImageLibraryAsync({
-        mediaTypes: 'images',
+        mediaTypes: ['images'],
         quality: 0.85,
         allowsMultipleSelection: false,
       });
@@ -100,8 +97,10 @@ export function GaragePhotoUpload({ vehicleId, memberId, onPlanned }: Props) {
           sortOrder: Date.now() % 100000, localUri: photo.uri,
         });
         const plan = planGarageMediaUpload({ intent, supabaseReady: false });
+        if (!onLocalPreview) throw Error('Open the car in Garage to save a photo.');
+        await onLocalPreview(photo.uri);
         onPlanned?.(plan);
-        setStatus('Photo selected locally. Persistent uploads are not configured.');
+        setStatus('Photo saved on this device.');
         return;
       }
 
@@ -115,6 +114,7 @@ export function GaragePhotoUpload({ vehicleId, memberId, onPlanned }: Props) {
         setStatus(`Upload failed: ${result.error}`);
         return;
       }
+      await onRegistered?.(result.mediaId);
       onPlanned?.(result.plan);
       setStatus('Private garage photo uploaded and registered.');
     } catch {
@@ -126,11 +126,6 @@ export function GaragePhotoUpload({ vehicleId, memberId, onPlanned }: Props) {
 
   return (
     <View style={styles.root}>
-      <Text variant="caption" gold>PRIVATE GARAGE PHOTOGRAPHY</Text>
-      <Text style={styles.body}>
-        Images remain private until explicitly approved for sharing. Original location metadata
-        must never appear in public galleries.
-      </Text>
       <Pressable
         style={styles.cta}
         disabled={busy}
@@ -138,9 +133,9 @@ export function GaragePhotoUpload({ vehicleId, memberId, onPlanned }: Props) {
         accessibilityRole="button"
       >
         {busy ? <ActivityIndicator color={shell.accent} /> :
-          <Text variant="caption" gold>ADD PHOTO</Text>}
+          <Text variant="caption" gold>{hasPhoto ? 'Change photo' : 'Add car photo'}</Text>}
       </Pressable>
-      <Text variant="caption" style={styles.status}>{status}</Text>
+      {!!status && <Text variant="caption" style={styles.status}>{status}</Text>}
     </View>
   );
 }

@@ -10,7 +10,7 @@ import type { DistrictKind } from '../../packages/domain/src/district-kind';
 
 export const siliconValleyDistrict = {
   slug: 'silicon-valley-dev',
-  name: 'Silicon Valley Development',
+  name: 'Heart of Silicon Valley',
   region: 'California',
   kind: 'development' as DistrictKind,
 } as const;

@@ -1,3 +1,4 @@
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import { Platform, UIManager } from 'react-native';
 
 /**
@@ -63,9 +64,8 @@ export function isExpoLinearGradientNativeAvailable(): boolean {
 export function isExpoSqliteNativeAvailable(): boolean {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') return false;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const SQLite = require('expo-sqlite') as { openDatabaseAsync?: unknown };
-    return typeof SQLite?.openDatabaseAsync === 'function';
+    // Probe the registry without evaluating expo-sqlite's throwing module initializer.
+    return requireOptionalNativeModule('ExpoSQLite') != null;
   } catch {
     return false;
   }

@@ -1,93 +1,77 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import type { NewswireStory, SimNewswireStory } from '@underground/domain';
+import { useRouter, useFocusEffect } from 'expo-router';
+
 import { GoldRule, Screen, Text } from '@underground/ui';
 import { NewswireCard } from '../src/components/feed/NewswireCard';
 import { UndergroundMark } from '../src/components/brand/UndergroundMark';
-import { feedFixtureCards, type FeedCardModel } from '../src/data/feed-v2';
-import {
-  listNewswireFeed,
-  subscribeSimNewswire,
-} from '../src/lib/sim-workflow';
+import type { FeedCardModel } from '../src/data/feed-v2';
+import { EditorialFeed } from '../src/components/feed/EditorialFeed';
+import { publicEnv } from '../src/lib/env';
+import { LocalEventFeed } from '../src/components/feed/LocalEventFeed';
 import { useSession } from '../src/session/SessionContext';
+import { getMobileSupabaseClient, isLiveAuthConfigured } from '../src/session/supabase-session';
 import { shell } from '../src/theme/shell';
 
-function simToCard(story: SimNewswireStory, displayName: string): FeedCardModel {
-  return {
-    id: story.id,
-    kind: 'capture',
-    provenance: 'sim',
-    badge: 'SIM · NOT PRODUCTION',
-    actorName: displayName,
-    headline: story.headline,
-    body: story.body,
-    territoryLabel: story.territoryName,
-    cloutDelta: 0,
-    createdAt: story.createdAt,
-    imageLabel: 'SIM ROUTE REPLAY',
-  };
-}
-
-function fixtureCaptureToCard(story: NewswireStory, displayName: string): FeedCardModel {
-  return {
-    id: story.id,
-    kind: 'capture',
-    provenance: 'fixture',
-    badge: 'FIXTURE SAMPLE · NOT LIVE VERIFIED',
-    actorName: displayName,
-    headline: story.headline,
-    body: `${story.body} Marked fixture for UI — not a live verified production event in this build.`,
-    territoryLabel: story.territoryName,
-    cloutDelta: story.cloutDelta,
-    createdAt: story.createdAt,
-    imageLabel: 'FIXTURE MAP PLATE',
-  };
-}
-
-/**
- * Newswire v2 — visual feed cards with explicit SIM / FIXTURE provenance.
- */
 export default function NewswireScreen() {
   const router = useRouter();
   const { state, signOut } = useSession();
-  const [sim, setSim] = useState<SimNewswireStory[]>([]);
-  const [fixtures, setFixtures] = useState<NewswireStory[]>([]);
-
-  useEffect(() => {
-    const refresh = () => {
-      const feed = listNewswireFeed();
-      setSim(feed.sim);
-      setFixtures(feed.productionFixtures);
-    };
-    refresh();
-    return subscribeSimNewswire(refresh);
-  }, []);
-
-  const cards = useMemo(() => {
-    const simCards = sim.map((s) =>
-      simToCard(s, state.status === 'authenticated' ? state.member.displayName : 'MEMBER'),
-    );
-    const captureFixtures = fixtures.map((s) =>
-      fixtureCaptureToCard(s, s.memberId.endsWith('01') ? 'STARK' : 'PACIFIC'),
-    );
-    return [...simCards, ...feedFixtureCards, ...captureFixtures].sort((a, b) =>
-      a.createdAt < b.createdAt ? 1 : -1,
-    );
-  }, [sim, fixtures, state]);
-
+  const live = isLiveAuthConfigured();
+  const [verified, setVerified] = useState<FeedCardModel[]>([]);
+  const [feedStatus, setFeedStatus] = useState('');
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      if (!live) return;
+      async function load() {
+        setFeedStatus('Loading club news…');
+        const db = getMobileSupabaseClient();
+        if (!db) throw Error();
+        const { data, error } = await db
+          .from('newswire_stories')
+          .select('id,headline,body,territory_name,clout_delta,created_at,members(display_name)')
+          .order('created_at', { ascending: false })
+          .limit(75);
+        if (error) throw error;
+        if (active) {
+          setVerified(
+            (data ?? []).map((row) => ({
+              id: row.id,
+              kind: 'capture',
+              provenance: 'live',
+              badge: 'Verified run',
+              actorName:
+                (Array.isArray(row.members) ? row.members[0] : row.members)?.display_name ??
+                'Member',
+              headline: row.headline,
+              body: row.body,
+              territoryLabel: row.territory_name,
+              cloutDelta: row.clout_delta,
+              createdAt: row.created_at,
+              imageLabel: row.territory_name,
+            })),
+          );
+          setFeedStatus(data?.length ? '' : 'No verified runs published yet.');
+        }
+      }
+      void load().catch(() => {
+        if (active) {
+          setVerified([]);
+          setFeedStatus('Club news is unavailable.');
+        }
+      });
+      return () => {
+        active = false;
+      };
+    }, [live]),
+  );
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.content} accessibilityLabel="Newswire feed">
         <View style={styles.header}>
           <UndergroundMark size="compact" showWordmark={false} />
           <View style={styles.headerCopy}>
-            <Text variant="brand" gold>
-              UNDERGROUND
-            </Text>
-            <Text variant="caption" style={styles.tagline}>
-              OWNERSHIP IS THE ENTRY.
-            </Text>
+            <Text variant="title">Newswire</Text>
           </View>
           <Pressable
             onPress={() => router.push('/(tabs)/profile')}
@@ -101,13 +85,17 @@ export default function NewswireScreen() {
           </Pressable>
         </View>
         <GoldRule />
-        <Text variant="title">Newswire</Text>
-        <Text style={styles.body}>
-          Captures, garage moments, and club notes. Simulated and fixture cards are labeled — never
-          presented as live verified production.
-        </Text>
-
-        {cards.map((card) => (
+        {live && publicEnv.APP_ENV !== 'production' && state.status === 'authenticated' && <EditorialFeed />}
+        <LocalEventFeed embedded />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/local-events')}
+          style={{ minHeight: 48, justifyContent: 'center' }}
+        >
+          <Text gold>View all local events</Text>
+        </Pressable>
+        {!!feedStatus && <Text style={styles.body}>{feedStatus}</Text>}
+        {verified.map((card) => (
           <NewswireCard key={card.id} card={card} />
         ))}
 
@@ -166,4 +154,3 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
 });
-

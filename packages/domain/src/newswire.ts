@@ -38,7 +38,7 @@ export function buildCaptureAcceptedStory(input: {
     territoryName: input.territoryName,
     templateId: 'capture_accepted_v1',
     headline: `${input.displayName} secured ${input.territoryName}`,
-    body: `Verified run accepted on ${input.territoryName}. CLOUT +${input.clout.delta}.`,
+    body: `Conquest earned on ${input.territoryName}. CLOUT +${input.clout.delta}.`,
     cloutDelta: input.clout.delta,
     createdAt: input.createdAt,
   });

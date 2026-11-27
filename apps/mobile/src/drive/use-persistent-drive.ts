@@ -26,7 +26,7 @@ export type PersistentDriveControls = {
   /** Private live speed (m/s) — UI may show locally; never analytics. */
   privateSpeedMps: number | null;
   recovering: boolean;
-  start: (opts?: { vehicleId?: string | null }) => Promise<void>;
+  start: (opts?: { vehicleId?: string | null; vehicleLabel?: string | null; curatedRouteId?: string }) => Promise<boolean>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   end: () => Promise<void>;
@@ -107,7 +107,7 @@ export function usePersistentDrive(): PersistentDriveControls {
   }, [persist, releaseWatch]);
 
   const start = useCallback(
-    async (opts?: { vehicleId?: string | null }) => {
+    async (opts?: { vehicleId?: string | null; vehicleLabel?: string | null; curatedRouteId?: string }) => {
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const Location = require('expo-location') as typeof import('expo-location');
@@ -117,7 +117,7 @@ export function usePersistentDrive(): PersistentDriveControls {
           stateRef.current = denied;
           setState(denied);
           await persist(denied);
-          return;
+          return false;
         }
         let next =
           stateRef.current.session.status === 'paused' ||
@@ -126,14 +126,9 @@ export function usePersistentDrive(): PersistentDriveControls {
             : startRecording(
                 createSessionEngine({
                   vehicleId: opts?.vehicleId ?? null,
+                  vehicleLabel: opts?.vehicleLabel, curatedRouteId:opts?.curatedRouteId,
                 }),
               );
-        if (opts?.vehicleId && next.session.vehicleId !== opts.vehicleId) {
-          next = {
-            ...next,
-            session: { ...next.session, vehicleId: opts.vehicleId },
-          };
-        }
         stateRef.current = next;
         setState(next);
         await persist(next);
@@ -142,11 +137,13 @@ export function usePersistentDrive(): PersistentDriveControls {
         persistTimer.current = setInterval(() => {
           void persist(stateRef.current);
         }, 8_000);
+        return stateRef.current.session.status === 'recording';
       } catch {
         const next = markUnavailable(stateRef.current);
         stateRef.current = next;
         setState(next);
         await persist(next);
+        return false;
       }
     },
     [clearPersistTimer, persist, watchPosition],
@@ -242,6 +239,7 @@ export function usePersistentDrive(): PersistentDriveControls {
         startLabel: state.session.startLabel,
         finishLabel: state.session.finishLabel,
         vehicleId: state.session.vehicleId,
+        vehicleLabel: state.session.vehicleLabel,
         gpsQuality: state.session.gpsQuality,
         classification: state.session.classification,
         sampleCount: state.samples.length,

@@ -36,3 +36,8 @@ export function getTripStore(): TripStore {
 export function setTripStoreForTests(store: TripStore | null): void {
   shared = store;
 }
+
+/** Memory fallback cannot survive a full app restart. */
+export function isTripStorageTemporary(): boolean {
+  return getTripStore() instanceof MemoryTripStore;
+}

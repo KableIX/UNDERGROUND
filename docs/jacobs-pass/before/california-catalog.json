@@ -1,0 +1,1160 @@
+[
+  {
+    "id": "M01",
+    "slug": "big-sur-coastal-crown",
+    "title": "Big Sur Coastal Crown",
+    "tier": 5,
+    "category": "RUN",
+    "district": "Monterey",
+    "region": "Monterey Bay",
+    "shortlist": true,
+    "sequence": [
+      "Highway 1 at Highland Drive",
+      "Rocky Creek",
+      "Bixby Creek Bridge",
+      "Highway 1 at the Big Sur Station access road"
+    ],
+    "description": "Cypress and rocky coves give way to open cliff at Carmel Highlands. Rocky Creek is the first crossing. At Bixby, the land falls away on both sides of the car before Highway 1 draws you back into the headlands. Stay on the highway across the bridge. Big Sur Station marks the finish.",
+    "survey": "Survey the Highlands departure and station entrance. Bixby is a pass-through checkpoint.",
+    "territory": "Big Sur Coast",
+    "environment": "COASTAL_HIGHWAY"
+  },
+  {
+    "id": "M02",
+    "slug": "pacific-edge",
+    "title": "Pacific Edge",
+    "tier": 5,
+    "category": "RUN",
+    "district": "Monterey",
+    "region": "Monterey Bay",
+    "shortlist": true,
+    "sequence": [
+      "Highway 1 at the Big Sur Station access road",
+      "Highway 1 south",
+      "Julia Pfeiffer Burns State Park entrance"
+    ],
+    "description": "South of Big Sur Station, the trees frame the Pacific in flashes. Then the coast opens and the road follows the cliffs above the coves. This is the shorter drive to Julia Pfeiffer Burns. The finish is the park entrance. A view of McWay Falls depends on which visitor areas are open.",
+    "survey": "Verify park access and a finish area with room to turn a low car.",
+    "territory": "Big Sur Coast",
+    "environment": "COASTAL_HIGHWAY"
+  },
+  {
+    "id": "M03",
+    "slug": "south-coast-expedition",
+    "title": "South Coast Expedition",
+    "tier": 5,
+    "category": "RUN",
+    "district": "Monterey",
+    "region": "Monterey Bay",
+    "shortlist": true,
+    "sequence": [
+      "Highway 1 at the Big Sur Station access road",
+      "Julia Pfeiffer Burns coast",
+      "Lucia",
+      "Ragged Point"
+    ],
+    "description": "Big Sur Station is the same departure as Pacific Edge. At Julia Pfeiffer Burns, keep going. Lucia is still ahead, and beyond it the coast unspools in a succession of headlands until Ragged Point. Pick this one when the crew wants a full coastal expedition and has agreed on fuel and regroup stops before setting out.",
+    "survey": "Check all intervening closures, fuel range, mobile coverage and the Ragged Point entrance.",
+    "territory": "Big Sur Coast",
+    "environment": "COASTAL_HIGHWAY"
+  },
+  {
+    "id": "M04",
+    "slug": "carmel-valley-run",
+    "title": "Carmel Valley Run",
+    "tier": 4,
+    "category": "RUN",
+    "district": "Monterey",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "Carmel Valley Village at Esquiline Road",
+      "East Carmel Valley Road",
+      "Tassajara Road junction near Jamesburg"
+    ],
+    "description": "East of Carmel Valley Village, the coast feels a long way off. Take East Carmel Valley Road inland as the valley narrows around the car. The turn for Tassajara Road near Jamesburg marks the far end of the drive.",
+    "survey": "Survey the pavement and available stopping space at the eastern junction.",
+    "territory": "Carmel Valley",
+    "environment": "COUNTRYSIDE"
+  },
+  {
+    "id": "M05",
+    "slug": "laureles-grade",
+    "title": "Laureles Grade",
+    "tier": 3,
+    "category": "RUN",
+    "district": "Monterey",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "Highway 68 at Laureles Grade Road",
+      "Laureles Grade Road over the ridge",
+      "Carmel Valley Road roundabout"
+    ],
+    "description": "Laureles Grade gives you two sides of a ridge in one drive. Climb from Highway 68 with the crest filling the windshield, then tip over the top and watch Carmel Valley open below you. The roundabout on the valley floor is the finish.",
+    "survey": "Survey the crest, sightlines and the transition into an off-road finish.",
+    "territory": "Carmel Valley",
+    "environment": "COUNTRYSIDE"
+  },
+  {
+    "id": "M06",
+    "slug": "laguna-seca-approach",
+    "title": "Laguna Seca Approach",
+    "tier": 3,
+    "category": "RUN",
+    "district": "Monterey",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "Highway 68 at York Road",
+      "Highway 68 past B Road, the Laguna Seca approach",
+      "Highway 68 at Laureles Grade Road"
+    ],
+    "description": "For anyone who knows Laguna Seca by the Corkscrew, this is the approach you miss on television. Pick up Highway 68 at York Road, pass the raceway turn at B Road and carry on to Laureles Grade. The whole drive stays on public roads.",
+    "survey": "The route stays on Highway 68. Event parking and raceway admission are separate.",
+    "territory": "Laguna Seca",
+    "environment": "COUNTRYSIDE"
+  },
+  {
+    "id": "H01",
+    "slug": "devils-slide-coast",
+    "title": "Devil’s Slide Coast",
+    "tier": 4,
+    "category": "RUN",
+    "district": "Half Moon Bay",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Highway 1 at Linda Mar Boulevard in Pacifica",
+      "Tom Lantos Tunnels",
+      "Highway 1 at 2nd Street in Montara"
+    ],
+    "description": "At Devil's Slide, the headland swallows Highway 1. Leave Pacifica, pass through the Tom Lantos Tunnels and come back into coastal daylight on the Montara side. That change from tunnel walls to open sky is the moment to remember.",
+    "survey": "Check tunnel approach geometry and paved staging in Pacifica and Montara.",
+    "territory": "Devil's Slide",
+    "environment": "COASTAL_HIGHWAY"
+  },
+  {
+    "id": "H02",
+    "slug": "half-moon-bay-coastal-run",
+    "title": "Half Moon Bay Coastal Run",
+    "tier": 4,
+    "category": "RUN",
+    "district": "Half Moon Bay",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Highway 1 at 2nd Street in Montara",
+      "Moss Beach",
+      "Highway 1 at Highway 92 in Half Moon Bay"
+    ],
+    "description": "Montara, Moss Beach, Half Moon Bay. Each town pulls the coast close for a few blocks before the bluffs open up again. Take Highway 1 south with the Pacific on the passenger side all the way to Highway 92.",
+    "survey": "Screen village traffic, crossings and the approach to the Highway 92 junction.",
+    "territory": "Half Moon Bay Coast",
+    "environment": "COASTAL_HIGHWAY"
+  },
+  {
+    "id": "H03",
+    "slug": "pescadero-coastal-run",
+    "title": "Pacific Horizon",
+    "tier": 5,
+    "category": "RUN",
+    "district": "Half Moon Bay",
+    "region": "San Francisco Bay",
+    "shortlist": true,
+    "sequence": [
+      "Highway 1 at Highway 92 in Half Moon Bay",
+      "San Gregorio coast",
+      "Pescadero Creek Road",
+      "Stage Road at Pescadero Creek Road"
+    ],
+    "description": "South of Half Moon Bay, Highway 1 rides high enough above the water to give the Pacific a whole side of the windshield. Stay with the bluffs through San Gregorio, then take Pescadero Creek Road inland. Stage Road makes a village finish for a drive spent mostly at sea's edge.",
+    "survey": "Verify village-side staging and survey the turn from Highway 1 onto Pescadero Creek Road.",
+    "territory": "Half Moon Bay Coast",
+    "environment": "COASTAL_HIGHWAY"
+  },
+  {
+    "id": "H04",
+    "slug": "lighthouse-run",
+    "title": "Lighthouse Run",
+    "tier": 5,
+    "category": "RUN",
+    "district": "Half Moon Bay",
+    "region": "San Francisco Bay",
+    "shortlist": true,
+    "sequence": [
+      "Stage Road at Pescadero Creek Road",
+      "Pescadero Creek Road to Highway 1",
+      "Pigeon Point Road junction",
+      "Highway 1 at Año Nuevo State Park Road"
+    ],
+    "description": "Roll out of Pescadero with the ocean ahead of the hood. Once you turn south on Highway 1, look for the slim tower at Pigeon Point against all that water. The coast carries on past the lighthouse to the Año Nuevo junction.",
+    "survey": "The preview passes the lighthouse access road. Survey parking and entrance clearance before offering either stop.",
+    "territory": "Pescadero",
+    "environment": "COASTAL_HIGHWAY"
+  },
+  {
+    "id": "H05",
+    "slug": "northern-monterey-bay-coast",
+    "title": "Northern Monterey Bay Coast",
+    "tier": 4,
+    "category": "RUN",
+    "district": "Santa Cruz",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "Highway 1 at Ocean Street in Davenport",
+      "Highway 1 south past the coastal bluffs",
+      "Highway 1 at Western Drive, Santa Cruz"
+    ],
+    "description": "Leave Davenport heading south and watch the bluff tops slip past the passenger window. Santa Cruz comes into focus at Western Drive. That's where this run ends, while the open coast is still fresh in the mirrors.",
+    "survey": "Survey a paved staging location at each end and check activity near the beach crossings.",
+    "territory": "North Coast",
+    "environment": "COASTAL_HIGHWAY"
+  },
+  {
+    "id": "S01",
+    "slug": "saratoga-highway-9",
+    "title": "Saratoga Ascent",
+    "tier": 4,
+    "category": "RUN",
+    "district": "Silicon Valley",
+    "region": "San Francisco Bay",
+    "shortlist": true,
+    "sequence": [
+      "Big Basin Way at Saratoga Avenue",
+      "Congress Springs Road on Highway 9",
+      "Saratoga Gap at Highway 35"
+    ],
+    "description": "Big Basin Way starts among Saratoga's storefronts. Follow the creek out of the village and the shop windows give way to tree trunks, the light breaks into patches, and Highway 9 starts to climb. Saratoga Gap is the payoff, where the creek road finally meets the ridge.",
+    "survey": "Survey the village start and the summit turnout. The Saratoga club loop is a separate drive.",
+    "territory": "Highway 9",
+    "environment": "RIDGE"
+  },
+  {
+    "id": "S02",
+    "slug": "redwood-descent",
+    "title": "Redwood Descent",
+    "tier": 4,
+    "category": "RUN",
+    "district": "Silicon Valley",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Saratoga Gap at Highway 35",
+      "Big Basin Way on Highway 9",
+      "Central Avenue at Big Basin Way in Boulder Creek"
+    ],
+    "description": "Saratoga Gap is the high point. From there Highway 9 turns down through the redwoods, trading the open ridge for shade and the close walls of the San Lorenzo Valley. The storefronts of Boulder Creek mark your return to town.",
+    "survey": "Survey downhill visibility, shoulder debris and the village finish.",
+    "territory": "Highway 9",
+    "environment": "RIDGE"
+  },
+  {
+    "id": "S03",
+    "slug": "skyline-ridge",
+    "title": "Skyline Ridge",
+    "tier": 5,
+    "category": "RUN",
+    "district": "Silicon Valley",
+    "region": "San Francisco Bay",
+    "shortlist": true,
+    "sequence": [
+      "Saratoga Gap at Highway 9",
+      "Skyline Boulevard at Page Mill Road",
+      "Sky Londa at Highway 84"
+    ],
+    "description": "At Saratoga Gap, turn north and stay on top of the mountains. Skyline carries you between wooded stretches and openings in the ridge, past the head of Page Mill Road to the crossroads at Sky Londa. It's the rare Peninsula drive where reaching the crest is only the beginning.",
+    "survey": "Check ridge fog, preserve entrances and the Four Corners junction before departure.",
+    "territory": "Skyline Ridge",
+    "environment": "RIDGE"
+  },
+  {
+    "id": "S04",
+    "slug": "northern-skyline",
+    "title": "Northern Skyline",
+    "tier": 4,
+    "category": "RUN",
+    "district": "Silicon Valley",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Sky Londa at Highway 84",
+      "Skyline Boulevard north",
+      "Highway 92 junction"
+    ],
+    "description": "Four Corners is where the cross-ridge traffic peels away. Keep heading north on Skyline and let the trees close behind you. Highway 92 marks the next big break in the ridgeline and the end of this stretch.",
+    "survey": "Survey visibility and a finish off the highway. This segment runs northbound.",
+    "territory": "Skyline Ridge",
+    "environment": "RIDGE"
+  },
+  {
+    "id": "S05",
+    "slug": "la-honda-crossing",
+    "title": "La Honda Crossing",
+    "tier": 4,
+    "category": "RUN",
+    "district": "Silicon Valley",
+    "region": "San Francisco Bay",
+    "shortlist": true,
+    "sequence": [
+      "Woodside Road at Cañada Road",
+      "Sky Londa at Highway 35",
+      "Highway 84 at Sears Ranch Road in La Honda"
+    ],
+    "description": "Woodside and La Honda sit on opposite sides of the same mountain drive. Highway 84 climbs to Four Corners, crosses Skyline, then folds downhill through the trees. By Sears Ranch Road you've seen both faces of the ridge.",
+    "survey": "Review hillside resurfacing and Four Corners construction. Check both ends for space to stage.",
+    "territory": "La Honda",
+    "environment": "RIDGE"
+  },
+  {
+    "id": "S06",
+    "slug": "san-gregorio-passage",
+    "title": "San Gregorio Passage",
+    "tier": 4,
+    "category": "RUN",
+    "district": "Silicon Valley",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Highway 84 at Sears Ranch Road in La Honda",
+      "Highway 84 west",
+      "Stage Road in San Gregorio"
+    ],
+    "description": "West of La Honda, the redwoods begin to loosen their grip on Highway 84. Follow the valley as the sky widens overhead and the road draws you toward the coast. Finish at Stage Road in the little crossroads town of San Gregorio.",
+    "survey": "Survey the village approaches and available parking.",
+    "territory": "La Honda",
+    "environment": "RIDGE"
+  },
+  {
+    "id": "S07",
+    "slug": "page-mill-road",
+    "title": "Page Mill Climb",
+    "tier": 3,
+    "category": "RUN",
+    "district": "Silicon Valley",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Foothill Expressway at Page Mill Road",
+      "Page Mill Road uphill",
+      "Skyline Boulevard"
+    ],
+    "description": "At Foothill Expressway, Skyline still feels like another world. Stay on Page Mill as the valley grid drops away and the hillside folds the road back on itself. The same street that took you out of Palo Alto delivers you to the crest.",
+    "survey": "Conditional candidate. Inspect lane width, blind bends, cyclists and pavement in a low-clearance car.",
+    "territory": "Foothills",
+    "environment": "RIDGE"
+  },
+  {
+    "id": "S08",
+    "slug": "sierra-road",
+    "title": "Sierra Vista",
+    "tier": 3,
+    "category": "RUN",
+    "district": "Silicon Valley",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Piedmont Road at Sierra Road",
+      "Sierra Road uphill",
+      "Sierra Vista preserve entrance"
+    ],
+    "description": "Turn off Piedmont Road and start climbing. On Sierra Road the best measure of elevation is San Jose itself, spreading farther across the valley with every bend. The preserve entrance marks the top of this foothill run.",
+    "survey": "Conditional candidate. Check grade transitions, cyclists and lot capacity. Use designated parking.",
+    "territory": "Foothills",
+    "environment": "RIDGE"
+  },
+  {
+    "id": "S09",
+    "slug": "pescadero-redwood-passage",
+    "title": "Pescadero Redwood Passage",
+    "tier": 3,
+    "category": "RUN",
+    "district": "Half Moon Bay",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Stage Road at Pescadero Creek Road",
+      "Pescadero Creek Road inland",
+      "Western Wurr Road junction near Loma Mar"
+    ],
+    "description": "Turn inland at Pescadero and the salt air follows you only so far. Past the farms, the hills draw together and the road starts borrowing its light from gaps in the redwoods. Follow the creek toward Loma Mar. The western Wurr Road junction marks the finish.",
+    "survey": "Confirm usable staging near Wurr Road and review park traffic and pavement.",
+    "territory": "Pescadero",
+    "environment": "RIDGE"
+  },
+  {
+    "id": "C01",
+    "slug": "bonny-doon-ridge",
+    "title": "Bonny Doon Ridge",
+    "tier": 3,
+    "category": "RUN",
+    "district": "Santa Cruz",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "Highway 1 at Bonny Doon Road",
+      "Bonny Doon Road uphill",
+      "Bonny Doon and Pine Flat roads, northern junction"
+    ],
+    "description": "The Pacific is behind you almost as soon as you turn off Highway 1. Bonny Doon Road climbs inland from the bluffs into the uplands, swapping a wide ocean horizon for a hillside close to the glass. Follow it to the northern Pine Flat Road junction.",
+    "survey": "Survey residential exposure, cyclists and usable width before opening this candidate.",
+    "territory": "North Coast",
+    "environment": "COUNTRYSIDE"
+  },
+  {
+    "id": "C02",
+    "slug": "redwood-corridor",
+    "title": "Redwood Corridor",
+    "tier": 3,
+    "category": "RUN",
+    "district": "Santa Cruz",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "Highway 9 at Big Basin Way in Boulder Creek",
+      "Big Basin Highway 236",
+      "Highway 236 at North Escape Road near park headquarters"
+    ],
+    "description": "Boulder Creek is the last town in the frame as Highway 236 turns toward Big Basin. The road draws you into the forest a bend at a time. North Escape Road is the proposed finish when park access permits.",
+    "survey": "Verify park entry rules, closures and whether the narrow sections suit low, wide cars.",
+    "territory": "Redwood Mountains",
+    "environment": "COUNTRYSIDE"
+  },
+  {
+    "id": "C03",
+    "slug": "pinnacles-passage",
+    "title": "Pinnacles Passage",
+    "tier": 4,
+    "category": "RUN",
+    "district": "San Benito",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "Highway 25 at Quien Sabe Road in Tres Pinos",
+      "Paicines at Panoche Road",
+      "Highway 25 at Highway 146, eastern Pinnacles approach"
+    ],
+    "description": "From Tres Pinos, Highway 25 takes the long way through farm country. Pass the Panoche Road junction at Paicines and watch for Highway 146, where the eastern approach to Pinnacles begins. That's the finish line for this valley drive.",
+    "survey": "Survey the Highway 25 junction with Highway 146 and confirm a staging location off the highway.",
+    "territory": "Pinnacles / Highway 25",
+    "environment": "COUNTRYSIDE"
+  },
+  {
+    "id": "C04",
+    "slug": "san-benito-open-country",
+    "title": "San Benito Open Country",
+    "tier": 4,
+    "category": "RUN",
+    "district": "San Benito",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "Highway 25 at Panoche Road in Paicines",
+      "Highway 25 past the Pinnacles turnoff",
+      "Bitterwater Road at Highway 25"
+    ],
+    "description": "At the Pinnacles turnoff, keep going. The next stretch of Highway 25 is the reason to start in Paicines: a longer look at open ranch country, with the hills setting the horizon all the way to Bitterwater Road.",
+    "survey": "Check rural intersections and confirm how shared mileage with C03 is credited.",
+    "territory": "Pinnacles / Highway 25",
+    "environment": "COUNTRYSIDE"
+  },
+  {
+    "id": "N01",
+    "slug": "marin-coastal-passage",
+    "title": "Marin Coastal Passage",
+    "tier": 4,
+    "category": "RUN",
+    "district": "Marin",
+    "region": "Wine Country & Marin",
+    "shortlist": false,
+    "sequence": [
+      "Highway 1 at Calle del Mar, Stinson Beach",
+      "Bolinas Lagoon",
+      "Point Reyes Station at Highway 1 and 4th Street"
+    ],
+    "description": "Leave the surf at Stinson Beach and watch the water change character. Bolinas Lagoon lies still beside Highway 1 before the road turns inland. By Fourth Street in Point Reyes Station, the beach-town start feels like a different coast.",
+    "survey": "Check beach traffic and survey a finish outside the busiest village blocks.",
+    "territory": "Point Reyes / Tomales",
+    "environment": "COASTAL_HIGHWAY"
+  },
+  {
+    "id": "N02",
+    "slug": "tomales-coast",
+    "title": "Tomales Coast",
+    "tier": 4,
+    "category": "RUN",
+    "district": "Marin",
+    "region": "Wine Country & Marin",
+    "shortlist": false,
+    "sequence": [
+      "Point Reyes Station at Highway 1 and 4th Street",
+      "Marshall on Tomales Bay",
+      "Highway 1 at Dillon Beach Road in Tomales"
+    ],
+    "description": "On the road north from Point Reyes Station, Tomales Bay keeps reappearing beside the driver's window. Marshall sits right at the water. Beyond it the highway carries you on to the Dillon Beach Road junction in Tomales.",
+    "survey": "Review parking and traffic near the oyster stops and the Tomales finish.",
+    "territory": "Point Reyes / Tomales",
+    "environment": "COASTAL_HIGHWAY"
+  },
+  {
+    "id": "N03",
+    "slug": "bodega-pacific",
+    "title": "Bodega Pacific",
+    "tier": 5,
+    "category": "RUN",
+    "district": "Sonoma Coast",
+    "region": "Wine Country & Marin",
+    "shortlist": true,
+    "sequence": [
+      "Highway 1 at Bodega Avenue",
+      "Highway 1 past the Sonoma Coast beaches",
+      "Highway 1 at Willig Drive in Jenner"
+    ],
+    "description": "Bodega Bay opens onto a string of Sonoma Coast beaches. Follow Highway 1 north with the surf off your left shoulder until the view changes at Jenner: the Russian River makes its last broad turn toward the Pacific here.",
+    "survey": "Check beach access traffic and survey staging clear of the through lane in Jenner.",
+    "territory": "Bodega / Jenner",
+    "environment": "COASTAL_HIGHWAY"
+  },
+  {
+    "id": "N04",
+    "slug": "sonoma-coastal-crown",
+    "title": "Sonoma Coastal Crown",
+    "tier": 5,
+    "category": "RUN",
+    "district": "Sonoma Coast",
+    "region": "Wine Country & Marin",
+    "shortlist": true,
+    "sequence": [
+      "Highway 1 at Willig Drive in Jenner",
+      "Fort Ross coast",
+      "Highway 1 at Sea Walk Drive, The Sea Ranch"
+    ],
+    "description": "Above Jenner, Highway 1 climbs until the Pacific looks almost level with the road ahead. Fort Ross breaks up the long sweep of exposed coast. Stay northbound to Sea Walk Drive at the southern end of The Sea Ranch.",
+    "survey": "Verify coastal visibility, through access and a public finish near the lodge.",
+    "territory": "Sea Ranch",
+    "environment": "COASTAL_HIGHWAY"
+  },
+  {
+    "id": "N05",
+    "slug": "russian-river-valley",
+    "title": "Russian River Valley",
+    "tier": 4,
+    "category": "RUN",
+    "district": "Sonoma Coast",
+    "region": "Wine Country & Marin",
+    "shortlist": false,
+    "sequence": [
+      "Highway 116 at Armstrong Woods Road in Guerneville",
+      "Highway 116 along the Russian River",
+      "Highway 1 north",
+      "Highway 1 at Willig Drive in Jenner"
+    ],
+    "description": "Pick up the Russian River in Guerneville and follow it downstream. Highway 116 lets the river set the shape of the drive, then hands you over to Highway 1 for the arrival in Jenner, where fresh water meets the Pacific.",
+    "survey": "Survey the Highway 116 junction and shared approach with N03.",
+    "territory": "Bodega / Jenner",
+    "environment": "COUNTRYSIDE"
+  },
+  {
+    "id": "CR01",
+    "slug": "seventeen-mile-drive",
+    "title": "17-Mile Drive",
+    "tier": null,
+    "category": "CRUISE",
+    "district": "Monterey",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "17-Mile Drive at Sunset Drive, Pacific Grove",
+      "Spanish Bay Road",
+      "Bird Rock coast",
+      "17-Mile Drive at Cypress Drive, Pebble Beach"
+    ],
+    "description": "Start at the Pacific Grove gate and give the coast some time. Spanish Bay opens the view, Bird Rock draws the eye offshore, and the final stretch brings you into Pebble Beach. Allow time for the gate and use the designated viewpoints for photos.",
+    "survey": "Confirm gate hours, entrance fees and turnout access for the day.",
+    "territory": "Pebble Beach / Carmel",
+    "environment": "DESTINATION"
+  },
+  {
+    "id": "CR02",
+    "slug": "cannery-row",
+    "title": "Cannery Row",
+    "tier": null,
+    "category": "CRUISE",
+    "district": "Monterey",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "Cannery Row at David Avenue",
+      "Prescott Avenue on Cannery Row",
+      "Cannery Row at Reeside Avenue"
+    ],
+    "description": "For this one, the best seat might be on the sidewalk after you park. Ease along Cannery Row between the old waterfront buildings, with the bay appearing down the side streets. Make one slow pass, find legal parking, then meet the crew on foot for the photographs.",
+    "survey": "Choose a legal meetup lot and review pedestrian crossings and traffic.",
+    "territory": "Monterey Waterfront",
+    "environment": "DESTINATION"
+  },
+  {
+    "id": "CR03",
+    "slug": "ocean-avenue",
+    "title": "Ocean Avenue",
+    "tier": null,
+    "category": "CRUISE",
+    "district": "Monterey",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "Ocean Avenue at Junipero Street",
+      "Ocean Avenue through Carmel-by-the-Sea",
+      "Ocean Avenue at Scenic Road"
+    ],
+    "description": "Ocean Avenue gives Carmel a natural procession from village to sea. Ease west from Junipero Street past the shop windows, with beachgoers crossing ahead and the sky opening at the foot of the hill. Scenic Road is your arrival on the waterfront.",
+    "survey": "Confirm a legal parking location and event-day street restrictions.",
+    "territory": "Pebble Beach / Carmel",
+    "environment": "DESTINATION"
+  },
+  {
+    "id": "CR04",
+    "slug": "monterey-car-week",
+    "title": "Monterey Car Week",
+    "tier": null,
+    "category": "CRUISE",
+    "district": "Monterey",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "Del Monte Avenue at Portola Plaza, Monterey",
+      "David Avenue to Pacific Grove",
+      "17-Mile Drive at Sunset Drive, Pacific Grove"
+    ],
+    "description": "During Car Week, even the transfer between venues can be part of the show. This proposed cruise leaves the Monterey Conference Center area and rolls through Pacific Grove toward the Pebble Beach gate. Check the year's venues and access with the organizer.",
+    "survey": "Preview itinerary. Confirm the event date, closures, parking and gate arrangements before scheduling.",
+    "territory": "Monterey Waterfront",
+    "environment": "DESTINATION"
+  },
+  {
+    "id": "CR05",
+    "slug": "santa-cruz-waterfront",
+    "title": "Santa Cruz Waterfront",
+    "tier": null,
+    "category": "CRUISE",
+    "district": "Santa Cruz",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "West Cliff Drive at Gharkey Street",
+      "Santa Cruz Wharf approach on Beach Street",
+      "Beach Street at Riverside Avenue"
+    ],
+    "description": "West Cliff brings the Pacific right up beside the car. Ease around to the wharf approach and onto Beach Street, where the Boardwalk takes over the view. Riverside Avenue marks the end of this slow waterfront arrival.",
+    "survey": "Confirm a public lot and event access around the waterfront.",
+    "territory": "Waterfront",
+    "environment": "DESTINATION"
+  },
+  {
+    "id": "CR06",
+    "slug": "half-moon-bay-arrival",
+    "title": "Half Moon Bay Arrival",
+    "tier": null,
+    "category": "CRUISE",
+    "district": "Half Moon Bay",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Highway 1 at Highway 92 in Half Moon Bay",
+      "Capistrano Road",
+      "Capistrano Road at Prospect Way, Pillar Point Harbor"
+    ],
+    "description": "Turn off Highway 1 at Capistrano Road and trade the coast highway for a harbor arrival. The last few blocks lead the crew into Princeton-by-the-Sea, with Pillar Point Harbor as the backdrop for the meetup.",
+    "survey": "Confirm the host’s meetup point, parking access and date.",
+    "territory": "Half Moon Bay Coast",
+    "environment": "DESTINATION"
+  },
+  {
+    "id": "CR07",
+    "slug": "santana-row-arrival",
+    "title": "Santana Row Arrival",
+    "tier": null,
+    "category": "CRUISE",
+    "district": "Silicon Valley",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Winchester Boulevard at Tisch Way",
+      "Olin Avenue",
+      "Olin Avenue at Santana Row"
+    ],
+    "description": "Winchester gives you the last stretch of boulevard. Turn onto Olin and the whole scene comes up at once: hotel balconies, café tables and a steady stream of people crossing the Row. Make a single arrival, park, then walk back to Hotel Valencia for the street-level view. On Cars & Croissants mornings, the lineup itself is worth the trip.",
+    "survey": "The finish is the Olin intersection. Continue to signed visitor parking. Self-parking lists two hours free, then $3 an hour up to $15 daily; check posted rates and ramp clearance. Hotel Valencia offers valet. On Cars & Croissants dates, spectators attend free and display cars reserve with the organizer.",
+    "territory": "Santana Row",
+    "environment": "DESTINATION",
+    "informationUrl": "https://santanarow.com/visit/"
+  },
+  {
+    "id": "P01",
+    "slug": "nvidia-campus-loop",
+    "title": "NVIDIA Campus Loop",
+    "tier": null,
+    "category": "TEST",
+    "district": "Silicon Valley",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Scott Boulevard at Bowers Avenue",
+      "Scott Boulevard",
+      "San Tomas Expressway",
+      "Walsh Avenue",
+      "Bowers Avenue",
+      "Scott Boulevard at Bowers Avenue"
+    ],
+    "description": "One lap around NVIDIA's Santa Clara campus brings you back to the corner where UNDERGROUND starts the clock. From Scott and Bowers, trace Scott, San Tomas, Walsh and Bowers. On the final turn, watch whether the GPS trace closes cleanly over the start.",
+    "survey": "Exercise closure and render alignment on the established public-road circuit.",
+    "territory": "Heart of Silicon Valley",
+    "environment": "URBAN"
+  },
+  {
+    "id": "P02",
+    "slug": "santa-clara-central-expressway",
+    "title": "Santa Clara Central Expressway",
+    "tier": null,
+    "category": "TEST",
+    "district": "Silicon Valley",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Westbound Central Expressway, Santa Clara",
+      "Central Expressway west",
+      "Central Expressway at the Lawrence interchange"
+    ],
+    "description": "Pick up the westbound lanes of Central Expressway and watch the Santa Clara grid slide past. The Lawrence interchange gives this test a finish far from its start. The detail that matters is whether the trace stays on your side of the expressway.",
+    "survey": "Choose both gates after testing GPS accuracy around the expressway.",
+    "territory": "Heart of Silicon Valley",
+    "environment": "URBAN"
+  },
+  {
+    "id": "P03",
+    "slug": "lawrence-expressway-loop",
+    "title": "Lawrence Expressway Loop",
+    "tier": null,
+    "category": "TEST",
+    "district": "Silicon Valley",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Lawrence Expressway north of Kifer Road",
+      "East Arques Avenue west",
+      "North Wolfe Road south",
+      "Kifer Road east",
+      "Return to Lawrence Expressway north of Kifer Road"
+    ],
+    "description": "Four roads make a tidy rectangle on the map. Drive it in order from Lawrence to Arques, Wolfe and Kifer, then see how neatly the final turn meets the first. This is the development loop for checking waypoint order and recovery after a missed turn.",
+    "survey": "Development loop. Test directional matching on the divided expressway and verify return-to-start behavior.",
+    "territory": "Heart of Silicon Valley",
+    "environment": "URBAN"
+  },
+  {
+    "id": "P04",
+    "slug": "el-camino-santa-clara",
+    "title": "El Camino — Santa Clara",
+    "tier": null,
+    "category": "TEST",
+    "district": "Silicon Valley",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "El Camino Real at Flora Vista Avenue",
+      "Eastbound El Camino Real",
+      "El Camino Real at Scott Boulevard"
+    ],
+    "description": "El Camino gives a GPS trace a very different signature from a mountain road. Head east from Flora Vista to Scott and let every red light register. A good trace holds its place in the queue and picks up in the same lane when traffic moves again.",
+    "survey": "Record stop-and-go samples and compare parallel carriageways.",
+    "territory": "Heart of Silicon Valley",
+    "environment": "URBAN"
+  },
+  {
+    "id": "M07",
+    "slug": "mustang-grade",
+    "title": "Mustang Grade",
+    "region": "Monterey Bay",
+    "district": "Monterey",
+    "territory": "San Lucas",
+    "tier": 5,
+    "category": "RUN",
+    "environment": "COUNTRYSIDE",
+    "shortlist": false,
+    "sequence": [
+      "Main Street at CA-198 in San Lucas",
+      "Mustang Grade",
+      "Warthan Canyon",
+      "Elm Avenue at Polk Street in Coalinga"
+    ],
+    "description": "At San Lucas, turn your back on the 101. The hills fold in around Mustang Grade, then Warthan Canyon opens a long way east toward Coalinga. MotorTrend brought a Huracán Performante here to find out what its chassis could do. From your seat, the memorable part is how often a crest changes the whole view.",
+    "survey": "Allow room over blind crests and pavement heaves. Set your fuel and regroup plans before leaving town. CA-198 is a public highway."
+  },
+  {
+    "id": "CC16",
+    "slug": "temblor-crossing",
+    "title": "Temblor Crossing",
+    "region": "Central Coast",
+    "district": "San Luis Obispo",
+    "territory": "Carrizo Plain",
+    "tier": 5,
+    "category": "RUN",
+    "environment": "COUNTRYSIDE",
+    "shortlist": false,
+    "sequence": [
+      "El Camino Real at Estrada Avenue in Santa Margarita",
+      "Calf Canyon",
+      "California Valley",
+      "Temblor Range",
+      "CA-58 at C Street in McKittrick"
+    ],
+    "description": "The opening miles tuck the car into Calf Canyon. Then the hills fall away and California Valley fills the windshield. Across that wide floor, the Temblor Range looks like the finish until Highway 58 takes you up and over it. Ferrari club drivers toured this crossing from the McKittrick side. You get the whole reveal from the west.",
+    "survey": "Services are limited between the endpoints. Plan fuel in advance and keep the drive on paved CA-58 through the Carrizo Plain area."
+  },
+  {
+    "id": "SD15",
+    "slug": "sunrise-highway",
+    "title": "Sunrise Highway",
+    "region": "San Diego County",
+    "district": "San Diego Backcountry",
+    "territory": "Laguna Mountains",
+    "tier": 5,
+    "category": "RUN",
+    "environment": "RIDGE",
+    "shortlist": false,
+    "sequence": [
+      "Southern end of Sunrise Highway near the I-8 interchange",
+      "Mount Laguna",
+      "Laguna Mountain crest",
+      "Sunrise Highway at CA-79 near Lake Cuyamaca"
+    ],
+    "description": "Leave the freeway valley behind and climb into the pines of Mount Laguna. Along the crest, a gap in the trees opens onto the desert thousands of feet below. Porsche picked Sunrise Highway for its San Diego backcountry tour. This drive gives the ridge its own finish, where S1 meets the road to Lake Cuyamaca.",
+    "survey": "Mountain weather can differ sharply from the valley. Check for snow or ice, expect cyclists, and choose a signed overlook before stopping for photos."
+  },
+  {
+    "id": "NC12",
+    "slug": "navarro-to-the-pacific",
+    "title": "Navarro to the Pacific",
+    "region": "North Coast",
+    "district": "Mendocino",
+    "territory": "Anderson Valley",
+    "tier": 5,
+    "category": "RUN",
+    "environment": "COUNTRYSIDE",
+    "shortlist": false,
+    "sequence": [
+      "CA-128 at North Cloverdale Boulevard",
+      "Yorkville Highlands",
+      "Boonville",
+      "Navarro River Redwoods",
+      "CA-128 at Highway 1 near the Navarro River mouth"
+    ],
+    "description": "Cloverdale gives you oak hills. Boonville gives you vineyards. Past Navarro, the redwoods draw so close that the light on the hood changes from gold to green. Stay with the river until the trees finally break and Highway 1 meets you at the coast. Boonville is the place to plan a crew regroup before the forest.",
+    "survey": "Allow for local traffic in the valley towns, sharp changes in light under the canopy and possible coastal fog. Confirm parking before choosing a regroup spot."
+  },
+  {
+    "id": "WC13",
+    "slug": "berryessa-dam-run",
+    "title": "Berryessa Dam Run",
+    "region": "Wine Country & Marin",
+    "district": "Napa",
+    "territory": "Lake Berryessa",
+    "tier": 4,
+    "category": "RUN",
+    "environment": "COUNTRYSIDE",
+    "shortlist": false,
+    "sequence": [
+      "CA-128 at Main Street in Winters",
+      "Putah Creek canyon",
+      "Monticello Dam",
+      "CA-128 at CA-121 at Moskowite Corner"
+    ],
+    "description": "Roll west out of Winters and the orchards give way to the walls of Putah Creek canyon. Monticello Dam is the reveal. Beyond it, CA-128 trades the tight approach for the hills above Lake Berryessa. Make the dam your photo stop if there is legal parking, then carry the drive through to Moskowite Corner.",
+    "survey": "Sight lines shorten in the canyon. Use designated parking at the dam and keep the junction at Moskowite Corner clear."
+  },
+  {
+    "id": "LA17",
+    "slug": "decker-canyon",
+    "title": "Decker Canyon",
+    "region": "Los Angeles & Ventura",
+    "district": "Malibu",
+    "territory": "Santa Monica Mountains",
+    "tier": 3,
+    "category": "RUN",
+    "environment": "RIDGE",
+    "shortlist": false,
+    "sequence": [
+      "Pacific Coast Highway at Decker Road",
+      "Decker Road",
+      "Mulholland Highway junction on CA-23",
+      "Westlake Boulevard at East Potrero Road"
+    ],
+    "description": "The Pacific is in your mirrors almost as soon as you turn onto Decker. The climb folds back on itself, the view opens for a moment, then the next bend takes it away. Follow CA-23 through its brief stretch on Mulholland and over to Westlake. Ten miles here feel like an entire mountain crossing.",
+    "survey": "Conditional candidate. Blind bends and narrow sections warrant a width and clearance survey with a low exotic before scheduling a group drive."
+  },
+  {
+    "id": "SH11",
+    "slug": "trinity-river-gorge",
+    "title": "Trinity River Gorge",
+    "region": "Shasta & Cascades",
+    "district": "Trinity",
+    "territory": "Trinity River",
+    "tier": 5,
+    "category": "RUN",
+    "environment": "COUNTRYSIDE",
+    "shortlist": false,
+    "sequence": [
+      "CA-299 at CA-3 in Weaverville",
+      "Junction City",
+      "Burnt Ranch",
+      "CA-299 at CA-96 in Willow Creek"
+    ],
+    "description": "Climb out of Weaverville and watch the Trinity River disappear below the road. At Junction City it comes back alongside you. From there the gorge keeps changing the angle of the water, the canyon walls and the afternoon light. CA-299 carries the crew west through Burnt Ranch to Willow Creek.",
+    "survey": "Check roadwork before departure and arrange regroup points while connected. Use established pullouts clear of the highway for river photography."
+  },
+  {
+    "id": "KS01",
+    "slug": "kings-canyon-scenic-byway",
+    "title": "Kings Canyon Scenic Byway",
+    "region": "Tahoe & High Sierra",
+    "district": "Kings Canyon",
+    "territory": "Cedar Grove",
+    "tier": null,
+    "category": "CRUISE",
+    "environment": "DESTINATION",
+    "shortlist": false,
+    "sequence": [
+      "CA-180 at Dunlap Road",
+      "Grant Grove area",
+      "Kings River canyon",
+      "Cedar Grove",
+      "Roads End turnaround"
+    ],
+    "description": "Start in the foothills above Dunlap, climb to the forest at Grant Grove, then watch the world drop away. The byway descends between granite walls to the South Fork Kings River. At Roads End, the pavement runs out and the Sierra keeps going. Leave time for the return drive and for a photograph with the engine off.",
+    "survey": "Seasonal out-and-back access to Cedar Grove. The displayed mileage and time cover the outbound leg. Check the National Park Service road report before departure."
+  },
+  {
+    "id": "H06",
+    "slug": "waddell-coast",
+    "title": "Waddell Coast",
+    "region": "Monterey Bay",
+    "district": "Santa Cruz",
+    "territory": "North Coast",
+    "tier": 4,
+    "category": "RUN",
+    "environment": "COASTAL_HIGHWAY",
+    "shortlist": false,
+    "sequence": [
+      "CA-1 at Año Nuevo State Park Road",
+      "Waddell Creek and Waddell Beach",
+      "Greyhound Rock coastal access",
+      "CA-1 at Ocean Street in Davenport"
+    ],
+    "description": "Pick up Highway 1 exactly where Lighthouse Run leaves off. At Waddell Creek the hills part and the Pacific pulls level with the road. Beyond Greyhound Rock, the bluffs carry you into Davenport. Stop for the coast if the lot suits your car, or meet the next Santa Cruz drive at Ocean Street.",
+    "survey": "Fog and crosswinds can change the feel of this stretch. Greyhound Rock is an optional stop. The entrance and parking surface still need a low-clearance check."
+  },
+  {
+    "id": "LA13",
+    "slug": "ojai-skyway",
+    "title": "Ojai Skyway",
+    "region": "Los Angeles & Ventura",
+    "district": "Ventura",
+    "territory": "Ojai & Cuyama",
+    "tier": 5,
+    "category": "RUN",
+    "environment": "RIDGE",
+    "shortlist": false,
+    "sequence": [
+      "Maricopa Highway at West Ojai Avenue",
+      "Wheeler Gorge",
+      "Pine Mountain Summit",
+      "CA-33 at CA-166 in the Cuyama Valley"
+    ],
+    "description": "The rock walls at Wheeler Gorge make the first act of this drive feel enclosed. Keep climbing and Pine Mountain Summit turns the view inside out. On the far side, the ridges give way to the broad floor of the Cuyama Valley. This is the Ojai stretch that earned CA-33 Hagerty’s first Road of the Year.",
+    "survey": "Plan fuel and stops before leaving Ojai. Check mountain weather and CA-33 advisories for the full crossing. The finish is the highway junction in the valley."
+  },
+  {
+    "id": "S10",
+    "slug": "mount-hamilton-road",
+    "title": "Mount Hamilton Road",
+    "region": "San Francisco Bay",
+    "district": "Silicon Valley",
+    "territory": "Mount Hamilton",
+    "tier": 5,
+    "category": "RUN",
+    "environment": "RIDGE",
+    "sequence": [
+      "Mount Hamilton Road at Alum Rock Avenue",
+      "CA-130 through the Diablo Range",
+      "Observatory Peak Road junction at Lick Observatory"
+    ],
+    "description": "San José falls away a bend at a time. CA-130 folds into the hills, crosses the saddles and climbs again until the white domes of Lick Observatory fill the windshield. The final junction is the summit access road. Give the climb time. The view changes with every ridge.",
+    "survey": "The observatory has separate visiting hours. Confirm summit access, pavement and visibility before departure.",
+    "shortlist": false
+  },
+  {
+    "id": "P05",
+    "slug": "santa-clara-cupertino",
+    "title": "Santa Clara / Cupertino",
+    "region": "San Francisco Bay",
+    "district": "Silicon Valley",
+    "territory": "Heart of Silicon Valley",
+    "tier": null,
+    "category": "TEST",
+    "environment": "URBAN",
+    "sequence": [
+      "Stevens Creek Boulevard at San Tomas Expressway",
+      "Westbound Stevens Creek Boulevard",
+      "Stevens Creek Boulevard at De Anza Boulevard"
+    ],
+    "description": "Pick up Stevens Creek westbound where San Tomas crosses the boulevard. In the space of one valley drive, the tracker has to hold your carriageway through signals, long stops and parallel traffic. The last fix is at De Anza Boulevard in Cupertino.",
+    "survey": "GPS development corridor. Choose an off-street meeting spot before departure.",
+    "shortlist": false
+  },
+  {
+    "id": "NAPA",
+    "slug": "silverado-trail",
+    "title": "Silverado Trail",
+    "region": "Wine Country & Marin",
+    "district": "Napa",
+    "territory": "Napa Valley",
+    "tier": null,
+    "category": "RUN",
+    "environment": "COUNTRYSIDE",
+    "sequence": [
+      "Silverado Trail at Trancas Street in Napa",
+      "Silverado Trail north",
+      "Silverado Trail at Lincoln Avenue in Calistoga"
+    ],
+    "description": "Stay on the east side of Napa Valley and let the Silverado Trail take you north. Vine rows give way to oak-shadowed bends, with the hills pressed close on the passenger side. Calistoga is your finish. Leave room in the plan to pull off and get the cars together for one last photo.",
+    "survey": "Watch for vineyard entrances and cyclists. Confirm parked meetup locations in Napa and Calistoga.",
+    "shortlist": false
+  },
+  {
+    "id": "CR08",
+    "slug": "campbell-water-tower",
+    "title": "Campbell Water Tower Arrival",
+    "category": "CRUISE",
+    "tier": null,
+    "environment": "DESTINATION",
+    "region": "San Francisco Bay",
+    "district": "Silicon Valley",
+    "territory": "Downtown Campbell",
+    "sequence": [
+      "Winchester Boulevard north of Hacienda Avenue",
+      "Winchester Boulevard at Rincon Avenue",
+      "East Rincon Avenue near the First Street garage"
+    ],
+    "description": "Come up Winchester with the valley traffic, then turn onto Rincon and look for Campbell’s old water tower above the roofs. Park by the tower and take the last block on foot. Coffee on Campbell Avenue and an overhead landmark everyone can find make this an easy first meetup for the crew.",
+    "survey": "Use the public First and Rincon garage and check ramp clearance on entry. Festival closures can change downtown access. On major event days the Campbell Community Center is the district’s suggested alternative.",
+    "informationUrl": "https://www.downtowncampbell.com/directions",
+    "shortlist": false
+  },
+  {
+    "id": "CR09",
+    "slug": "saratoga-los-gatos-plaza",
+    "title": "Saratoga to Los Gatos Plaza",
+    "category": "CRUISE",
+    "tier": null,
+    "environment": "DESTINATION",
+    "region": "San Francisco Bay",
+    "district": "Silicon Valley",
+    "territory": "Los Gatos",
+    "sequence": [
+      "Saratoga–Los Gatos Road just south of Big Basin Way",
+      "Quito Road junction on Highway 9",
+      "North Santa Cruz Avenue",
+      "Montebello Way by the public lot"
+    ],
+    "description": "Two valley towns bookend this one. Leave Saratoga Village behind and follow Highway 9 through the trees until the road signs start saying Los Gatos. North Santa Cruz Avenue takes you past the theater marquee, then West Main drops you beside the plaza. Park at Montebello and walk back for the evening lights.",
+    "survey": "Expect turning traffic on Highway 9, shoppers in the crosswalks and event crowds near Town Plaza. The town lists the Montebello lot beside the post office. Check posted time limits and regroup after parking.",
+    "informationUrl": "https://www.losgatosca.gov/1485/Music-in-the-Park-Event-Parking",
+    "shortlist": false
+  },
+  {
+    "id": "CR10",
+    "slug": "los-altos-main-street",
+    "title": "Los Altos Main Street",
+    "category": "CRUISE",
+    "tier": null,
+    "environment": "DESTINATION",
+    "region": "San Francisco Bay",
+    "district": "Silicon Valley",
+    "territory": "Los Altos Village",
+    "sequence": [
+      "Foothill Expressway northwest of Grant Road",
+      "Foothill Expressway past El Monte Avenue",
+      "Main Street approaching Third Street"
+    ],
+    "description": "From Grant Road, the foothills sit just off your left shoulder. Follow the expressway northwest until the wide road gives way to Main Street’s shop windows and angled parking. Leave the car in a downtown plaza, grab a coffee, and walk back along the block you just drove.",
+    "survey": "Expect cyclists on Foothill and cars backing out on Main Street. Downtown public parking is free with posted time limits. The city enforces timed spaces Monday through Saturday, 8 a.m. to 6 p.m.",
+    "informationUrl": "https://www.losaltosca.gov/503/Downtown-Parking",
+    "shortlist": false
+  },
+  {
+    "id": "CR11",
+    "slug": "stanford-palm-drive",
+    "title": "Palm Drive to the Cantor",
+    "category": "CRUISE",
+    "tier": null,
+    "environment": "DESTINATION",
+    "region": "San Francisco Bay",
+    "district": "Silicon Valley",
+    "territory": "Stanford",
+    "sequence": [
+      "Palm Drive south of Arboretum Road",
+      "Roth Way before the Oval",
+      "Lomita Drive at Museum Way"
+    ],
+    "description": "Line the hood up with the palms and Stanford’s sandstone arches sit right at the vanishing point. Before the Oval, turn onto Roth Way and slip across to the Cantor. The whole approach takes minutes. Park for the Rodin sculpture garden and give the afternoon to the part of campus you can only see on foot.",
+    "survey": "Yield to people on bikes and on foot at the campus crossings. Visitor spaces are limited. Use the posted ParkMobile zone and hours. The mapped finish is at Museum Way, with visitor parking along Lomita.",
+    "informationUrl": "https://museum.stanford.edu/about",
+    "shortlist": false
+  },
+  {
+    "id": "NC13",
+    "slug": "de-leon",
+    "title": "De Leon",
+    "region": "North Coast",
+    "district": "Mendocino",
+    "territory": "Anderson Valley",
+    "tier": 5,
+    "category": "RUN",
+    "environment": "COASTAL_HIGHWAY",
+    "shortlist": false,
+    "sequence": [
+      "CA-253 at South State Street, south of Ukiah",
+      "Boonville",
+      "Philo",
+      "Navarro River Redwoods",
+      "Navarro River Bridge on CA-1 south",
+      "Elk",
+      "Stornetta trailhead approach on Lighthouse Road"
+    ],
+    "description": "The Pacific stays out of sight for the first act of De Leon. Highway 253 folds over the ridge into Anderson Valley. Beyond Philo, the sky narrows to a ribbon between the redwoods. Cross Navarro River Bridge and the ocean rides off your right shoulder through Elk. Lighthouse Road closes the drive on the Mendocino bluffs where Need for Speed filmed its finale.",
+    "survey": "Mapped from the CA-253 junction, south of Ukiah. Allow about two hours before stops. The proposed finish is the Stornetta trailhead approach outside the lighthouse grounds. Confirm legal staging, parking and low-car clearance at both ends in the field. The lighthouse is an optional visit during opening hours.",
+    "informationUrl": "https://www.pointarenalighthouse.com/visit"
+  },
+  {
+    "id": "N06",
+    "slug": "point-arena-passage",
+    "title": "Point Arena Passage",
+    "region": "Wine Country & Marin",
+    "district": "Sonoma Coast",
+    "territory": "Sea Ranch",
+    "tier": 5,
+    "category": "RUN",
+    "environment": "COASTAL_HIGHWAY",
+    "shortlist": false,
+    "sequence": [
+      "Highway 1 at Sea Walk Drive, The Sea Ranch",
+      "Gualala River Bridge",
+      "Anchor Bay",
+      "Point Arena Main Street",
+      "Stornetta trailhead approach on Lighthouse Road"
+    ],
+    "description": "Leave Sea Walk Drive with the Pacific on your left. The Gualala River marks the crossing into Mendocino County, where Highway 1 threads the coves above Anchor Bay. In Point Arena the highway briefly becomes Main Street. Beyond town, turn toward the ocean for the last miles across the headland on Lighthouse Road.",
+    "survey": "Review fog, pavement and pullout clearance. Start and finish staging require field checks. The route ends on the public approach before the lighthouse visitor grounds."
+  }
+]

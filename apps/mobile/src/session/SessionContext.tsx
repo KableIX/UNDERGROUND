@@ -7,6 +7,7 @@ import {
   useEffect,
   type ReactNode,
 } from 'react';
+import { previewSignIn } from '../profile/preview-store';
 import { publicEnv } from '../lib/env';
 import { createDevBypassMember, isDevAuthBypassAllowed } from './dev-bypass';
 import { redeemInvitationCode } from './invite-redeem';
@@ -23,7 +24,8 @@ type SessionApi = {
   canDevBypass: boolean;
   liveAuthConfigured: boolean;
   signInWithEmail: (email: string, password: string) => Promise<{ ok: true } | { ok: false; error: string }>;
-  signInExistingMember: (displayName: string) => { ok: true } | { ok: false; error: string };
+  signInExistingMember: (displayName: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  updateDisplayName: (memberId: string, displayName: string) => void;
   redeemInvite: (code: string) => { ok: true } | { ok: false; error: string };
   enterDevBypass: () => { ok: true } | { ok: false; error: 'production_blocked' };
   signOut: () => void;
@@ -37,7 +39,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     liveAuthConfigured ? { status: 'loading' } : { status: 'anonymous' },
   );
   // Production/release binaries may never enter the fixture authentication flow.
-  const canDevBypass = isDevAuthBypassAllowed(publicEnv.APP_ENV) && __DEV__;
+  const canDevBypass = !liveAuthConfigured && isDevAuthBypassAllowed(publicEnv.APP_ENV) && __DEV__;
 
   useEffect(() => {
     if (!liveAuthConfigured) return;
@@ -54,6 +56,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setState({ status: 'authenticated', member, via });
   }, []);
 
+  // The preview invite and shortcut both sign in as the same local founder.
+  const previewFounder = state.status === 'authenticated' && state.member.isFounder &&
+    state.via !== 'login' && !liveAuthConfigured;
+  useEffect(() => {
+    if (!previewFounder) return;
+    let active = true;
+    void previewSignIn('STARK').then(saved => {
+      if (active) setState(previous => previous.status === 'authenticated' &&
+        previous.member.memberId === saved.memberId && previous.member.displayName === 'STARK'
+        ? { ...previous, member: saved } : previous);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [previewFounder]);
+
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     const result = await signInVerifiedMember(email, password);
     if (!result.ok) return { ok: false as const, error: result.error };
@@ -61,30 +77,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return { ok: true as const };
   }, [authenticate]);
 
-  const signInExistingMember = useCallback(
-    (displayName: string) => {
-      if (!canDevBypass) return { ok: false as const, error: 'production_blocked' };
-      const name = displayName.trim();
-      if (!name) return { ok: false as const, error: 'display_name_required' };
-      // Fixture login: STARK maps to founder seed; other names get a local member shell.
-      if (name.toUpperCase() === 'STARK') {
-        authenticate(createDevBypassMember(), 'login');
-        return { ok: true as const };
-      }
-      authenticate(
-        {
-          memberId: '55555555-5555-4555-8555-555555555501',
-          memberNumber: '000002',
-          displayName: name.slice(0, 64),
-          isFounder: false,
-          role: 'member',
-        },
-        'login',
-      );
+  const signInExistingMember = useCallback(async (displayName: string) => {
+    if (!canDevBypass || liveAuthConfigured) return { ok: false as const, error: 'production_blocked' };
+    const alias = displayName.trim().slice(0,64);
+    if (!alias) return { ok: false as const, error: 'display_name_required' };
+    try {
+      authenticate(await previewSignIn(alias), 'login');
       return { ok: true as const };
-    },
-    [authenticate, canDevBypass],
-  );
+    } catch { return { ok: false as const, error: 'Could not open this beta account.' }; }
+  }, [authenticate, canDevBypass, liveAuthConfigured]);
+
+  const updateDisplayName = useCallback((memberId: string, displayName: string) => {
+    setState(previous => previous.status === 'authenticated' && previous.member.memberId === memberId
+      ? { ...previous, member: { ...previous.member, displayName } } : previous);
+  }, []);
 
   const redeemInvite = useCallback(
     (code: string) => {
@@ -114,12 +120,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       canDevBypass,
       liveAuthConfigured,
       signInWithEmail,
-      signInExistingMember,
+      signInExistingMember, updateDisplayName,
       redeemInvite,
       enterDevBypass,
       signOut,
     }),
-    [state, canDevBypass, liveAuthConfigured, signInWithEmail, signInExistingMember, redeemInvite, enterDevBypass, signOut],
+    [state, canDevBypass, liveAuthConfigured, signInWithEmail, signInExistingMember, updateDisplayName, redeemInvite, enterDevBypass, signOut],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

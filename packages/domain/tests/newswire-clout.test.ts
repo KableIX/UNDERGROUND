@@ -22,7 +22,7 @@ describe('CLOUT + Newswire on ACCEPTED', () => {
     });
     expect(story.templateId).toBe('capture_accepted_v1');
     expect(story.headline).toBe('STARK secured Highway 1 / Big Sur');
-    expect(story.body).toContain('CLOUT +25');
+    expect(story.body).toBe('Conquest earned on Highway 1 / Big Sur. CLOUT +25.');
     expect(story.body.toLowerCase()).not.toContain('legendary');
     expect(story.body.toLowerCase()).not.toContain('first ever');
   });

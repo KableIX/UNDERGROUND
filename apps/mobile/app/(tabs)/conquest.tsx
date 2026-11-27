@@ -1,13 +1,12 @@
 import { StyleSheet } from 'react-native';
 import { Screen } from '@underground/ui';
-import { PlaySelector } from '../../src/components/play/PlaySelector';
+import { DriveMenu } from '../../src/components/play/PlaySelector';
 import { shell } from '../../src/theme/shell';
 
-/** PLAY is a region → area → conquest selector. MAP remains its own tab. */
-export default function PlayScreen() {
+export default function DriveScreen() {
   return (
     <Screen padded={false} style={styles.root}>
-      <PlaySelector />
+      <DriveMenu />
     </Screen>
   );
 }

@@ -1,0 +1,53 @@
+[
+  {
+    "id": "ggc",
+    "checked": 1795381410645,
+    "events": [
+      {
+        "id": "ggc/6955d61796863c18968af6ee",
+        "title": "GGC Cars & Coffee: Moss Landing",
+        "starts": 1796576400392,
+        "ends": 1796583600392,
+        "place": "The Power Plant Coffee & Store · 7990 California 1 · Moss Landing, CA, 95039",
+        "url": "https://www.ggcbmwcca.org/events/ggc-cars-coffee-mosslanding-dec26",
+        "kind": "Cars & Coffee",
+        "cancelled": false
+      },
+      {
+        "id": "ggc/69dbcefb8d5aaf0c2bcc0b1b",
+        "title": "GGC BMWs & Bagels: San Francisco",
+        "starts": 1797090300858,
+        "ends": 1797097500858,
+        "place": "Noah's Bagels · 1521 Sloat Boulevard · San Francisco, CA, 94132",
+        "url": "https://www.ggcbmwcca.org/events/ggc-cars-coffee-san-francisco-dec26",
+        "kind": "Cars & Coffee",
+        "cancelled": false
+      },
+      {
+        "id": "ggc/694acd1098ef312278f95512",
+        "title": "GGC Cars & Coffee: North Bay",
+        "starts": 1797094800237,
+        "ends": 1797102000237,
+        "place": "Hansel BMW of Santa Rosa · 2925 Corby Avenue · Santa Rosa, CA, 95407",
+        "url": "https://www.ggcbmwcca.org/events/ggc-cars-coffee-north-bay-dec26",
+        "kind": "Cars & Coffee",
+        "cancelled": false
+      },
+      {
+        "id": "ggc/694a0e08c12b9163f6c4c329",
+        "title": "Neue Klasse & Kaffee",
+        "starts": 1797696000988,
+        "ends": 1797706800988,
+        "place": "Loma Brewing Company · 130 North Santa Cruz Avenue · Los Gatos, CA, 95030",
+        "url": "https://www.ggcbmwcca.org/events/neue-klasse-kaffee-dec26",
+        "kind": "Cars & Coffee",
+        "cancelled": false
+      }
+    ]
+  },
+  {
+    "id": "jbt",
+    "checked": 1795381411006,
+    "events": []
+  }
+]

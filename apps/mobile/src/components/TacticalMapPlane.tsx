@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { Text } from '@underground/ui';
+import type { MapLighting } from '../lib/map-lighting';
 import type { TerritoryDefinition } from '@underground/domain';
 import { boundsFromLineStrings, projectLine, type LonLat } from '../lib/geo-project';
 import { buildMapboxSatelliteUrl } from '../lib/mapbox-static';
@@ -22,6 +23,7 @@ type Props = {
   badge: string;
   disclaimer: string;
   camera: Camera;
+  lighting: MapLighting;
   illuminated?: boolean;
 };
 
@@ -37,6 +39,7 @@ export function TacticalMapPlane({
   badge,
   disclaimer,
   camera,
+  lighting,
   illuminated = true,
 }: Props) {
   const [size, setSize] = useState({ width: 360, height: 280 });
@@ -88,7 +91,7 @@ export function TacticalMapPlane({
   return (
     <View style={styles.root} onLayout={onLayout}>
       {satelliteUrl ? (
-        <Image source={{ uri: satelliteUrl }} style={styles.satellite} resizeMode="cover" />
+        <Image source={{ uri: satelliteUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : (
         <View style={styles.fallback}>
           <View style={styles.gridH} />
@@ -99,7 +102,7 @@ export function TacticalMapPlane({
           <View style={[styles.gridV, { left: '66%' }]} />
         </View>
       )}
-      <View style={styles.tacticalWash} />
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: lighting.tint }]} />
 
       <Text variant="caption" gold style={styles.badge}>
         {badge}
@@ -205,10 +208,6 @@ const styles = StyleSheet.create({
     backgroundColor: shell.mapVoid,
     overflow: 'hidden',
   },
-  satellite: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.72,
-  },
   fallback: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#061018',
@@ -228,10 +227,6 @@ const styles = StyleSheet.create({
     left: '50%',
     width: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(111,168,201,0.18)',
-  },
-  tacticalWash: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(5,7,12,0.45)',
   },
   badge: {
     position: 'absolute',

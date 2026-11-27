@@ -42,3 +42,8 @@ pnpm-debug.log*
 # Test artifacts
 playwright-report/
 test-results/
+
+# Local runtime, tool caches, and virtualenvs (not source)
+.underground/
+**/.expo-*/
+**/.venv/

@@ -4,6 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import type { GpsSample, TripSummary } from '@underground/drive-tracking';
 import { Screen, Text } from '@underground/ui';
 import { TripListItem } from '../../src/components/drive/TripListItem';
+import { getCuratedRun } from '../../src/data/curated-runs';
 import { getTripStore } from '../../src/drive/trip-store';
 import { vehicleLabelForId } from '../../src/drive/vehicle-label';
 import { shell } from '../../src/theme/shell';
@@ -31,6 +32,7 @@ export default function TripHistoryScreen() {
       const next: Row[] = [];
       for (const trip of ended) {
         const state = await store.getSession(trip.id);
+        if (state?.session.curatedRouteId && getCuratedRun(state.session.curatedRouteId)?.category === 'CRUISE') continue;
         next.push({ trip, samples: state?.samples ?? [] });
       }
       setRows(next);
@@ -102,7 +104,7 @@ export default function TripHistoryScreen() {
             <TripListItem
               trip={item.trip}
               samples={item.samples}
-              vehicleLabel={vehicleLabelForId(item.trip.vehicleId)}
+              vehicleLabel={item.trip.vehicleLabel ?? vehicleLabelForId(item.trip.vehicleId)}
               onPress={() => router.push(`/trips/${item.trip.id}`)}
               onDelete={() => onDelete(item.trip.id)}
             />

@@ -84,7 +84,8 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   imagePlate: {
-    height: 148,
+    minHeight: 148,
+    padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: shell.tabBar,
@@ -95,6 +96,7 @@ const styles = StyleSheet.create({
   },
   identity: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 10,
   },
@@ -111,6 +113,7 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 6,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
   },

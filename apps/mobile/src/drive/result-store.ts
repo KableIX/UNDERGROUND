@@ -1,0 +1,103 @@
+import type { SQLiteDatabase } from 'expo-sqlite';
+import { publicEnv } from '../lib/env';
+import { getMobileSupabaseClient, isLiveAuthConfigured } from '../session/supabase-session';
+import type { SessionMember } from '../session/types';
+import { resultSchema, recordLocalResult, localTopThree, mergePersonalTimes, type CruiseResult, type RunResult, type RecordRow } from './result-sql';
+export type { RecordRow } from './result-sql';
+
+type Pending = {route: string; attempt: string | null; trace: string | null};
+const listeners = new Set<() => void>();
+export function onResultChange(callback: () => void) {
+  listeners.add(callback);
+  return () => { listeners.delete(callback); };
+}
+function notify() { listeners.forEach(callback => callback()); }
+
+let connection: Promise<SQLiteDatabase> | undefined;
+async function openStore() {
+  const sqlite = require('expo-sqlite') as typeof import('expo-sqlite');
+  const db = await sqlite.openDatabaseAsync(isLiveAuthConfigured() ? 'route-results.db' : 'preview-route-results.db');
+  await db.execAsync(resultSchema);
+  return db;
+}
+function database() {
+  return connection ??= openStore().catch(error => { connection = undefined; throw error; });
+}
+
+export async function saveResult(member: SessionMember, result: RunResult | CruiseResult) {
+  const db = await database();
+  const live = isLiveAuthConfigured();
+  await recordLocalResult(db,member,result,live);
+  notify();
+  if (live) void syncResults(member.memberId).catch(() => undefined);
+}
+
+const syncing = new Map<string, Promise<void>>();
+const rerun = new Set<string>();
+export function syncResults(member: string): Promise<void> {
+  if (!isLiveAuthConfigured()) return Promise.resolve();
+  const running = syncing.get(member);
+  if (running) { rerun.add(member); return running; }
+  const job = (async () => {
+    do {
+      rerun.delete(member);
+      const db = await database();
+      const pending = await db.getAllAsync<Pending>(
+        'SELECT route,attempt,trace FROM finishes WHERE member=? AND trace IS NOT NULL UNION ALL SELECT route,NULL,NULL FROM cruises WHERE member=? AND pending=1', member, member);
+      if (!pending.length) return;
+      const client = getMobileSupabaseClient();
+      const token = (await client?.auth.getSession())?.data.session?.access_token;
+      if (!token) return;
+      // A queued result belongs to the member who finished, including across sign-outs.
+      const headers = {Authorization: 'Bearer ' + token, 'Content-Type': 'application/json'};
+      const base = publicEnv.API_PUBLIC_URL!.replace(/\/$/, '');
+      const who = await fetch(base + '/v1/me', {headers});
+      if (!who.ok || (await who.json()).profile?.member?.id !== member) return;
+      for (const row of pending) {
+        const payload = row.attempt ? {kind: 'RUN', route: row.route, attempt: row.attempt, trace: JSON.parse(row.trace!)}
+          : {kind: 'CRUISE', route: row.route};
+        const response = await fetch(base + '/v1/route-finishes', {method: 'POST', headers, body: JSON.stringify(payload)});
+        if (!response.ok) continue;
+        if (row.attempt) await db.runAsync('UPDATE finishes SET trace=NULL WHERE member=? AND attempt=?', member, row.attempt);
+        else await db.runAsync('UPDATE cruises SET pending=0 WHERE member=? AND route=?', member, row.route);
+        notify();
+      }
+    } while (rerun.has(member));
+  })().finally(() => { syncing.delete(member); rerun.delete(member); });
+  syncing.set(member, job);
+  return job;
+}
+
+export async function cruiseCompleted(member: string, route: string) {
+  const db = await database();
+  if (await db.getFirstAsync('SELECT 1 FROM cruises WHERE member=? AND route=?', member, route)) return true;
+  if (!isLiveAuthConfigured()) return false;
+  const client = getMobileSupabaseClient();
+  if (!client) throw Error('Club connection unavailable');
+  const {data,error} = await client.from('cruise_completions').select('route_slug').eq('member_id',member).eq('route_slug',route).maybeSingle();
+  if (error) throw error;
+  if (data) await db.runAsync('INSERT OR IGNORE INTO cruises VALUES(?,?,0)',member,route);
+  return !!data;
+}
+
+export async function readTimes(member: string, route?: string): Promise<RecordRow[]> {
+  const db = await database();
+  if (!isLiveAuthConfigured()) return localTopThree(db,member,route);
+  const client = getMobileSupabaseClient();
+  if (route) {
+    if (!client) throw Error('Club connection unavailable');
+    const {data,error} = await client.rpc('route_top_three',{target_route:route});
+    if (error) throw error;
+    return data ?? [];
+  }
+  const local = await localTopThree(db,member);
+  try {
+    if (!client) throw Error('Club connection unavailable');
+    const {data,error} = await client.rpc('my_run_top_threes');
+    if (error) throw error;
+    return mergePersonalTimes(data ?? [],local);
+  } catch (error) {
+    if (local.length) return local;
+    throw error;
+  }
+}

@@ -104,7 +104,14 @@ export async function signInVerifiedMember(email: string, password: string):
   });
   if (error || !data.session) return { ok: false, error: 'invalid_credentials' };
   try {
-    return { ok: true, member: await loadVerifiedMember(data.session.access_token) };
+    try {
+      return { ok: true, member: await loadVerifiedMember(data.session.access_token) };
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== 'membership_not_active') throw error;
+      const activation = await supabase.rpc('activate_club_invitee');
+      if (activation.error) throw Error(activation.error.message);
+      return { ok: true, member: await loadVerifiedMember(data.session.access_token) };
+    }
   } catch (e) {
     await supabase.auth.signOut();
     return { ok: false, error: e instanceof Error ? e.message : 'member_lookup_failed' };

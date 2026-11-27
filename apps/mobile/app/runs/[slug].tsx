@@ -1,4 +1,8 @@
-import { ImageBackground, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { RouteRecords } from '../../src/components/play/RouteRecords';
+import { DrivePhoto } from '../../src/components/play/DrivePhoto';
+import { RoutePhotoCredit } from '../../src/components/play/RoutePhotoCredit';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { MappedRunPreview } from '../../src/components/play/MappedRunPreview';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@underground/ui';
@@ -22,24 +26,32 @@ export default function RunDetailScreen() {
     );
   }
 
+  if (run.mapped) return <MappedRunPreview key={run.slug} run={run} route={run.mapped} />;
+
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: run.title, headerShown: false }} />
-      <ImageBackground source={run.cover} style={styles.hero} resizeMode="cover">
-        <View style={styles.scrim} />
-        <Pressable onPress={() => router.back()} style={[styles.back, { paddingTop: Math.max(insets.top, 14) + 10 }]} accessibilityRole="button">
-          <Text variant="caption" style={styles.backLabel}>‹ ALL RUNS</Text>
+      <View>
+        <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/conquest')} style={[styles.back, { paddingTop: Math.max(insets.top, 14) + 10 }]} accessibilityRole="button">
+          <Text variant="caption" style={styles.backLabel}>‹ BACK</Text>
         </Pressable>
+        {run.cover && <DrivePhoto source={run.cover} label={run.photo?.caption} />}
         <View style={styles.heroCopy}>
           <Text style={styles.eyebrow}>{run.category} {run.number} · {run.routeClass}</Text>
           <Text style={styles.title}>{run.title}</Text>
           <Text style={styles.location}>{run.territory.toUpperCase()} / {run.region.toUpperCase()}</Text>
         </View>
-      </ImageBackground>
+      </View>
       <View style={styles.body}>
-        <Text style={styles.status}>DRAFT {run.category} · ROUTE NOT GPS-VERIFIED</Text>
+        <Text style={styles.status}>DRAFT {run.category === 'TEST' ? 'POC' : run.category}{run.catalog?.tier ? ' · TIER '+run.catalog.tier+'/5' : ''} · ROUTE NOT GPS-VERIFIED</Text>
         <Text style={styles.note}>{run.category === 'RUN' ? 'A continuous scenic driving candidate, subject to traffic, pavement, pedestrian exposure and clearance review. Never a speed challenge.' : run.category === 'CRUISE' ? 'A scenic, slower social drive. CLOUT participation may be enabled after validation; no pace or speed scoring.' : 'Development test circuit only; not an open-road run or live territory claim.'}</Text>
+        {run.category !== 'TEST' && <RouteRecords route={run.slug} cruise={run.category === 'CRUISE'} />}
         <Text style={styles.intro}>{run.subtitle}</Text>
+        {run.slug === 'nvidia-campus-loop' ? (
+          <Pressable onPress={() => router.push('/runs/nvidia-map')} accessibilityRole="button" style={styles.locked}>
+            <Text variant="caption" gold>VIEW ROUTE MAP / START &amp; FINISH</Text>
+          </Pressable>
+        ) : null}
         <Text style={styles.section}>PROPOSED ROUTE</Text>
         {run.sequence.map((segment, index) => (
           <View key={index} style={styles.step}>
@@ -52,14 +64,11 @@ export default function RunDetailScreen() {
         <Text style={styles.section}>EXOTIC-CAR SUITABILITY</Text>
         <Text style={styles.note}>{run.clearanceNote}</Text>
         <View style={styles.locked}>
-          <Text style={styles.lockedHeading}>CAPTURE NOT YET AVAILABLE</Text>
+          <Text style={styles.lockedHeading}>{run.category === 'TEST' ? 'DEVELOPMENT ONLY' : 'CAPTURE NOT YET AVAILABLE'}</Text>
           <Text style={styles.note}>The road-snapped centerline, actual turn connections, checkpoint gates, and in-person suitability review must pass before claiming can be enabled. No simulated or production crown is awarded from this screen.</Text>
         </View>
         <Text style={styles.section}>PHOTO CREDIT</Text>
-        <Text style={styles.note}>{run.photo.caption} Photograph by {run.photo.author}, {run.photo.license}. Cropped and resized for event-card display.</Text>
-        <Pressable onPress={() => void Linking.openURL(run.photo.source)} accessibilityRole="link">
-          <Text variant="caption" gold>VIEW SOURCE AND LICENSE ↗</Text>
-        </Pressable>
+        <RoutePhotoCredit photo={run.photo} />
       </View>
     </ScrollView>
   );
@@ -69,8 +78,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#08090A' },
   content: { paddingBottom: 46 },
   missing: { flex: 1, backgroundColor: '#08090A', justifyContent: 'center', alignItems: 'center', gap: 15 },
-  hero: { height: 320, justifyContent: 'space-between' },
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   back: { paddingHorizontal: 20, paddingTop: 28, alignSelf: 'flex-start' },
   backLabel: { color: '#FFFFFF', fontFamily: 'Inter_600SemiBold', letterSpacing: 2 },
   heroCopy: { padding: 22, gap: 7 },

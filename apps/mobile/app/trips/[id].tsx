@@ -18,6 +18,7 @@ import {
   formatTripStart,
   gpsQualityLabel,
 } from '../../src/drive/format';
+import { getCuratedRun } from '../../src/data/curated-runs';
 import { getTripStore } from '../../src/drive/trip-store';
 import { vehicleLabelForId } from '../../src/drive/vehicle-label';
 import { shell } from '../../src/theme/shell';
@@ -37,7 +38,7 @@ export default function TripReplayScreen() {
       if (!id) return;
       const state = await getTripStore().getSession(id);
       if (cancelled) return;
-      if (!state?.session.startedAtMs) {
+      if (!state?.session.startedAtMs || (state.session.curatedRouteId && getCuratedRun(state.session.curatedRouteId)?.category === 'CRUISE')) {
         setLoading(false);
         return;
       }
@@ -119,7 +120,7 @@ export default function TripReplayScreen() {
           {summary.startLabel ?? '—'} → {summary.finishLabel ?? '—'}
         </Text>
         <Text variant="caption" style={styles.muted}>
-          {vehicleLabelForId(summary.vehicleId) ?? 'No vehicle'} ·{' '}
+          {summary.vehicleLabel ?? vehicleLabelForId(summary.vehicleId) ?? 'No vehicle'} ·{' '}
           {gpsQualityLabel(summary.gpsQuality)} · {classificationLabel(summary.classification)}
         </Text>
         <ReplayMap samples={samples} cursor={cursor} />

@@ -1,5 +1,7 @@
+import { MapLayersButton } from '../map-layers/controls';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { buildSimGpsReplay, checkpointsAlongReplay } from '@underground/territory-engine';
@@ -39,6 +41,8 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
   const [cameraRevision, setCameraRevision] = useState(0);
   const centeredOnFirstFix = useRef(false);
   const [mapMode, setMapMode] = useState<MapMode>(initialMode);
+  const [followPosition, setFollowPosition] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [district, setDistrict] = useState<DistrictMode>('silicon-valley-dev');
   const [track, setTrack] = useState<Track>('solo');
   const territories =
@@ -81,6 +85,7 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
       void mapLocation.retry();
       return;
     }
+    setFollowPosition(true);
     setFocusedCamera({
       longitude: mapLocation.position.longitude,
       latitude: mapLocation.position.latitude,
@@ -94,10 +99,12 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
     if (mapMode === 'drive' && next !== 'drive' && drive.status === 'recording') {
       drive.pause();
     }
+    setMenuOpen(false);
     setMapMode(next);
   }
 
   function switchDistrict(next: DistrictMode) {
+    setFollowPosition(false);
     setDistrict(next);
     // Explicit district selection overrides first-GPS centering until Locate Me is tapped.
     centeredOnFirstFix.current = true;
@@ -110,19 +117,14 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
   }
 
   function onProdChallenge() {
-    if (!selected) return;
-    setPreviewMessage(
-      isDevDistrict
-        ? 'Blocked — development district cannot take production ownership.'
-        : 'Blocked — draft geometry / production captures disabled.',
-    );
+    router.push('/runs');
   }
 
   function onSimCapture() {
     if (!selected) return;
 
     if (!isDevDistrict) {
-      setPreviewMessage('Sim captures limited to Silicon Valley DEV.');
+      setPreviewMessage('Sim captures are limited to Heart of Silicon Valley.');
       return;
     }
 
@@ -168,14 +170,12 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
 
   return (
     <View style={styles.root}>
-      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 8) }]}>
-        <Text variant="brand" gold>
-          UNDERGROUND
-        </Text>
+      {mapMode !== 'explore' && <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 8) }]}>
+        <Text variant="brand" gold>UNDERGROUND</Text>
         <View style={styles.modes}>
-          <ModeChip label="EXPLORE" active={mapMode === 'explore'} onPress={() => switchMapMode('explore')} />
+          <ModeChip label="EXPLORE" active={false} onPress={() => switchMapMode('explore')} />
           <ModeChip label="DRIVE" active={mapMode === 'drive'} onPress={() => switchMapMode('drive')} />
-          <ModeChip label="CONQUEST" active={mapMode === 'conquest'} onPress={() => switchMapMode('conquest')} />
+          <ModeChip label="TERRITORIES" active={mapMode === 'conquest'} onPress={() => switchMapMode('conquest')} />
         </View>
         <Pressable
           accessibilityRole="button"
@@ -212,21 +212,26 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
             onPress={() => switchDistrict('monterey')}
           />
         </View> : null}
-      </View>
+      </View>}
 
       <View style={styles.map}>
         <MapboxTerritoryMap
+          onExploreRoute={mapMode === 'explore' ? slug => {
+            if (slug === 'saratoga-club-loop') router.push({ pathname: '/club-drives', params: { route: 'saratoga' } });
+            else router.push({ pathname: '/runs/[slug]', params: { slug } });
+          } : undefined}
           territories={territories}
           selectedSlug={selectedSlug}
           onSelect={setSelectedSlug}
           camera={camera}
           showTerritories={showTerritories}
-          followUser={mapMode === 'drive' && drive.status === 'recording'}
+          followUser={mapLocation.status === 'granted' && followPosition && mapMode !== 'conquest'}
+          onPan={() => setFollowPosition(false)}
           showUserLocation={mapLocation.status === 'granted'}
           userPosition={mapLocation.position}
           cameraRevision={cameraRevision}
           badge={
-            mapMode === 'explore' ? 'EXPLORE · WORLD MAP'
+            mapMode === 'explore' ? ''
               : mapMode === 'drive' ? 'DRIVE · PRIVATE GPS'
                 : isDevDistrict ? `${siliconValleyDistrict.name.toUpperCase()} · DEV`
                   : 'MONTEREY · DRAFT CANDIDATE'
@@ -234,15 +239,32 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
         />
       </View>
 
-      {mapMode === 'explore' ? (
-        <View style={styles.modePanel}>
-          <Text variant="caption" gold>EXPLORE · FULL WORLD MAP</Text>
-          <Text style={styles.modeInfo}>Pan, zoom and navigate anywhere. Territories are curated overlays, not limits on the map.</Text>
-          <Pressable style={styles.modeButton} onPress={() => switchMapMode('conquest')}>
-            <Text variant="caption" gold>VIEW TERRITORIES</Text>
+      {mapMode === 'explore' && <>
+        <View pointerEvents="none" style={[styles.brandOverlay, { top: insets.top + 8 }]}>
+          <Image accessibilityLabel="UNDERGROUND" resizeMode="contain" style={{ width: 165, height: 32 }}
+            source={require('../../assets/brand/underground-lockup-silver.png')} />
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="My profile" style={[styles.mapProfile,{top:insets.top + 6}]} onPress={() => router.push('/(tabs)/profile')}>
+          <MaterialCommunityIcons name="account-circle-outline" color="#E3EBEB" size={20} /><Text style={styles.mapProfileText}>My profile</Text>
+        </Pressable>
+        <View style={styles.mapControls}>
+          {menuOpen && <View style={styles.menu}>
+            <MapLayersButton />
+            <ModeChip label="TERRITORIES" active={false} onPress={() => switchMapMode('conquest')} />
+            <ModeChip label="DRIVE TRACKING" active={false} onPress={() => switchMapMode('drive')} />
+            <ModeChip label="NEWS" active={false} onPress={() => { setMenuOpen(false); router.push('/newswire'); }} />
+
+          </View>}
+          <Pressable accessibilityRole="button" accessibilityLabel="Map options" accessibilityState={{ expanded: menuOpen }}
+            style={styles.roundButton} onPress={() => setMenuOpen(open => !open)}>
+            <MaterialCommunityIcons name="layers-outline" size={21} color="#E3EBEB" />
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={mapLocation.status === 'denied' ? 'Enable location in Settings' : 'Recenter on my location'}
+            style={styles.roundButton} onPress={locateMe}>
+            <MaterialCommunityIcons name="crosshairs-gps" size={23} color="#E3EBEB" />
           </Pressable>
         </View>
-      ) : null}
+      </>}
 
       {mapMode === 'drive' ? (
         <View style={styles.modePanel}>
@@ -298,6 +320,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: shell.mapVoid,
   },
+  mapProfile: { position: 'absolute', right: 14, flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 12, backgroundColor: '#12191E', borderColor: '#536466', borderWidth: 1, borderRadius: 22 },
+  mapProfileText: { fontFamily: 'Inter_600SemiBold', color: '#EDF3F2', fontSize: 14 },
+  brandOverlay: { position: 'absolute', left: 14 },
+  mapControls: { position: 'absolute', bottom: 27, right: 14, gap: 8, alignItems: 'flex-end' },
+  menu: { padding: 5, gap: 3, backgroundColor: '#0B121EF2', borderRadius: 6 },
+  roundButton: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: '#75838F', backgroundColor: '#09111CE6', alignItems: 'center', justifyContent: 'center' },
   topBar: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2,
     paddingHorizontal: 12, paddingBottom: 8,
