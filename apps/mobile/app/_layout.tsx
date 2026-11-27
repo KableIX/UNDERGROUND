@@ -1,4 +1,5 @@
 import { syncResults } from '../src/drive/result-store';
+import { defineDriveLocationTask } from '../src/drive/background-location';
 import { useEffect } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -9,6 +10,9 @@ import { BarlowCondensed_500Medium, BarlowCondensed_600SemiBold, BarlowCondensed
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { SessionProvider, useSession } from '../src/session/SessionContext';
 import { shell } from '../src/theme/shell';
+
+// iOS may relaunch the app in the background to deliver run GPS; the task must exist at load.
+defineDriveLocationTask();
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { state } = useSession();

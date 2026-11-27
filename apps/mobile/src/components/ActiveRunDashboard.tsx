@@ -44,7 +44,7 @@ export function ActiveRunDashboard({ visible, drive, temporary, busy, onClose, o
         <Pressable disabled={busy} style={s.primary} onPress={active ? onPause : onResume}><Text style={s.primaryText}>{active ? 'PAUSE RUN' : 'RESUME RUN'}</Text></Pressable>
         <Pressable disabled={busy} style={s.end} onPress={onEnd}><Text style={s.link}>{temporary ? 'END RUN' : 'END & SAVE'}</Text></Pressable>
       </View> : null}
-      <Text style={s.note}>Keep the app open. Locking the phone or switching apps pauses recording.{temporary ? ' Storage is temporary until the updated iPhone build is installed.' : ''}</Text>
+      <Text style={s.note}>{drive.background ? 'GPS keeps recording with the phone locked.' : 'Keep the app open. Allow location Always to record with the phone locked.'}{temporary ? ' Storage is temporary until the updated iPhone build is installed.' : ''}</Text>
     </ScrollView>
   </Modal>;
 }

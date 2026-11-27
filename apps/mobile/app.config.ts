@@ -43,16 +43,21 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       'expo-secure-store',
       'expo-file-system',
       ['expo-image-picker', {
-        cameraPermission: 'Take a photo for Spotted, your garage, or run verification.',
-        photosPermission: 'Choose a photo for Spotted or your garage.',
+        cameraPermission: 'Take a photo for Spotted, your garage, or a run finish.',
+        photosPermission: 'Choose a photo for Spotted, your garage, or a run finish.',
       }],
       'expo-sqlite',
       ['expo-location', {
         locationWhenInUsePermission: 'UNDERGROUND uses your location to show your position on the map and, when you choose Start Drive, record your trip.',
-        // Foreground tracking first — do not silently enable background GPS here.
-        isIosBackgroundLocationEnabled: false,
+        locationAlwaysAndWhenInUsePermission: 'Allow Always so a run keeps recording when your phone locks. UNDERGROUND records location only between Start and End of a run or drive you begin.',
+        locationAlwaysPermission: 'Allow Always so a run keeps recording when your phone locks. UNDERGROUND records location only between Start and End of a run or drive you begin.',
+        // iOS: background GPS only during a recording the member starts (UIBackgroundModes: location,
+        // expo-task-manager task in src/drive/background-location.ts). The blue indicator stays on.
+        isIosBackgroundLocationEnabled: true,
+        // Android stays foreground-only until there is an Android build to test.
         isAndroidBackgroundLocationEnabled: false,
       }],
+      'expo-task-manager',
     ],
     extra: {
       ...(config.extra ?? {}),

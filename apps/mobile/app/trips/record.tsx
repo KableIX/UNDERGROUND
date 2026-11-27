@@ -7,7 +7,7 @@ import {GarageVehicleSelect,useGarageVehicles} from '../../src/drive/GarageVehic
 import { shell } from '../../src/theme/shell';
 
 /**
- * Standalone foreground recorder with SQLite persistence.
+ * Standalone recorder with SQLite persistence (background GPS when allowed).
  * Not connected to Conquest ownership / CLOUT.
  */
 export default function RecordDriveScreen() {
@@ -22,7 +22,7 @@ export default function RecordDriveScreen() {
     <Screen>
       <View style={styles.stack}>
         <Text variant="caption" gold>
-          FOREGROUND ONLY · PRIVATE
+          {drive.background ? 'LOCKED PHONE OK · PRIVATE' : 'PRIVATE'}
         </Text>
         <Text variant="title">
           {status === 'recording'
@@ -125,8 +125,10 @@ export default function RecordDriveScreen() {
           )}
         </View>
         <Text variant="caption" style={styles.footnote}>
-          Background GPS is not enabled in this build. Recording pauses when the app leaves the
-          foreground. No fabricated samples. No ownership or CLOUT from this screen.
+          {drive.background
+            ? 'GPS keeps recording with the phone locked until you pause or end.'
+            : 'Allow location Always to keep recording with the phone locked. Otherwise recording pauses when the app leaves the foreground.'}{' '}
+          No fabricated samples. No ownership or CLOUT from this screen.
         </Text>
       </View>
     </Screen>
