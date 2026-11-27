@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { computeRunAnalytics, type FinishPhotoClaim } from '@underground/domain';
 import {
   attemptPayload, localFinishCredit, localRouteHistory, pendingAttempts, recordLocalAttempt, resultSchema,
-  saveLocalFinishPhoto, type AttemptRecord, type ResultDatabase,
+  saveLocalFinishPhoto, purgeLocalRunAnalytics, type AttemptRecord, type ResultDatabase,
 } from './result-sql';
 
 const database = new DatabaseSync(':memory:');
@@ -71,5 +71,22 @@ describe('run attempt log on the device', () => {
     const abortRow = (await pendingAttempts(db, 'a')).find(r => r.attempt === 'a2')!;
     expect(attemptPayload(abortRow, [{ claim: photo('car'), storagePath: 'x' }]).photos).toEqual([]);
     expect(attemptPayload(abortRow, []).abortReason).toBe('traffic');
+  });
+});
+
+describe('90-day retention on the device', () => {
+  beforeEach(() => {
+    database.exec(resultSchema);
+    database.exec('DELETE FROM run_attempts; DELETE FROM finish_photos;');
+  });
+  it('drops speed detail from old runs and keeps the summary', async () => {
+    const detailed = { ...analytics, maxSpeedMps: 31.2, avgMovingSpeedMps: 14.5, avgSpeedMps: 13.3 };
+    await recordLocalAttempt(db, 'a', run('old', { endedAtMs: T0, analytics: detailed }), false);
+    await recordLocalAttempt(db, 'a', run('new', { endedAtMs: T0 + 100 * 86_400_000, analytics: detailed }), false);
+    await purgeLocalRunAnalytics(db, T0 + 10 * 86_400_000);
+    const rows = database.prepare('SELECT attempt, analytics FROM run_attempts ORDER BY attempt').all() as Array<{ attempt: string; analytics: string }>;
+    const byId = Object.fromEntries(rows.map(r => [r.attempt, JSON.parse(r.analytics)]));
+    expect(byId.old).toMatchObject({ maxSpeedMps: null, avgMovingSpeedMps: null, avgSpeedMps: 13.3, activeMs: 900_000, distanceM: 12_000 });
+    expect(byId.new).toMatchObject({ maxSpeedMps: 31.2, avgMovingSpeedMps: 14.5 });
   });
 });

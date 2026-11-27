@@ -69,6 +69,25 @@ export class SqliteTripStore implements TripStore {
     return db;
   }
 
+  /**
+   * 90-day retention: delete raw GPS samples (position, speed) of trips that ended before
+   * `cutoffMs`. The trip summary (distance, duration) stays. Returns samples removed.
+   */
+  async purgeRawSamples(cutoffMs: number): Promise<number> {
+    const db = await this.database();
+    const row = await db.getFirstAsync<{ n: number }>(
+      `SELECT count(*) AS n FROM gps_samples WHERE session_id IN
+         (SELECT id FROM drive_sessions WHERE status = 'ended' AND ended_at_ms IS NOT NULL AND ended_at_ms < ?)`,
+      cutoffMs,
+    );
+    await db.runAsync(
+      `DELETE FROM gps_samples WHERE session_id IN
+         (SELECT id FROM drive_sessions WHERE status = 'ended' AND ended_at_ms IS NOT NULL AND ended_at_ms < ?)`,
+      cutoffMs,
+    );
+    return row?.n ?? 0;
+  }
+
   async saveSession(state: SessionEngineState): Promise<void> {
     const db = await this.database();
     const { session, samples, events, segmentStartedAtMs, privateSpeedMps } = state;

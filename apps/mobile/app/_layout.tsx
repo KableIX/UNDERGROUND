@@ -1,4 +1,4 @@
-import { syncResults } from '../src/drive/result-store';
+import { purgeLocalRawRunData, syncResults } from '../src/drive/result-store';
 import { defineDriveLocationTask } from '../src/drive/background-location';
 import { useEffect } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
@@ -13,6 +13,8 @@ import { shell } from '../src/theme/shell';
 
 // iOS may relaunch the app in the background to deliver run GPS; the task must exist at load.
 defineDriveLocationTask();
+// Raw GPS and speed detail older than 90 days is removed from the phone.
+void purgeLocalRawRunData().catch(() => undefined);
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { state } = useSession();
