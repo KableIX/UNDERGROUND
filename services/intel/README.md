@@ -26,3 +26,6 @@ Ended/lifted records stay inactive even if the feed repeats them; only active-to
 
 ## Route assessment
 Normalized active Caltrans and approved 511 road-hazard events are correlated in shadow mode. Only current NWS polygons intersecting route geometry can appear in the existing limited preview API. Road matches are not proof of road identity or direction, and must never be published as verified closures. Health and timestamps are checked at assessment and read time; partial or stale data is UNKNOWN. No individual enforcement tracking.
+
+## Limited weather presentation
+The API supplies only fresh NWS alert polygons clipped to the saved route, with severity and source/snapshot-bounded expiry. Missing polygons are not inferred from alert text. Caltrans and 511 road incidents and their route matches remain shadow-only with road identity unverified. No change to the published=0 database constraint.

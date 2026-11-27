@@ -1,3 +1,4 @@
+import {goldTouch} from '../components/GoldTouch';
 import { useEffect, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@underground/ui';
@@ -12,7 +13,7 @@ export function MapLayersButton({compact=false}:{compact?:boolean}) {
   const [open,setOpen]=useState(false);
   const data=open ? snapshot() : null;
   return <>
-    <Pressable accessibilityRole="button" accessibilityLabel="Map layers" onPress={()=>setOpen(true)} style={s.button}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Map layers" onPress={()=>setOpen(true)} style={({pressed})=>[s.button,pressed && goldTouch]}>
       <Text style={s.buttonText}>{compact ? 'Layers' : 'Map layers'}</Text>
     </Pressable>
     {open && <Modal visible transparent animationType="fade" onRequestClose={()=>setOpen(false)}>
@@ -26,7 +27,7 @@ export function MapLayersButton({compact=false}:{compact?:boolean}) {
         <Text style={s.note}>Recurring checks appear on routes with reports from at least three members on three separate days in 90 days.</Text>
         <Pressable accessibilityRole="link" onPress={()=>void Linking.openURL('https://www.openstreetmap.org/copyright')}><Text style={s.note}>© OpenStreetMap contributors · ODbL</Text></Pressable>
         <Text style={s.note}>Municipal sources · LADOT, OakDOT, San José DOT and SFMTA</Text>
-        <Pressable accessibilityRole="button" onPress={()=>setOpen(false)} style={s.button}><Text style={s.buttonText}>Done</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={()=>setOpen(false)} style={({pressed})=>[s.button,pressed && goldTouch]}><Text style={s.buttonText}>Done</Text></Pressable>
       </ScrollView></View>
     </Modal>}
   </>;

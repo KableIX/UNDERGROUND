@@ -1,8 +1,8 @@
 import json,sqlite3,tempfile,unittest
 from pathlib import Path
-from shapely.geometry import Point
+from shapely.geometry import Point,LineString,Polygon
 import collector as C
-from assess import road_candidates,assess,fresh_source
+from assess import road_candidates,assess,fresh_source,weather_segments
 from api import public_route
 from test_collector_511 import NOW,FIX,lcs_payload
 
@@ -53,3 +53,21 @@ class Assessment(unittest.TestCase):
   self.assertIsNone(public_route(data,'missing',NOW))
  def test_future_source_rejected(self):
   self.assertFalse(fresh_source({'nws-CA':{'ok':True,'checked_at':NOW+1}},'nws-CA',NOW))
+
+class WeatherOverlay(unittest.TestCase):
+ def test_overlay_uses_only_intersecting_route_geometry(self):
+  line=LineString([(-122.1,37.5),(-122.0,37.5),(-121.9,37.5)])
+  polygon=Polygon([(-122.05,37.4),(-121.95,37.4),(-121.95,37.6),(-122.05,37.6)])
+  segments=weather_segments(line,polygon)
+  self.assertEqual(len(segments),1)
+  self.assertAlmostEqual(segments[0][0][0],-122.05)
+  self.assertAlmostEqual(segments[0][-1][0],-121.95)
+  self.assertTrue(all(abs(p[1]-37.5)<1e-8 for p in segments[0]))
+  self.assertEqual(weather_segments(line,polygon.buffer(-0.01).envelope.intersection(Point(-120,36))),[])
+ def test_preview_expires_on_source_or_snapshot_deadline(self):
+  event={'id':'test-weather','kind':'weather','title':'Flood warning','source':'nws-CA','expires':NOW+10000,'severity':'Severe','segments':[]}
+  data={'generated_at':NOW,'health':{'nws-CA':{'ok':True,'checked_at':NOW-800}},'routes':{'test':{'candidates':[event]}}}
+  out=public_route(data,'test',NOW)
+  self.assertEqual(out['weather'][0]['expires'],NOW+100)
+  self.assertEqual(out['weather'][0]['severity'],'Severe')
+  self.assertEqual(public_route(data,'test',NOW+101)['status'],'UNKNOWN')

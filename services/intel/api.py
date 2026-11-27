@@ -20,7 +20,10 @@ def public_route(data,slug,now):
  if not route:return None
  fresh=0<=now-data.get('generated_at',0)<=600
  # Only expose valid official weather polygons, never nearby closure candidates.
- weather=[{'title':e['title'],'source':e['source'],'expires':e['expires']} for e in route['candidates'] if e['kind']=='weather' and e['source'] in ('nws-CA','nws-FL') and e['expires']>now and fresh_source(data.get('health',{}),e['source'],now)] if fresh else []
+ weather=[{'id':e.get('id',e['source']+':'+e['title']), 'title':e['title'],'source':e['source'],
+           'expires':min(e['expires'], data['generated_at']+600, data['health'][e['source']]['checked_at']+900),
+           'severity':e.get('severity','Unknown'), 'segments':e.get('segments',[])}
+          for e in route['candidates'] if e['kind']=='weather' and e['source'] in ('nws-CA','nws-FL') and e['expires']>now and fresh_source(data.get('health',{}),e['source'],now)] if fresh else []
  return {'route':slug,'status':'CAUTION' if weather else 'UNKNOWN','coverage':'partial','generated_at':data['generated_at'],'weather':weather,'road_status':'Not assessed','mode':'limited_preview'}
 class Handler(BaseHTTPRequestHandler):
  def do_GET(self):

@@ -1,4 +1,6 @@
-import { cameraPins, regionBox, snapshot } from '../../map-layers/cameras';
+import type {IntelWeather} from '../../lib/intel-weather';
+import { CompactIntelMarker, CameraMarkerDetails } from './IntelMarker';
+import { cameraPins, regionBox, snapshot, type CameraPin } from '../../map-layers/cameras';
 import { useLayers } from '../../map-layers/controls';
 import { type drawZones, zoneLabel } from '../../map-layers/history';
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
@@ -19,6 +21,7 @@ import { TacticalMapPlane } from '../TacticalMapPlane';
 type Camera = { longitude: number; latitude: number; zoom: number };
 type Props = {
   historyLines: ReturnType<typeof drawZones>;
+  intelWeather?: IntelWeather[];
   onExploreRoute?: (slug: string) => void;
   territories: TerritoryDefinition[];
   selectedSlug: string | null;
@@ -53,7 +56,7 @@ type MapsModule = {
  */
 export function WorldMapFallback({
   territories, selectedSlug, onSelect, onExploreRoute, camera, badge, showTerritories, followUser,
-  showUserLocation, userPosition, cameraRevision, fitCoordinates, onPan, streetView, lighting, onCenterChange, approachLeg, historyLines,
+  showUserLocation, userPosition, cameraRevision, fitCoordinates, onPan, streetView, lighting, onCenterChange, approachLeg, historyLines, intelWeather,
 }: Props) {
   const routePreview = !!fitCoordinates?.length;
   const [viewport, setViewport] = useState<Region | null>(null);
@@ -143,6 +146,7 @@ export function WorldMapFallback({
   const visibleRegion = viewport ?? region;
   const settings=useLayers();
   const pins=useMemo(()=>cameraPins(settings.plate || settings.speed ? snapshot() : null,regionBox(visibleRegion),settings),[settings,visibleRegion]);
+  const [cameraDetail,setCameraDetail]=useState<CameraPin|null>(null);
   const visibleDrives = useMemo(() => {
     if (!onExploreRoute) return [];
     const { latitude, longitude, latitudeDelta, longitudeDelta } = visibleRegion;
@@ -212,9 +216,9 @@ export function WorldMapFallback({
           strokeColor={line.road ? '#DC9049' : '#546B80'} strokeWidth={line.road ? 2.4 : 1.1} />)}
         {historyLines.map(z=><Polyline key={'checks-'+z.start_m} coordinates={z.coords.map(([longitude,latitude])=>({longitude,latitude}))}
           strokeColor="#B89356C2" strokeWidth={13} tappable onPress={()=>Alert.alert('Recurring speed checks',zoneLabel(z))}/>)}
-        {pins.map(p=><Marker key={p.id} identifier={p.id} coordinate={{latitude:p.lat,longitude:p.lon}}
-          anchor={{x:0.5,y:0.5}} title={p.title} description={p.detail} onPress={()=>Alert.alert(p.title,p.detail)}>
-          <View style={{width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#151B22',backgroundColor:p.kind==='speed'?'#CFA868':'#90A5B5'}}/>
+        {pins.map((p,i)=><Marker key={p.id} identifier={p.id} coordinate={{latitude:p.lat,longitude:p.lon}}
+          anchor={{x:.5,y:i<32?.85:.5}} title={p.title} description={p.detail} onPress={()=>setCameraDetail(p)}>
+          {i<32?<CompactIntelMarker kind={p.marker}/>:<View style={{width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#151B22',backgroundColor:p.kind==='speed'?'#CFA868':'#90A5B5'}}/>}
         </Marker>)}
         {visibleDrives.map(drive => <Polyline key={'drive-' + drive.slug}
           coordinates={drive.points} strokeColor="#76FF03" strokeWidth={5}
@@ -259,6 +263,9 @@ export function WorldMapFallback({
             onPress={() => onSelect(t.slug)}
           />
         )) : null}
+        {fitCoordinates && !approachLeg && intelWeather?.flatMap(a=>a.segments.map((coords,i)=><Polyline
+          key={'intel-weather-'+a.id+':'+i} coordinates={coords.map(([longitude,latitude])=>({longitude,latitude}))}
+          strokeColor="#BEA2FF" strokeWidth={4} lineDashPattern={[8,8]} lineCap="round"/>))}
         {showTerritories && endpoints ? [
           ...(!approachLeg ? [{ role: closed ? 'START / FINISH' : 'START', point: endpoints.start, color: '#7CFFB2' }] : []),
           ...(!closed ? [{ role: approachLeg ? 'MEETUP' : 'FINISH', point: endpoints.finish, color: '#D0B88F' }] : []),
@@ -293,6 +300,7 @@ export function WorldMapFallback({
           );
         }) : null}
       </MapView>
+      {cameraDetail && <CameraMarkerDetails pin={cameraDetail} onClose={()=>setCameraDetail(null)}/>}
       {/* A screen-space tint covers the pitched map during loading, panning and recentering. */}
       <View testID="map-solar-tint" pointerEvents="none" accessible={false} style={[StyleSheet.absoluteFill, { backgroundColor: lighting.tint }]} />
       {ready && lighting.daylight < 1 && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: 1 - lighting.daylight }]}>

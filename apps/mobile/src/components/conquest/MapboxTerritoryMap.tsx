@@ -1,6 +1,10 @@
+import {useIntelWeather} from '../../lib/use-intel-weather';
+import {seriousWeather,type IntelWeather} from '../../lib/intel-weather';
+import {goldTouch} from '../GoldTouch';
+import { CompactIntelMarker, CameraMarkerDetails } from './IntelMarker';
 import { useSpeedLimit } from '../../lib/use-speed-limit';
 import { MapLayersButton, useLayers, useRouteHistory } from '../../map-layers/controls';
-import { cameraPins, snapshot, type Box } from '../../map-layers/cameras';
+import { cameraPins, snapshot, type Box, type CameraPin } from '../../map-layers/cameras';
 import { drawZones, zoneLabel, type Zone } from '../../map-layers/history';
 import { FinishBanner } from './FinishBanner';
 import { useSession } from '../../session/SessionContext';
@@ -19,7 +23,7 @@ import { usePersistentDrive } from '../../drive/use-persistent-drive';
 import { GarageVehicleSelect, useGarageVehicles } from '../../drive/GarageVehicleSelect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApproach } from '../../drive/use-approach';
-import { qualityLabel, voiceCue } from '../../drive/navigation-voice';
+import { qualityLabel, voiceCue, weatherVoiceCue } from '../../drive/navigation-voice';
 import { useNavigationVoice } from '../../drive/use-navigation-voice';
 import { useMapLighting } from '../../lib/use-map-lighting';
 import { useMapLocation } from '../../lib/use-map-location';
@@ -69,6 +73,7 @@ type Props = {
   /** Background GPS on: recording continues with the phone locked. */
   backgroundGps?: boolean;
   historyZones?: Zone[];
+  intelWeather?: IntelWeather[];
   approachLeg?: boolean;
   signalGap?: { entryIndex: number; exitIndex: number };
   maneuvers?: { index: number; instruction: string }[];
@@ -115,7 +120,8 @@ type MapboxMod = {
 export function MapboxTerritoryMap(input: Props) {
   const layers = useLayers();
   const history = useRouteHistory(input.fitCoordinates?.length ? input.selectedSlug : null, layers.history);
-  const props = { ...input, historyZones: history?.zones };
+  const intel=useIntelWeather(input.fitCoordinates?.length?input.selectedSlug:null);
+  const props = { ...input, historyZones: history?.zones, intelWeather: intel.weather };
   const historyNote = history?.failed ? 'Member history unavailable' : history?.zones.length
     ? 'Before you go · ' + history.zones.length + (history.zones.length === 1 ? ' segment' : ' segments') + ' with recurring speed checks' : '';
   const [active, setActive] = useState(false);
@@ -128,7 +134,7 @@ export function MapboxTerritoryMap(input: Props) {
       <MapLayersButton compact />
       {!!historyNote && <Text style={{backgroundColor:'#14191e',color:'#e1d1b6',fontSize:12,padding:4}}>{historyNote}</Text>}
     </View>
-    {canStart && <Pressable accessibilityRole="button" onPress={async () => { if (!props.verifyStart || await props.verifyStart()) setActive(true); }} style={styles.startNav}>
+    {canStart && <Pressable accessibilityRole="button" onPress={async () => { if (!props.verifyStart || await props.verifyStart()) setActive(true); }} style={({pressed})=>[styles.startNav,pressed && {shadowRadius:24,borderColor:'#F0FFCF',backgroundColor:'#C9FF9F'}]}>
       <Text style={styles.startText}>Start Nav</Text>
     </Pressable>}
     {active && <Modal visible animationType="slide" onRequestClose={() => setActive(false)}>
@@ -339,6 +345,9 @@ function ActiveRouteNav(props: Props & { fitCoordinates: [number, number][]; qui
       ? { ...turnCue, key: 'rejoin-' + turnCue.key }
       : null;
   }
+  const severeWeather=seriousWeather(props.intelWeather??[]);
+  // Existing turn/finish/rejoin cues always win. Weather has no enforcement content.
+  if(!cue) cue=weatherVoiceCue(severeWeather,{started:runStarted,reliable:!!reliable,following:onSavedRoute&&progress.phase==='following',hasTurn:!!next,toTurn,speedMps:here?.speedMps});
   const voice = useNavigationVoice(!runStarted || !!maneuvers?.length, !!reliable, cue, onSavedRoute ? points : leg, next?.instruction);
   const starting=useRef(false);
   const finished=useRef(false);
@@ -397,6 +406,12 @@ function ActiveRouteNav(props: Props & { fitCoordinates: [number, number][]; qui
           {props.resultKind === 'CRUISE' && (atStart || progress.phase === 'finished') &&
             <RunClock cruise phase={progress.phase === 'finished' ? 'finished' : 'ready'} elapsedMs={0} />}
           <Text style={styles.guidance}>{instruction}</Text>
+          {severeWeather && progress.phase!=='finished' && <View style={{flexDirection:'row',alignItems:'center',gap:8,padding:8,backgroundColor:'#27203B',borderColor:'#BEA2FF',borderWidth:1,borderRadius:9}}>
+            <CompactIntelMarker kind="weather"/>
+            <View style={{flex:1}}><Text style={{color:'#E2D6FF',fontWeight:'700'}}>NWS ROUTE ADVISORY</Text>
+              <Text style={{color:'#F0E8FF'}}>{severeWeather.title}</Text>
+              <Text style={{fontSize:11,color:'#D1C5E7'}}>Official regional alert affecting part of this route.</Text></View>
+          </View>}
           <View style={{flexDirection:'row',alignItems:'center',gap:12}}>
             <View style={{backgroundColor:'#FFF',borderRadius:5,borderWidth:2,borderColor:'#222',padding:6,minWidth:60,alignItems:'center'}}>
               <Text style={{color:'#111',fontSize:10}}>SPEED LIMIT</Text>
@@ -502,12 +517,14 @@ function TerritorySurface({
   fitCoordinates,
   approachLeg = false,
   historyZones,
+  intelWeather,
   streetView,
 }: Props) {
   const { lighting, reportCenter } = useMapLighting(camera);
   const settings=useLayers();
   const [view,setView]=useState<Box | null>(null);
   const pins=useMemo(()=>cameraPins(settings.plate || settings.speed ? snapshot() : null,view,settings),[settings,view]);
+  const [cameraDetail,setCameraDetail]=useState<CameraPin|null>(null);
   const historyLines=useMemo(()=>!approachLeg && fitCoordinates && historyZones ? drawZones(fitCoordinates,historyZones) : [],[approachLeg,fitCoordinates,historyZones]);
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
   const [MapboxMod, setMapboxMod] = useState<MapboxMod | null>(null);
@@ -580,6 +597,7 @@ function TerritorySurface({
     return (
       <WorldMapFallback
         historyLines={historyLines}
+        intelWeather={approachLeg?[]:intelWeather}
         lighting={lighting}
         onCenterChange={reportCenter}
         territories={territories}
@@ -605,6 +623,7 @@ function TerritorySurface({
     return (
       <WorldMapFallback
         historyLines={historyLines}
+        intelWeather={approachLeg?[]:intelWeather}
         lighting={lighting}
         onCenterChange={reportCenter}
         territories={territories}
@@ -690,10 +709,15 @@ function TerritorySurface({
           <LineLayer id="historical-check-segments" style={{lineColor:'#B89356',lineWidth:13,lineOpacity:0.76,lineCap:'round'}}/>
         </ShapeSource>}
         {pins.length > 0 && <ShapeSource id="ca-cameras" hitbox={{width:24,height:24}}
-          shape={{type:'FeatureCollection',features:pins.map(p=>({type:'Feature',id:p.id,properties:{kind:p.kind,title:p.title,detail:p.detail},geometry:{type:'Point',coordinates:[p.lon,p.lat]}}))}}
-          onPress={(e:{features?:{properties?:{title?:string;detail?:string}}[]})=>{const p=e.features?.[0]?.properties;if(p)Alert.alert(p.title || 'Camera',p.detail);}}>
+          shape={{type:'FeatureCollection',features:(MarkerView?pins.slice(32):pins).map(p=>({type:'Feature',id:p.id,properties:{id:p.id,kind:p.kind},geometry:{type:'Point',coordinates:[p.lon,p.lat]}}))}}
+          onPress={(e:{features?:{properties?:{id?:string}}[]})=>{const id=e.features?.[0]?.properties?.id;const pin=pins.find(p=>p.id===id);if(pin)setCameraDetail(pin);}}>
           <CircleLayer id="ca-camera-dots" minZoomLevel={12} style={{circleColor:['match',['get','kind'],'speed','#CFA868','#90A5B5'],circleRadius:4,circleStrokeWidth:1,circleStrokeColor:'#151B22'}}/>
         </ShapeSource>}
+        {MarkerView && pins.slice(0,32).map(p=><MarkerView key={p.id} coordinate={[p.lon,p.lat]} anchor={{x:.5,y:.85}}>
+          <Pressable accessibilityRole="button" accessibilityLabel={p.title} onPress={()=>setCameraDetail(p)} style={({pressed})=>[{width:36,height:40,borderRadius:18,alignItems:'center',justifyContent:'center'},pressed&&goldTouch]}>
+            <CompactIntelMarker kind={p.marker}/>
+          </Pressable>
+        </MarkerView>)}
         {onExploreRoute && <ShapeSource id="explore-drives" shape={exploreRoutes} hitbox={{ width: 22, height: 22 }}
           onPress={(event: { features?: Array<{ properties?: { slug?: string } }> }) => {
             const slug = event.features?.[0]?.properties?.slug;
@@ -732,6 +756,11 @@ function TerritorySurface({
             }}
           />
         </ShapeSource> : null}
+        {fitCoordinates && !approachLeg && !!intelWeather?.some(a=>a.segments.length) && <ShapeSource id="intel-weather-segments"
+          shape={{type:'FeatureCollection',features:intelWeather.flatMap(a=>a.segments.map((coords,i)=>({type:'Feature',id:a.id+':'+i,properties:{title:a.title},geometry:{type:'LineString',coordinates:coords}})))}}>
+          <LineLayer id="intel-weather-glow" style={{lineColor:'#BEA2FF',lineWidth:25,lineBlur:8,lineOpacity:.24,lineCap:'round'}}/>
+          <LineLayer id="intel-weather-dashes" style={{lineColor:'#BEA2FF',lineWidth:4,lineDasharray:[2,2],lineOpacity:.85,lineCap:'round'}}/>
+        </ShapeSource>}
         {fitCoordinates && endpoints && MarkerView ? (
           <>
             {!approachLeg && <MarkerView coordinate={endpoints.start} anchor={beaconAnchor} allowOverlap><MapBeacon label={endpoints.start.every((v, i) => v === endpoints.finish[i]) ? 'START / FINISH' : 'START'} /></MarkerView>}
@@ -777,6 +806,7 @@ function TerritorySurface({
           </ShapeSource>
         ) : null}
       </MapView>
+      {cameraDetail && <CameraMarkerDetails pin={cameraDetail} onClose={()=>setCameraDetail(null)}/>}
       {(settings.plate || settings.speed) && <View pointerEvents="none" style={{position:'absolute',left:8,bottom:26}}><Text style={{fontSize:9,color:'#ddd',backgroundColor:'#131a22'}}>© OpenStreetMap contributors · CA city data</Text></View>}
       {!!badge && !fitCoordinates && <View style={styles.badge} pointerEvents="none">
         <Text variant="caption" gold>

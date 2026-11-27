@@ -1,13 +1,13 @@
+import {cameraSources,cameraMarkerKind,cameraStatus,type CameraSource,type CameraMarkerKind} from './camera-registry';
 export type Layer = 'plate' | 'speed' | 'history';
 export type Layers = Readonly<Record<Layer, boolean>>;
 export const initialLayers: Layers = { plate: true, speed: true, history: true };
 export type Box = { west: number; south: number; east: number; north: number };
-type Source = 'reader' | 'osm' | 'sf' | 'sj' | 'oak' | 'la';
+type Source = CameraSource;
 type Row = [number, number, 'plate' | 'speed', Source, string, string, string];
 export type Snapshot = { retrieved: string; cells: Record<string, Row[]>; counts: Record<Source, number> };
-export type CameraPin = { id: string; lon: number; lat: number; kind: Row[2]; title: string; detail: string };
-const sources = { reader: 'OpenStreetMap via FlockHopper', osm: 'OpenStreetMap', sf: 'SFMTA',
-  sj: 'San José DOT', la: 'LADOT', oak: 'OakDOT' };
+export type CameraPin = { id: string; lon: number; lat: number; kind: Row[2]; marker: CameraMarkerKind; title: string; detail: string; source: Source; sourceUrl:string; license:string; status:string; lastChecked:string };
+
 
 export function snapshot(): Snapshot | null {
   // Defer evaluating the statewide index until a member opens the layers or enables pins.
@@ -32,10 +32,13 @@ export function cameraPins(db: Snapshot | null, b: Box | null, layers: Layers): 
     for (let y=Math.floor(south*10); y<=Math.floor(north*10); y++) {
       for (const [lon,lat,kind,source,key,label,status] of db.cells[x+','+y] ?? []) {
         if (!layers[kind] || lon<west || lon>east || lat<south || lat>north) continue;
-        const title = kind==='plate' ? (label ? label+' plate reader' : 'Reported plate reader') :
-          source==='osm' ? 'Reported speed camera' : 'City-listed speed camera';
-        const detail = [kind==='speed' && label, sources[source], status || 'Operating status unknown', 'Snapshot '+db.retrieved].filter(Boolean).join(' · ');
-        pins.push({id:source+'/'+key,lon,lat,kind,title,detail});
+        const marker=cameraMarkerKind(kind,label);
+        const title = marker==='flock'?'Reported Flock Safety ALPR':marker==='alpr'?(label?label+' plate reader':'Reported plate reader'):
+          marker==='redlight'?'Reported red-light camera':source==='osm'?'Reported speed camera':'City-listed speed camera';
+        const meta=cameraSources[source];
+        const operating=cameraStatus(status);
+        const detail = [kind==='speed' && label, meta.name, operating, 'Snapshot '+db.retrieved].filter(Boolean).join(' ? ');
+        pins.push({id:source+'/'+key,lon,lat,kind,marker,title,detail,source,sourceUrl:meta.url,license:meta.license,status:operating,lastChecked:db.retrieved});
       }
     }
   }

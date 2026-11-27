@@ -22,10 +22,10 @@ def normalize(source,payload,now):
   try:
    if source in ('nws-CA','nws-FL'):
     p=row['properties']; start=epoch(p.get('onset') or p.get('effective')); end=epoch(p.get('expires'))
-    if p.get('status')!='Actual' or start is None or end is None or not start<=now<end or not row.get('geometry'): continue
+    if p.get('status')!='Actual' or p.get('messageType')=='Cancel' or start is None or end is None or not start<=now<end or not row.get('geometry'): continue
     geom=shape(row['geometry'])
     if geom.is_empty or not geom.is_valid or geom.geom_type not in ('Polygon','MultiPolygon'): continue
-    events.append(dict(id=row['id'],source=source,kind='weather',title=p['event'],road=None,expires=end,geometry=geom,precision='official alert polygon'))
+    events.append(dict(id=row['id'],source=source,kind='weather',title=p['event'],road=None,expires=end,geometry=geom,precision='official alert polygon',severity=p.get('severity','Unknown')))
   except (KeyError,TypeError,ValueError,AttributeError): continue
  return events
 def fresh_source(health, source, now):
@@ -61,6 +61,21 @@ def road_candidates(db, health, now):
   for i,g in enumerate(coords):
    yield dict(id=f"{source}:{r['source_id']}:{i}",source=source,kind='roadwork',category=r['category'],title=r['headline'] or r['category'],road=r['road_name'],expires=r['expires_at'],geometry=g,precision='provider geometry; road identity unverified' if source=='511-bayarea' else 'closure endpoint')
 
+def weather_segments(line, polygon):
+ """Return bounded route-only display geometry; never create a point hazard."""
+ clipped=line.intersection(polygon)
+ if clipped.geom_type=='LineString': parts=[clipped]
+ elif clipped.geom_type in ('MultiLineString','GeometryCollection'):
+  parts=[g for g in clipped.geoms if g.geom_type=='LineString']
+ else: parts=[]
+ parts=sorted(parts,key=lambda g:g.length,reverse=True)[:8]
+ result=[]
+ for part in parts:
+  coordinates=list(part.coords)
+  # Preserve the intersection exactly, including bends and polygon boundaries.
+  if 2<=len(coordinates)<=1200: result.append([list(c) for c in coordinates])
+ return result
+
 def assess(now=None, db_path=None, data_path=None):
  now=time.time() if now is None else now
  data_path=Path(data_path or DATA)
@@ -88,7 +103,13 @@ def assess(now=None, db_path=None, data_path=None):
     if e['kind']=='roadwork' and state!='california': continue
     if e['kind']=='roadwork' and line.distance(e['geometry'])>0.0003: continue
     # Proximity is not road identity. Keep roadwork candidates internal.
-    matches.append({k:v for k,v in e.items() if k!='geometry'})
+    item={k:v for k,v in e.items() if k!='geometry'}
+    if e['kind']=='weather':
+     item['segments']=weather_segments(line,e['geometry'])
+    else:
+     item['road_identity']='unverified'
+     item['publication']='shadow'
+    matches.append(item)
    routes[row['slug']]={'status':'CAUTION' if any(m['kind']=='weather' for m in matches) else 'UNKNOWN','candidates':matches,'coverage':'partial','publication':'shadow'}
  return {'generated_at':int(now),'mode':'shadow','health':health,'normalized_candidates':len(events),'routes':routes}
 if __name__=='__main__':

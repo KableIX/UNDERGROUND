@@ -40,3 +40,27 @@ describe('spoken navigation', () => {
     expect(claimCue(seen,{key:'6-ahead',time:1000},'6-now',9000)).toBe(true);
   });
 });
+
+import {weatherVoiceCue,advisoryCanPlay} from './navigation-voice';
+
+describe('low priority official weather voice',()=>{
+ const alert={id:'nws:test',title:'Flash Flood Warning'};
+ const context={started:true,reliable:true,following:true,toTurn:1000,speedMps:10,hasTurn:true};
+ it('offers a route-wide advisory only away from the next maneuver',()=>{
+  const cue=weatherVoiceCue(alert,context);
+  expect(cue?.priority).toBe('advisory');
+  expect(cue?.text).toContain('for this route');
+  expect(weatherVoiceCue(alert,{...context,toTurn:100})).toBeNull();
+  expect(weatherVoiceCue(alert,{...context,toTurn:1000,speedMps:35})).toBeNull();
+ });
+ it('suppresses voice while approaching, off route or without reliable GPS',()=>{
+  expect(weatherVoiceCue(alert,{...context,started:false})).toBeNull();
+  expect(weatherVoiceCue(alert,{...context,following:false})).toBeNull();
+  expect(weatherVoiceCue(alert,{...context,reliable:false})).toBeNull();
+ });
+ it('does not interrupt a recent navigation cue',()=>{
+  expect(advisoryCanPlay({key:'turn-now',time:1000},10000)).toBe(false);
+  expect(advisoryCanPlay({key:'turn-now',time:1000},21000)).toBe(true);
+  expect(advisoryCanPlay(null,0)).toBe(true);
+ });
+});

@@ -1,3 +1,5 @@
+import {useState} from 'react';
+import {goldTouch} from '../GoldTouch';
 import {
   Alert,
   Linking,
@@ -46,6 +48,7 @@ type Props = {
 };
 
 export function BookCover({ title, detail, art, variant, onPress, selected }: Props) {
+  const [pressed,setPressed]=useState(false);
   const state = variant === 'state';
   const header = variant === 'header';
   const label = (
@@ -66,15 +69,17 @@ export function BookCover({ title, detail, art, variant, onPress, selected }: Pr
     </>
   );
   return (
-    <View style={[s.card, state && s.book, selected && s.selected]}>
+    <View style={[s.card, state && s.book, selected && s.selected,pressed && goldTouch]}>
       {onPress ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={[title, detail].filter(Boolean).join(', ')}
           accessibilityState={state ? { selected } : undefined}
           onPress={onPress}
+          onPressIn={()=>setPressed(true)} onPressOut={()=>setPressed(false)}
         >
           {contents}
+          {(pressed||selected) && <View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderWidth:2,borderRadius:9,borderColor:'#F3CF83'}]}/>}
         </Pressable>
       ) : (
         contents
