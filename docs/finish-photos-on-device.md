@@ -30,6 +30,10 @@ crediting two runs; a check stops one photo counting as both car and dash.
 The `evidence-originals` bucket is no longer used for runs. Any `runs/` objects from testing should
 be removed with the Storage API by an operator.
 
+## Anti-cheat
+
+Finish nonce, in-app camera only, and App Attest behind a flag: see `finish-photo-anti-cheat.md`.
+
 ## Anti-cheat trade-offs
 
 Without the image, the server cannot look at the photo. Verification rests on the phone's reported
