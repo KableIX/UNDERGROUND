@@ -1,0 +1,4 @@
+# All permissive: Apache-2.0 (opencv-python-headless), BSD-3 (numpy), MIT (onnxruntime).
+opencv-python-headless>=4.10
+numpy>=1.26
+onnxruntime>=1.18

@@ -9,10 +9,46 @@ export const supercargoCopy = {
   captureNote: 'Fresh captures only. Plates and faces are blurred before anything is shared.',
   ledgerEmpty: 'The Ledger is empty. It fills one sighting at a time.',
   exchangeNote: 'Envelope folios can be exchanged, folio for folio, after 24 hours. Sightings stay with the member who saw them.',
-  commissionsNote: 'Three commissions a week. Counts only.',
+  commissionsNote: 'This week\'s commissions. Counts only.',
+  commissionsEmpty: 'No commissions posted this week.',
+  exchangeEmpty: 'No offers yet. Propose one with a member\'s number.',
+  mapEmpty: 'Nothing nearby in the last three days.',
+  offline: 'Turn on SupercarGO to see sightings, envelopes and the Ledger.',
+  originalKept: 'The original stays on your phone. Only a blurred copy is shared.',
+  clubNote: 'Combined marks of everyone in the club. No member is ranked.',
 } as const;
 
+export const supercargoSections = ['map', 'ledger', 'exchange'] as const;
+export type SupercargoSection = (typeof supercargoSections)[number];
+export const supercargoSectionLabels: Record<SupercargoSection, string> = { map: 'Map', ledger: 'Ledger', exchange: 'Exchange' };
+
+export function parseSection(value: unknown): SupercargoSection {
+  return supercargoSections.includes(value as SupercargoSection) ? (value as SupercargoSection) : 'map';
+}
+
+/** Toggle a folio in a selection of at most three. */
+export function toggleFolio(selected: string[], id: string, max = 3) {
+  if (selected.includes(id)) return selected.filter((x) => x !== id);
+  return selected.length >= max ? selected : [...selected, id];
+}
+
+export function exchangeStatusText(status: string, incoming: boolean) {
+  switch (status) {
+    case 'open':
+      return incoming ? 'Waiting for you' : 'Waiting for them';
+    case 'accepted':
+      return 'Exchanged';
+    case 'declined':
+      return 'Declined';
+    case 'withdrawn':
+      return 'Withdrawn';
+    default:
+      return 'No longer valid';
+  }
+}
+
 const reasonText: Record<string, string> = {
+  meet: 'Logged at a curated meet. Members see it in an hour, at neighborhood scale.',
   library_photo: 'Kept private. Library photos earn no folio.',
   home_zone: 'Logged privately. It was near a member\'s home.',
   owner_opt_out: 'Logged privately. The owner has opted out.',
@@ -34,7 +70,11 @@ export function tierRank(tier: SupercargoTier) {
   return SupercargoTiers.indexOf(tier) + 1;
 }
 
-export function sightingOutcome(result: { visibility: string; reason: string | null; publishAt: string | null; folio: boolean }, now = new Date()) {
+export function sightingOutcome(
+  result: { visibility: string; reason: string | null; publishAt: string | null; folio: boolean; atMeet?: boolean },
+  now = new Date(),
+) {
+  if (result.visibility === 'public' && result.atMeet) return reasonText.meet! + (result.folio ? ' Added to the Ledger.' : '');
   if (result.visibility === 'public' && result.publishAt) {
     const hours = Math.max(1, Math.round((new Date(result.publishAt).getTime() - now.getTime()) / 3600_000));
     return `Logged. Members see it in ${hours} hours, at neighborhood scale.` + (result.folio ? ' Added to the Ledger.' : '');

@@ -92,7 +92,7 @@ export function submitSighting(body: {
   make: string;
   model: string;
 }) {
-  return api<{ ok: boolean; tier: SupercargoTier; visibility: string; reason: string | null; publishAt: string | null; folio: boolean }>(
+  return api<{ ok: boolean; tier: SupercargoTier; visibility: string; reason: string | null; publishAt: string | null; folio: boolean; atMeet?: boolean }>(
     '/v1/supercargo/sightings',
     { ...body, source: 'camera' },
   );
@@ -100,4 +100,109 @@ export function submitSighting(body: {
 
 export function claimEnvelope(envelope: string, fix: { lat: number; lng: number; accuracyM: number; at: string }) {
   return api<{ ok: boolean; result: string }>('/v1/supercargo/envelopes/claim', { envelope, fix });
+}
+
+// ---- Live commissions, clubs, featured car ----
+
+export type Commission = { commission_id: string; title: string; have: number; need: number; marked: boolean };
+export type ClubMarks = { club_id: string; club_name: string; members: number; marks_this_week: number; marks_all_time: number };
+
+export async function readCommissions() {
+  const { data, error } = await db().rpc('supercargo_my_commissions');
+  if (error) throw new Error('Commissions are unavailable.');
+  return (data ?? []) as Commission[];
+}
+
+export async function readClubMarks() {
+  const { data, error } = await db().rpc('supercargo_my_club_marks');
+  if (error) return [];
+  return (data ?? []) as ClubMarks[];
+}
+
+export async function readFeatured() {
+  const monday = new Date();
+  monday.setUTCHours(0, 0, 0, 0);
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+  const { data } = await db()
+    .from('supercargo_featured')
+    .select('note, supercargo_catalog(make, model, tier)')
+    .eq('week_start', monday.toISOString().slice(0, 10))
+    .maybeSingle();
+  const car = (data as unknown as { note: string | null; supercargo_catalog: { make: string; model: string; tier: SupercargoTier } | null } | null);
+  return car?.supercargo_catalog ? { ...car.supercargo_catalog, note: car.note } : null;
+}
+
+// ---- The Exchange ----
+
+export type TradeFolio = { id: string; owner: string; make: string; model: string; tier: SupercargoTier };
+export type ExchangeRow = {
+  id: string;
+  incoming: boolean;
+  other_number: string;
+  status: 'open' | 'accepted' | 'declined' | 'withdrawn' | 'void';
+  created_at: string;
+  offered: Array<{ make: string; model: string; tier: SupercargoTier }>;
+  requested: Array<{ make: string; model: string; tier: SupercargoTier }>;
+};
+
+export async function readExchanges() {
+  const { data, error } = await db().rpc('supercargo_my_exchanges');
+  if (error) throw new Error('The Exchange is unavailable.');
+  return (data ?? []) as ExchangeRow[];
+}
+
+export async function readTradeable(memberNumber: string) {
+  const { data, error } = await db().rpc('supercargo_tradeable_folios', { p_member_number: memberNumber });
+  if (error) throw new Error('Could not read that collection.');
+  return (data ?? []) as TradeFolio[];
+}
+
+export async function proposeExchange(counterparty: string, offered: string[], requested: string[]) {
+  const { error } = await db().rpc('supercargo_propose_exchange', { p_counterparty: counterparty, p_offered: offered, p_requested: requested });
+  if (error) throw new Error('Not sent. Folios must be envelope folios held for 24 hours, at most three a side.');
+}
+
+export async function decideExchange(id: string, accept: boolean) {
+  const { data, error } = await db().rpc('supercargo_decide_exchange', { p_exchange: id, p_accept: accept });
+  if (error) throw new Error('Could not record that. Try again.');
+  return data as string;
+}
+
+// ---- Privacy: home zone and owner opt-out ----
+
+export async function readHomeZone() {
+  const { data } = await db().from('supercargo_home_zones').select('radius_m').maybeSingle();
+  return data ? { radiusM: data.radius_m as number } : null;
+}
+
+export async function setHomeZone(lat: number, lng: number, radiusM = 400) {
+  const { error } = await db()
+    .from('supercargo_home_zones')
+    .upsert({ zone: `SRID=4326;POINT(${lng} ${lat})`, radius_m: radiusM, updated_at: new Date().toISOString() });
+  if (error) throw new Error('Could not save your home zone.');
+}
+
+export async function clearHomeZone() {
+  const { error } = await db().from('supercargo_home_zones').delete().not('member_id', 'is', null);
+  if (error) throw new Error('Could not clear your home zone.');
+}
+
+export type GarageCar = { id: string; year: number; make: string; model: string; optedOut: boolean };
+
+export async function readGarageOptOuts(memberId: string): Promise<GarageCar[]> {
+  const [cars, outs] = await Promise.all([
+    db().from('vehicles').select('id, year, make, model').eq('owner_member_id', memberId),
+    db().from('supercargo_optouts').select('vehicle_id'),
+  ]);
+  if (cars.error) throw new Error('Could not read your garage.');
+  const off = new Set((outs.data ?? []).map((o) => o.vehicle_id as string));
+  return (cars.data ?? []).map((c) => ({ id: c.id as string, year: c.year as number, make: c.make as string, model: c.model as string, optedOut: off.has(c.id as string) }));
+}
+
+export async function setOptOut(vehicleId: string, optedOut: boolean) {
+  const q = optedOut
+    ? db().from('supercargo_optouts').insert({ vehicle_id: vehicleId })
+    : db().from('supercargo_optouts').delete().eq('vehicle_id', vehicleId);
+  const { error } = await q;
+  if (error) throw new Error('Could not save that.');
 }

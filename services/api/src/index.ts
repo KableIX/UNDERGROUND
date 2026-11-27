@@ -5,6 +5,7 @@ import { MemoryStore } from '@underground/persistence';
 import { loadEnv } from './env';
 import { identifySpot } from './routes/spotted';
 import { failClosedRedaction, handleSupercargo } from './routes/supercargo';
+import { createHttpRedaction } from './routes/supercargo-blur';
 import { createSupabaseSupercargoStore } from './supercargo-store';
 import { getHealth } from './routes/health';
 import { planFounderProvision } from './routes/founder';
@@ -34,6 +35,10 @@ const memoryStore = new MemoryStore();
 const memberGateway = createSupabaseMemberGateway(env);
 // SupercarGO stays dark unless explicitly enabled with its own secret.
 const supercargoStore = process.env.SUPERCARGO_ENABLED === '1' ? createSupabaseSupercargoStore(env) : null;
+// Blurring runs in services/blur. Without it, nothing is ever published.
+const supercargoRedaction = process.env.SUPERCARGO_BLUR_URL
+  ? createHttpRedaction(process.env.SUPERCARGO_BLUR_URL, process.env.SUPERCARGO_BLUR_TOKEN ?? '')
+  : failClosedRedaction;
 
 console.info(
   JSON.stringify({
@@ -102,7 +107,7 @@ const server = createServer(async (req, res) => {
       const result = await handleSupercargo(path, auth.session.memberId, await readJsonBody(req, 1200 * 1024), {
         store: supercargoStore,
         nonceSecret: process.env.SUPERCARGO_NONCE_SECRET ?? '',
-        redaction: failClosedRedaction,
+        redaction: supercargoRedaction,
       });
       res.writeHead(result.status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(result.body));

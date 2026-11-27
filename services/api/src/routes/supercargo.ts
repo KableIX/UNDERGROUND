@@ -3,7 +3,9 @@ import { z } from 'zod';
 import {
   decidePublication,
   fuzzToCell,
+  hashDistance,
   publicWindow,
+  SUPERCARGO_NEAR_DUPLICATE_BITS,
   verifyCapture,
   type CaptureProblem,
   type SupercargoTier,
@@ -21,6 +23,8 @@ export interface RedactionResult {
   jpeg: string;
   plates: number;
   faces: number;
+  /** 64-bit difference hash as a decimal string, for near-duplicate checks. */
+  dhash?: string;
 }
 
 /** Blurs plates and faces. Must fail closed: anything uncertain is 'unavailable'. */
@@ -58,13 +62,17 @@ export interface SightingRecord {
   cell: { id: string; lat: number; lng: number };
   point: { lat: number; lng: number; accuracyM: number };
   imageHash: string;
+  dhash: string | null;
+  meetId: string | null;
+  /** Only ever the blurred derivative. The original stays on the member's phone. */
   redactedJpeg: string | null;
 }
 
 export interface SupercargoStore {
   lastCreditedFix(member: string): Promise<{ lat: number; lng: number; at: Date } | null>;
   creditedSince(member: string, since: Date): Promise<number>;
-  imageSeen(hash: string): Promise<boolean>;
+  imageSeen(sha256: string, dhash: string | null): Promise<boolean>;
+  meetAt(lat: number, lng: number, at: Date): Promise<string | null>;
   findCatalog(make: string, model: string): Promise<{ id: string; tier: SupercargoTier } | null>;
   privacyFlags(member: string, make: string, model: string, lat: number, lng: number): Promise<{ nearHome: boolean; ownCar: boolean; optedOut: boolean }>;
   saveSighting(record: SightingRecord): Promise<string>;
@@ -163,7 +171,7 @@ export async function handleSupercargo(path: string, member: string, raw: unknow
     const [previous, creditedToday, duplicateImage] = await Promise.all([
       deps.store.lastCreditedFix(member),
       deps.store.creditedSince(member, new Date(now.getTime() - 24 * 3600_000)),
-      deps.store.imageSeen(imageHash),
+      deps.store.imageSeen(imageHash, null),
     ]);
     const check = verifyCapture({
       source: s.source,
@@ -187,6 +195,12 @@ export async function handleSupercargo(path: string, member: string, raw: unknow
     const mayPublish = !flags.ownCar && !flags.optedOut && !flags.nearHome;
     const redacted = mayPublish ? await deps.redaction.redact(s.jpeg) : null;
     const redaction: SightingRecord['redaction'] = redacted?.status === 'done' ? 'done' : 'failed';
+    const dhash = redacted?.status === 'done' && redacted.dhash && /^-?\d{1,20}$/.test(redacted.dhash) ? redacted.dhash : null;
+    if (dhash && (await deps.store.imageSeen(imageHash, dhash))) {
+      return { status: 422, body: { ok: false, error: 'capture_refused', problems: ['duplicate'], message: problemText.duplicate } };
+    }
+    // A reviewed curated meet that is on right now shortens the hold to one hour. Never near a home.
+    const meetId = mayPublish ? await deps.store.meetAt(fix.lat, fix.lng, capturedAt) : null;
     const decision = decidePublication({
       source: 'camera',
       redaction,
@@ -197,7 +211,7 @@ export async function handleSupercargo(path: string, member: string, raw: unknow
     });
     const visibility = decision.visibility;
     const cell = fuzzToCell(fix.lat, fix.lng, tier);
-    const window = publicWindow(capturedAt, tier);
+    const window = publicWindow(capturedAt, tier, meetId !== null);
     const id = await deps.store.saveSighting({
       spotter: member,
       catalogId: catalog?.id ?? null,
@@ -214,6 +228,8 @@ export async function handleSupercargo(path: string, member: string, raw: unknow
       cell: { id: cell.id, lat: cell.lat, lng: cell.lng },
       point: { lat: fix.lat, lng: fix.lng, accuracyM: fix.accuracyM },
       imageHash,
+      dhash,
+      meetId,
       redactedJpeg: redacted?.status === 'done' && visibility === 'public' ? redacted.jpeg : null,
     });
     return {
@@ -227,6 +243,7 @@ export async function handleSupercargo(path: string, member: string, raw: unknow
         visibility,
         reason: 'reason' in decision ? decision.reason : null,
         publishAt: visibility === 'public' ? window.publishAt.toISOString() : null,
+        atMeet: meetId !== null,
       },
     };
   }
@@ -247,6 +264,8 @@ export async function handleSupercargo(path: string, member: string, raw: unknow
 export class MemorySupercargoStore implements SupercargoStore {
   sightings: Array<SightingRecord & { id: string }> = [];
   hashes = new Set<string>();
+  dhashes: bigint[] = [];
+  meet: string | null = null;
   catalog = new Map<string, { id: string; tier: SupercargoTier }>();
   flags = { nearHome: false, ownCar: false, optedOut: false };
   claims: Array<{ member: string; envelope: string }> = [];
@@ -258,8 +277,14 @@ export class MemorySupercargoStore implements SupercargoStore {
   async creditedSince(member: string, since: Date) {
     return this.sightings.filter((s) => s.spotter === member && s.credited && s.capturedAt >= since).length;
   }
-  async imageSeen(hash: string) {
-    return this.hashes.has(hash);
+  async imageSeen(hash: string, dhash: string | null) {
+    if (this.hashes.has(hash)) return true;
+    if (!dhash) return false;
+    const d = BigInt(dhash);
+    return this.dhashes.some((x) => hashDistance(x, d) <= SUPERCARGO_NEAR_DUPLICATE_BITS);
+  }
+  async meetAt() {
+    return this.meet;
   }
   async findCatalog(make: string, model: string) {
     return this.catalog.get((make + ' ' + model).toLowerCase()) ?? null;
@@ -271,6 +296,7 @@ export class MemorySupercargoStore implements SupercargoStore {
     const id = 'sg-' + (this.sightings.length + 1);
     this.sightings.push({ ...record, id });
     this.hashes.add(record.imageHash);
+    if (record.dhash) this.dhashes.push(BigInt(record.dhash));
     return id;
   }
   async claimEnvelope(member: string, envelope: string) {

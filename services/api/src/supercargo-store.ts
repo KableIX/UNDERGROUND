@@ -38,9 +38,15 @@ export function createSupabaseSupercargoStore(env: RuntimeEnv): SupercargoStore 
       if (error) throw new Error('supercargo_unavailable');
       return count ?? 0;
     },
-    async imageSeen() {
-      // Exact-duplicate hashes are not persisted yet; see ADR open items (perceptual hash).
-      return false;
+    async imageSeen(sha256, dhash) {
+      const { data, error } = await admin.rpc('supercargo_image_seen', { p_sha256: sha256, p_dhash: dhash });
+      if (error) throw new Error('supercargo_unavailable');
+      return data === true;
+    },
+    async meetAt(lat, lng, at) {
+      const { data, error } = await admin.rpc('supercargo_meet_at', { p_lng: lng, p_lat: lat, p_at: at.toISOString() });
+      if (error) throw new Error('supercargo_unavailable');
+      return typeof data === 'string' ? data : null;
     },
     async findCatalog(make, model) {
       const seed = findSupercargoEntry(make, model, supercargoSeedCatalog);
@@ -91,10 +97,13 @@ export function createSupabaseSupercargoStore(env: RuntimeEnv): SupercargoStore 
         cell_lat: r.cell.lat,
         cell_lng: r.cell.lng,
         photo_path: photoPath,
+        meet_id: r.meetId,
       });
       if (insert.error) throw new Error('supercargo_unavailable');
       const extra = await Promise.all([
         admin.from('supercargo_sighting_points').insert({ sighting_id: id, point: point(r.point.lat, r.point.lng), accuracy_m: r.point.accuracyM }),
+        // Fingerprints only. Postgres bigint arrives as a decimal string.
+        admin.from('supercargo_image_hashes').insert({ sha256: r.imageHash, dhash: r.dhash, member_id: r.spotter }),
         r.credited && r.catalogId
           ? admin.from('supercargo_ledger').insert({ member_id: r.spotter, catalog_id: r.catalogId, origin: 'sighting', sighting_id: id })
           : Promise.resolve({ error: null }),

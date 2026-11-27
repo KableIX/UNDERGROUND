@@ -312,7 +312,7 @@ function CatalogBrowser() {
           <Choice
             title="SupercarGO"
             detail="Sightings, envelopes and the Ledger"
-            onPress={() => router.push('/supercargo')}
+            onPress={() => router.push('/(tabs)/supercargo')}
           />
         </>
       )}

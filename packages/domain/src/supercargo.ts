@@ -170,10 +170,17 @@ export function fuzzToCell(lat: number, lng: number, tier: SupercargoTier): Supe
   };
 }
 
-export function publicWindow(capturedAt: Date, tier: SupercargoTier) {
+/** Inside a reviewed curated meet the cars are on show anyway: one hour, still a cell. */
+export const SUPERCARGO_MEET_HOLD_HOURS = 1;
+
+export function holdHours(tier: SupercargoTier, atCuratedMeet = false) {
+  return atCuratedMeet ? SUPERCARGO_MEET_HOLD_HOURS : SupercargoHoldHours[tier];
+}
+
+export function publicWindow(capturedAt: Date, tier: SupercargoTier, atCuratedMeet = false) {
   const at = capturedAt.getTime();
   return {
-    publishAt: new Date(at + SupercargoHoldHours[tier] * 3600_000),
+    publishAt: new Date(at + holdHours(tier, atCuratedMeet) * 3600_000),
     expiresAt: new Date(at + SUPERCARGO_VISIBLE_HOURS * 3600_000),
   };
 }
@@ -301,7 +308,7 @@ export function distanceMeters(a: { lat: number; lng: number }, b: { lat: number
 // Envelopes: sealed folios left at curated public places.
 // ---------------------------------------------------------------------------
 
-export const SupercargoAnchorKinds = ['route_start', 'route_finish', 'overlook', 'venue', 'museum', 'event'] as const;
+export const SupercargoAnchorKinds = ['route_start', 'route_finish', 'overlook', 'venue', 'museum', 'event', 'curated_meet'] as const;
 export type SupercargoAnchorKind = (typeof SupercargoAnchorKinds)[number];
 
 export const SupercargoEnvelopeLimits = { radiusM: 60, maxAccuracyM: 50, nearbyKm: 5 } as const;
@@ -325,6 +332,57 @@ export function envelopeRefusal(input: {
   if (input.distanceM > SupercargoEnvelopeLimits.radiusM) return 'too_far';
   return null;
 }
+
+/** Relative odds of each tier inside an envelope. Rarer tiers are rarer finds. */
+export const SupercargoEnvelopeWeights: Record<SupercargoTier, number> = {
+  open: 40,
+  limited: 25,
+  numbered: 18,
+  allocated: 10,
+  atelier: 5,
+  singular: 2,
+};
+
+/** Share of envelopes holding the featured car of the week, when one is set. */
+export const SUPERCARGO_FEATURED_SHARE = 0.1;
+
+/**
+ * Pick an envelope's contents: the featured car one time in ten, otherwise a
+ * tier by weight and a car within it. Mirrors supercargo_stock_envelopes().
+ */
+export function drawEnvelopeContents(
+  catalog: Array<{ id: string; tier: SupercargoTier }>,
+  featured: string | null,
+  random: () => number = Math.random,
+): string | null {
+  if (featured && catalog.some((c) => c.id === featured) && random() < SUPERCARGO_FEATURED_SHARE) return featured;
+  const present = SupercargoTiers.filter((t) => catalog.some((c) => c.tier === t));
+  if (!present.length) return null;
+  const total = present.reduce((n, t) => n + SupercargoEnvelopeWeights[t], 0);
+  let roll = random() * total;
+  let tier = present[present.length - 1]!;
+  for (const t of present) {
+    roll -= SupercargoEnvelopeWeights[t];
+    if (roll < 0) {
+      tier = t;
+      break;
+    }
+  }
+  const pool = catalog.filter((c) => c.tier === tier);
+  return pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))]!.id;
+}
+
+/** Hamming distance between two 64-bit difference hashes. Six or fewer is the same photo. */
+export function hashDistance(a: bigint, b: bigint): number {
+  let x = BigInt.asUintN(64, a ^ b);
+  let n = 0;
+  while (x) {
+    n += Number(x & 1n);
+    x >>= 1n;
+  }
+  return n;
+}
+export const SUPERCARGO_NEAR_DUPLICATE_BITS = 6;
 
 // ---------------------------------------------------------------------------
 // The Exchange: folio for folio, between members, no money.

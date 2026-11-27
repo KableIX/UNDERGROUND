@@ -6,6 +6,8 @@ import {
   computeRarity,
   decidePublication,
   distanceMeters,
+  drawEnvelopeContents,
+  hashDistance,
   envelopeRefusal,
   exchangeProblems,
   fuzzToCell,
@@ -175,5 +177,37 @@ describe('SupercarGO commissions and reports', () => {
     expect(reportHolds('plate_visible', 1)).toBe(true);
     expect(reportHolds('wrong_model', 1)).toBe(false);
     expect(reportHolds('wrong_model', 3)).toBe(true);
+  });
+});
+
+describe('SupercarGO curated meets, envelopes and hashes', () => {
+  it('shows curated-meet sightings after one hour, still as a cell', () => {
+    const at = new Date('2026-11-27T12:00:00Z');
+    expect(publicWindow(at, 'singular', true).publishAt.toISOString()).toBe('2026-11-27T13:00:00.000Z');
+    expect(fuzzToCell(37.3, -121.9, 'singular').stepDeg).toBe(0.1);
+  });
+
+  it('draws envelopes by rarity, with the featured car about one time in ten', () => {
+    const catalog = [
+      { id: 'a', tier: 'open' as const },
+      { id: 'b', tier: 'numbered' as const },
+      { id: 'c', tier: 'singular' as const },
+    ];
+    let seed = 7;
+    const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+    const counts: Record<string, number> = { a: 0, b: 0, c: 0 };
+    for (let i = 0; i < 6000; i++) counts[drawEnvelopeContents(catalog, 'c', rand)!]! += 1;
+    expect(counts.a!).toBeGreaterThan(counts.b!);
+    expect(counts.b!).toBeGreaterThan(counts.c! - 600);
+    expect(counts.c!).toBeGreaterThan(450);
+    expect(counts.c!).toBeLessThan(1000);
+    expect(drawEnvelopeContents([], null)).toBeNull();
+    expect(drawEnvelopeContents(catalog, 'not-in-catalog', () => 0)).toBe('a');
+  });
+
+  it('measures near-duplicate photos by hash distance', () => {
+    expect(hashDistance(0n, 0n)).toBe(0);
+    expect(hashDistance(0b1011n, 0b0001n)).toBe(2);
+    expect(hashDistance(-1n, 0n)).toBe(64);
   });
 });

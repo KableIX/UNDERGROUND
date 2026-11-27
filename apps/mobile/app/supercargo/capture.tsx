@@ -3,13 +3,15 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FittedPhoto } from '../../src/components/FittedPhoto';
+import { useSession } from '../../src/session/SessionContext';
+import { saveSpot } from '../../src/spotted/collection';
 import { suggestModel } from '../../src/spotted/photo';
 import { captureNonce, submitSighting } from '../../src/supercargo/client';
 import { sightingOutcome, supercargoCopy } from '../../src/supercargo/copy';
 import { currentFix } from '../../src/supercargo/location';
 import { Action, Caption, ui } from '../../src/supercargo/ui';
 
-type Shot = { uri: string; width: number; height: number; base64: string; capturedAt: string; nonce: string; fix: Awaited<ReturnType<typeof currentFix>> };
+type Shot = { original: string; uri: string; width: number; height: number; base64: string; capturedAt: string; nonce: string; fix: Awaited<ReturnType<typeof currentFix>> };
 
 /** Camera only. A library photo can be kept in Spotted, but it is never logged here. */
 async function freshCapture(): Promise<Shot | null> {
@@ -28,12 +30,14 @@ async function freshCapture(): Promise<Shot | null> {
   // Re-encoding drops every EXIF field, location included.
   const out = await tools.manipulateAsync(asset.uri, [{ resize }], { format: tools.SaveFormat.JPEG, compress: 0.8, base64: true });
   if (!out.base64) throw new Error('Could not read the photo.');
-  return { uri: out.uri, width: out.width, height: out.height, base64: out.base64, capturedAt, nonce, fix };
+  return { original: asset.uri, uri: out.uri, width: out.width, height: out.height, base64: out.base64, capturedAt, nonce, fix };
 }
 
 export default function Capture() {
   const router = useRouter();
   const inset = useSafeAreaInsets();
+  const { state } = useSession();
+  const memberId = state.status === 'authenticated' ? state.member.memberId : null;
   const [shot, setShot] = useState<Shot | null>(null);
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
@@ -95,14 +99,16 @@ export default function Capture() {
               </View>
               <Action primary title="Log it" disabled={busy || !make.trim() || !model.trim()} onPress={() => void act(async () => {
                 const r = await submitSighting({ nonce: shot.nonce, jpeg: shot.base64, capturedAt: shot.capturedAt, fix: shot.fix, make, model });
-                setMessage(sightingOutcome(r));
+                // The full-resolution original lives on this phone, in the private Spotted album.
+                if (memberId) await saveSpot(memberId, shot.original, make, model, '').catch(() => undefined);
+                setMessage(sightingOutcome(r) + ' ' + supercargoCopy.originalKept);
                 setDone(true);
               })} />
             </>
           ) : (
             <>
               <Action title="Log another" onPress={() => setShot(null)} />
-              <Action title="The Ledger" onPress={() => router.replace('/supercargo/ledger')} />
+              <Action title="The Ledger" onPress={() => router.replace({ pathname: '/(tabs)/supercargo', params: { section: 'ledger' } })} />
             </>
           )}
         </>

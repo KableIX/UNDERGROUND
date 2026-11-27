@@ -268,4 +268,154 @@ BEGIN
   END;
 END
 $check$;
+-- ---- Curated meets, featured cars, envelope stocking, commissions, clubs, hashes, purge ----
+RESET ROLE;
+UPDATE public.members SET role = 'admin' WHERE id = '11111111-1111-4111-8111-111111111111';
+INSERT INTO public.supercargo_anchors (id, name, kind, point, reviewed_public) VALUES
+ ('coffee-lot','Saturday coffee lot','curated_meet', ST_SetSRID(ST_MakePoint(-121.95,37.40),4326)::geography, true);
+INSERT INTO public.clubs (id, slug, name, founding_market, created_by_member_id) VALUES
+ ('c1111111-1111-4111-8111-111111111111','north-coast','North Coast','california','11111111-1111-4111-8111-111111111111'),
+ ('c2222222-2222-4222-8222-222222222222','elsewhere','Elsewhere','california','33333333-3333-4333-8333-333333333333');
+INSERT INTO public.club_memberships (club_id, member_id) VALUES
+ ('c1111111-1111-4111-8111-111111111111','11111111-1111-4111-8111-111111111111'),
+ ('c1111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222'),
+ ('c2222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333');
+INSERT INTO public.supercargo_commissions (id, week_start, title, rule, target) VALUES
+ ('wk-numbered', (date_trunc('week', now() AT TIME ZONE 'UTC'))::date, 'One Numbered or rarer', '{"kind":"sightings","minTier":"numbered"}', 1),
+ ('wk-envelope', (date_trunc('week', now() AT TIME ZONE 'UTC'))::date, 'One envelope', '{"kind":"envelopes"}', 1),
+ ('wk-makes',    (date_trunc('week', now() AT TIME ZONE 'UTC'))::date, 'Five marques', '{"kind":"distinct_makes"}', 5);
+-- A credited Numbered sighting by B this week.
+INSERT INTO public.supercargo_sightings (spotter, catalog_id, make, model, tier, source, credited, visibility, redaction,
+  captured_at, publish_at, expires_at, cell_id, cell_lat, cell_lng)
+VALUES ('22222222-2222-4222-8222-222222222222','porsche-918-spyder','Porsche','918 Spyder','numbered','camera',true,'private','failed',
+  greatest(now() - interval '1 minute', (date_trunc('week', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') + interval '1 minute'),
+  greatest(now() - interval '1 minute', (date_trunc('week', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') + interval '1 minute') + interval '6 hours',
+  greatest(now() - interval '1 minute', (date_trunc('week', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') + interval '1 minute') + interval '72 hours',
+  'c0.02:1:1', 37.33, -121.89);
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
+DO $check$
+BEGIN
+  INSERT INTO public.supercargo_meets (id, anchor_id, name, starts_at, ends_at)
+  VALUES ('d0000000-0000-4000-8000-000000000001','coffee-lot','Saturday coffee', now() - interval '1 hour', now() + interval '2 hours');
+  BEGIN
+    INSERT INTO public.supercargo_meets (anchor_id, name, starts_at, ends_at)
+    VALUES ('skyline-vista','Not a meet place', now(), now() + interval '1 hour');
+    RAISE EXCEPTION 'FAIL: meet on a non-meet anchor';
+  EXCEPTION WHEN check_violation THEN RAISE NOTICE 'PASS: meets only at reviewed curated-meet places';
+  END;
+  INSERT INTO public.supercargo_featured (week_start, catalog_id, note)
+  VALUES ((date_trunc('week', now() AT TIME ZONE 'UTC'))::date, 'one-off', 'This week');
+  RAISE NOTICE 'PASS: an admin sets the featured car';
+END
+$check$;
+SELECT set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',true);
+DO $check$
+DECLARE r record; n integer;
+BEGIN
+  BEGIN
+    INSERT INTO public.supercargo_featured (week_start, catalog_id) VALUES ((date_trunc('week', now() AT TIME ZONE 'UTC'))::date + 7, 'one-off');
+    RAISE EXCEPTION 'FAIL: non-admin set the featured car';
+  EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS: only admins set the featured car';
+  END;
+  BEGIN
+    INSERT INTO public.supercargo_meets (anchor_id, name, starts_at, ends_at) VALUES ('coffee-lot','Mine', now(), now() + interval '1 hour');
+    RAISE EXCEPTION 'FAIL: non-admin created a meet';
+  EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS: only admins create meets';
+  END;
+  SELECT * INTO r FROM public.supercargo_my_commissions() WHERE commission_id = 'wk-numbered';
+  IF r.have <> 1 OR r.need <> 1 THEN RAISE EXCEPTION 'FAIL: live commission progress % of %', r.have, r.need; END IF;
+  SELECT * INTO r FROM public.supercargo_my_commissions() WHERE commission_id = 'wk-makes';
+  IF r.have NOT BETWEEN 1 AND 4 OR r.need <> 5 THEN RAISE EXCEPTION 'FAIL: distinct makes % of %', r.have, r.need; END IF;
+  RAISE NOTICE 'PASS: commissions are live from the database';
+  BEGIN
+    PERFORM public.supercargo_settle_marks(current_date);
+    RAISE EXCEPTION 'FAIL: member settled marks';
+  EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS: marks are settled by the service only';
+  END;
+END
+$check$;
+
+RESET ROLE;
+SET LOCAL ROLE service_role;
+DO $check$
+DECLARE n integer; m uuid; f integer; o integer; s integer;
+BEGIN
+  m := public.supercargo_meet_at(-121.9503, 37.4002, now());
+  IF m IS DISTINCT FROM 'd0000000-0000-4000-8000-000000000001' THEN RAISE EXCEPTION 'FAIL: meet not found at the lot'; END IF;
+  IF public.supercargo_meet_at(-121.96, 37.40, now()) IS NOT NULL THEN RAISE EXCEPTION 'FAIL: meet matched 900 m away'; END IF;
+  IF public.supercargo_meet_at(-121.9503, 37.4002, now() + interval '5 hours') IS NOT NULL THEN RAISE EXCEPTION 'FAIL: meet matched after it ended'; END IF;
+  INSERT INTO public.supercargo_sightings (spotter, make, model, tier, source, credited, visibility, redaction, captured_at, publish_at, expires_at,
+    cell_id, cell_lat, cell_lng, meet_id)
+  VALUES ('22222222-2222-4222-8222-222222222222','Ferrari','F40','numbered','camera',true,'private','failed', now(), now() + interval '1 hour',
+    now() + interval '72 hours','c', 37.4, -121.95, m);
+  BEGIN
+    INSERT INTO public.supercargo_sightings (spotter, make, model, tier, source, credited, captured_at, publish_at, expires_at, cell_id, cell_lat, cell_lng, meet_id)
+    VALUES ('22222222-2222-4222-8222-222222222222','Ferrari','F40','numbered','camera',true, now() + interval '5 hours', now() + interval '6 hours',
+      now() + interval '72 hours','c', 37.4, -121.95, m);
+    RAISE EXCEPTION 'FAIL: meet hold used outside the meet';
+  EXCEPTION WHEN check_violation THEN RAISE NOTICE 'PASS: one-hour hold only inside a live curated meet';
+  END;
+  RAISE NOTICE 'PASS: curated meets match by place and time';
+
+  PERFORM setseed(0.42);
+  PERFORM public.supercargo_stock_envelopes('skyline-vista', now(), now() + interval '1 day', 50, 1::smallint);
+  PERFORM public.supercargo_stock_envelopes('skyline-vista', now(), now() + interval '1 day', 50, 1::smallint);
+  PERFORM public.supercargo_stock_envelopes('skyline-vista', now(), now() + interval '1 day', 50, 1::smallint);
+  PERFORM public.supercargo_stock_envelopes('skyline-vista', now(), now() + interval '1 day', 50, 1::smallint);
+  SELECT count(*) FILTER (WHERE catalog_id = 'one-off'), count(*) FILTER (WHERE catalog_id = 'porsche-918-spyder'),
+         count(*) FILTER (WHERE catalog_id = 'ferrari-laferrari')
+    INTO f, o, s FROM public.supercargo_envelopes WHERE opens_at > now() - interval '1 minute';
+  IF f < 5 OR o <= s THEN RAISE EXCEPTION 'FAIL: envelope draw featured=% numbered=% allocated=%', f, o, s; END IF;
+  RAISE NOTICE 'PASS: envelopes drawn by rarity with the featured car (featured %, numbered %, allocated % of 200)', f, o, s;
+
+  n := public.supercargo_settle_marks((date_trunc('week', now() AT TIME ZONE 'UTC'))::date);
+  IF n < 1 THEN RAISE EXCEPTION 'FAIL: no marks settled'; END IF;
+  IF public.supercargo_settle_marks((date_trunc('week', now() AT TIME ZONE 'UTC'))::date) <> 0 THEN RAISE EXCEPTION 'FAIL: settle not idempotent'; END IF;
+  RAISE NOTICE 'PASS: completed commissions become marks, once';
+
+  INSERT INTO public.supercargo_image_hashes (sha256, dhash, member_id)
+  VALUES (repeat('a', 64), 1234567890123, '22222222-2222-4222-8222-222222222222');
+  IF NOT public.supercargo_image_seen(repeat('a', 64), NULL) THEN RAISE EXCEPTION 'FAIL: exact duplicate missed'; END IF;
+  IF NOT public.supercargo_image_seen(repeat('b', 64), 1234567890123 # 5) THEN RAISE EXCEPTION 'FAIL: near duplicate missed'; END IF;
+  IF public.supercargo_image_seen(repeat('b', 64), ~1234567890123) THEN RAISE EXCEPTION 'FAIL: different photo flagged'; END IF;
+  RAISE NOTICE 'PASS: duplicate photos are caught by exact and near hashes';
+
+  UPDATE public.supercargo_sighting_points SET purge_after = now() - interval '1 second';
+  UPDATE public.supercargo_image_hashes SET purge_after = now() - interval '1 second';
+  n := public.supercargo_purge();
+  IF n < 2 OR EXISTS (SELECT 1 FROM public.supercargo_sighting_points) THEN RAISE EXCEPTION 'FAIL: purge left % rows', n; END IF;
+  RAISE NOTICE 'PASS: purge removes expired precise points and fingerprints';
+END
+$check$;
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
+DO $check$
+DECLARE r record; n integer;
+BEGIN
+  SELECT count(*) INTO n FROM public.supercargo_my_club_marks();
+  IF n <> 1 THEN RAISE EXCEPTION 'FAIL: A sees % clubs', n; END IF;
+  SELECT * INTO r FROM public.supercargo_my_club_marks();
+  IF r.club_name <> 'North Coast' OR r.members <> 2 OR r.marks_this_week < 1 THEN RAISE EXCEPTION 'FAIL: club totals %', r; END IF;
+  RAISE NOTICE 'PASS: a club sees its combined marks, as totals';
+  BEGIN
+    PERFORM 1 FROM public.supercargo_marks WHERE member_id = '22222222-2222-4222-8222-222222222222';
+    IF FOUND THEN RAISE EXCEPTION 'FAIL: A reads B marks'; END IF;
+    RAISE NOTICE 'PASS: individual marks stay private, so no member is ranked';
+  END;
+  SELECT count(*) INTO n FROM public.supercargo_tradeable_folios('000102');
+  IF n <> 2 THEN RAISE EXCEPTION 'FAIL: B tradeable folios %', n; END IF;
+  SELECT count(*) INTO n FROM public.supercargo_my_exchanges();
+  IF n <> 1 THEN RAISE EXCEPTION 'FAIL: A exchanges %', n; END IF;
+  RAISE NOTICE 'PASS: the Exchange lists tradeable folios and my offers';
+  BEGIN
+    PERFORM public.supercargo_image_seen(repeat('a', 64), NULL);
+    RAISE EXCEPTION 'FAIL: member queried fingerprints';
+  EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS: photo fingerprints are service-only';
+  END;
+END
+$check$;
 ROLLBACK;

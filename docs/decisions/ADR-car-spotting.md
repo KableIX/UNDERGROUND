@@ -1,6 +1,6 @@
 # ADR: SupercarGO
 
-Status: Proposed. MVP on `feature/car-spotting`. Not deployed. Migration applied only to a throwaway database.
+Status: Accepted (TJ, 2026-11-27, all seven open questions settled below). Built on `feature/car-spotting`. Not deployed. Migration applied only to a throwaway database.
 Date: 2026-11-27
 
 ## Decision
@@ -8,6 +8,20 @@ Date: 2026-11-27
 SupercarGO is an optional mode inside UNDERGROUND. Members log the remarkable cars they see, open sealed envelopes left at public places, and keep what they find in the Ledger. It is off until a member turns it on.
 
 It replaces nothing. Spotted stays as the private album. SupercarGO is what a member shares.
+
+### Settled 2026-11-27
+
+1. Holds stay at 6, 12 and 24 hours. Cells stay at about 2.2 km and 11 km.
+2. Owner opt-out matches make, model and home area. We never read plates, not even to hash them.
+3. Curated meets (a reviewed Cars and Coffee, say) get a 1 hour hold. Still fuzzed, members only, never residential.
+4. Envelope contents are drawn by rarity. An admin may also set one featured car a week, in about one envelope in ten.
+5. Clubs see their members' combined commission marks. No member is ranked against another.
+6. Blurring runs on Atlas as its own HTTP service: YuNet for faces, RF-DETR for plates. Nothing is public until blurring is certain.
+7. SupercarGO has its own bottom tab.
+
+### Photos stay on the phone
+
+A member's photos belong on their phone, not on our servers. The full-resolution original is saved on the device, in the private Spotted album, and is never uploaded. To log a sighting, the phone sends a 1280 px working copy with all EXIF removed. The API and the blur service hold it in memory only. The one thing we store is the blurred derivative the members map needs. If blurring fails, nothing is stored for others and the sighting stays private.
 
 ## Why
 
@@ -98,12 +112,14 @@ A live map of where supercars are parked is a gift to thieves. Every rule below 
 2. **Delayed.** Nothing appears until the car has most likely left: 6 hours for Open and Limited, 12 for Numbered and Allocated, 24 for Atelier and Singular. Visible until 72 hours after capture. The database refuses a hold under 6 hours.
 3. **Fuzzed.** The server snaps every sighting to a grid cell: about 2.2 km, or about 11 km for Atelier and Singular. The map shows cells, not points, and the date, not the hour. Map zoom stops at neighborhood scale.
 4. **Precise points are service-only.** Kept for anti-cheat, readable by no member, purged after 30 days.
-5. **Blurred server-side, fail closed.** Plates and faces are blurred before anything is stored for others. The original is never kept. If the detector is unavailable or unsure, the sighting is logged privately and never published.
+5. **Blurred server-side, fail closed.** Plates and faces are blurred before anything is stored for others. The original stays on the member's phone and is never uploaded. If the detector is unavailable or unsure, the sighting is logged privately and never published.
 6. **Homes are off the map.** Members may set a private home zone (200 m to 2 km). Nothing captured inside any home zone is published. A member's own garage car is logged privately and earns no folio, so nobody can pin their own car to their own house.
-7. **Owners can opt out.** Per garage vehicle. A sighting matching an opted-out car near its owner's zone is kept private. One "owner request" report takes any sighting down.
+7. **Owners can opt out.** Per garage vehicle, matched on make, model and home area. Plates are never read. A sighting matching an opted-out car near its owner's zone is kept private. One "owner request" report takes any sighting down.
 8. **No following a car.** We store no plates, so sightings of the same car cannot be linked over time.
 9. **Spotters are private too.** A sighting shows no spotter unless the member chooses to show their number.
 10. **Envelopes only in public places.** Envelopes appear only at curated anchors: route starts and finishes, overlooks, venues, museums and events. Each anchor is reviewed. The database refuses an unreviewed one. No anchor is on a residential street.
+11. **Curated meets.** An admin opens a meet on a reviewed `curated_meet` anchor: a window of at most 12 hours, a radius of 50 to 400 m. A sighting captured inside it is held 1 hour instead of 6 to 24, still snapped to the same cells. Never inside a home zone. The database checks the capture time against the meet window.
+12. **Purged on a schedule.** `supercargo_purge()` runs daily at 03:17 UTC through pg_cron: precise points after 30 days, photo hashes after 90. Where pg_cron is missing the migration says so and the job must be scheduled elsewhere.
 
 ## Capture and anti-cheat
 
@@ -113,7 +129,7 @@ Credit needs a fresh capture from inside SupercarGO.
 - The nonce is signed with HMAC and bound to the member. Capture must follow it within 5 minutes. Submission must follow capture within 30 minutes.
 - A GPS fix within 2 minutes of capture and 100 m accuracy is required.
 - Implied travel from the member's last credited sighting may not exceed 300 km/h.
-- Exact duplicate photos are refused. Thirty credited sightings a day.
+- Duplicate photos are refused: the exact SHA-256, and a 64-bit difference hash within 6 bits, kept server-side for 90 days in `supercargo_image_hashes` (service only). Thirty credited sightings a day.
 - The photo is re-encoded on the phone, which drops EXIF and location. The server never receives a library photo.
 - Envelopes open only through the API, with a live fix within 60 m and 50 m accuracy, once per member.
 
@@ -125,12 +141,19 @@ Credit needs a fresh capture from inside SupercarGO.
 - Five open offers per member. An accepted exchange is one atomic swap; any other offer touching the same folios is voided.
 - Singular folios trade only between members of 30 days or more.
 - Exchanges are visible to their two parties only.
+- In the app: Exchange section, then Propose. Enter a member number, pick up to three of yours and three of theirs, send. Offers waiting for you show a count on the section and Accept or Decline on the card.
 
 ## Commissions
 
 Three a week, Monday to Monday. Counts only. Never speed, never time, never a board ranking one member above another.
 
 Examples: three Numbered or rarer; four different marques; one envelope opened in person; sightings in two different neighborhoods. A completed commission leaves a mark on the member's record.
+
+Progress is computed live from sightings and envelope claims (`supercargo_my_commissions`). Exchanged folios never count. `supercargo_settle_marks` writes the week's marks every Monday at 00:20 UTC and is safe to run twice. `supercargo_my_club_marks` shows each club the caller belongs to with its combined marks this week and in all. Totals only, no member list, no order.
+
+## Envelopes
+
+`supercargo_stock_envelopes` (service) fills an anchor. Each envelope draws a tier by weight (Open 40, Limited 25, Numbered 18, Allocated 10, Atelier 5, Singular 2), then a car from that tier. About one in ten holds the week's featured car instead, if an admin has set one in `supercargo_featured`. The same draw lives in the domain package as `drawEnvelopeContents`.
 
 ## Moderation and reports
 
@@ -144,19 +167,17 @@ Examples: three Numbered or rarer; four different marques; one envelope opened i
 
 Make and model: the existing `POST /v1/spotted/identify` (Qwen3-VL 2B on Aphrodite) suggests; the member confirms. SupercarGO only matches the confirmed text to the catalog.
 
-Blurring pipeline, in the API process:
+Blurring runs as `services/blur`, a small Python HTTP service meant for Atlas, on CPU. It is built and tested locally only. Not deployed.
 
-1. Receive the re-encoded JPEG.
-2. Detect plates and faces. Pad each box by 15%.
-3. Gaussian blur plus pixelation over each box.
-4. Re-detect on the output. Any detection left means fail.
-5. Store only the redacted JPEG in the private `supercargo-redacted` bucket. Discard the input.
+1. The API posts the EXIF-free working copy to `POST /v1/redact` with a bearer token. Nothing is written to disk and requests are not logged.
+2. Faces: YuNet (`face_detection_yunet_2023mar.onnx`, OpenCV Zoo, MIT). Plates: RF-DETR medium plate detector (`rf-detr-medium-plate.onnx`, Hugging Face `imbcmdth/rfdetr-onnx`, Apache-2.0), run on the full frame and four overlapping tiles. Both files are pinned by SHA-256 in `fetch_models.sh`.
+3. Each box is padded 15%, then pixelated on a coarse grid and blurred.
+4. Both detectors run again on the result. Anything left means fail.
+5. The service returns the redacted JPEG and a difference hash. The API stores only that in the private `supercargo-redacted` bucket.
 
-The MVP ships the interface (`RedactionEngine`) with a fail-closed default, so nothing publishes until a detector is wired. Local options, all able to run on Aphrodite or Atlas CPU:
+Any error, timeout, bad token or residual detection is a fail, and a fail keeps the sighting private. With no `SUPERCARGO_BLUR_URL` set, the API uses the fail-closed engine and nothing publishes.
 
-- Faces: YuNet from OpenCV Zoo (MIT), or SCRFD from InsightFace (check model licence).
-- Plates: a YOLO plate detector exported to ONNX (check licence; many Ultralytics weights are AGPL), or an OpenCV cascade as a weak fallback.
-- Open-vocabulary detection with a VLM returning boxes is not reliable enough for privacy and is not recommended.
+Rejected: Ultralytics plate weights (AGPL-3.0) and the open-image-models YOLOv9 plates (trained with GPL-licensed code). Fallback if RF-DETR disappoints: an Apache-2.0 RT-DETRv2 plate model. A VLM returning boxes is not reliable enough for privacy.
 
 ## Data
 
@@ -167,13 +188,14 @@ Migration `20261127000010_supercargo.sql`:
 - `supercargo_anchors`, `supercargo_envelopes` (sealed), `supercargo_envelope_claims`
 - `supercargo_ledger`, `supercargo_exchanges`, `supercargo_reports`, `supercargo_moderation`
 - `supercargo_commissions`, `supercargo_marks`
-- Functions: `supercargo_map`, `supercargo_envelopes_near`, `supercargo_claim_envelope` (service), `supercargo_propose_exchange`, `supercargo_decide_exchange`, `supercargo_privacy_flags` (service), `supercargo_purge` (service)
+- `supercargo_meets`, `supercargo_featured`, `supercargo_image_hashes` (service only)
+- Functions: `supercargo_map`, `supercargo_envelopes_near`, `supercargo_claim_envelope` (service), `supercargo_propose_exchange`, `supercargo_decide_exchange`, `supercargo_privacy_flags` (service), `supercargo_meet_at` (service), `supercargo_image_seen` (service), `supercargo_stock_envelopes` (service), `supercargo_my_commissions`, `supercargo_settle_marks` (service), `supercargo_my_club_marks`, `supercargo_tradeable_folios`, `supercargo_my_exchanges`, `supercargo_purge` (service)
 
-`tests/supercargo-postgres.sql` holds 30 checks against a throwaway Postgres with PostGIS and emulated Supabase auth.
+`tests/supercargo-postgres.sql` holds 46 checks against a throwaway Postgres with PostGIS and emulated Supabase auth.
 
 ## API
 
-Enabled only with `SUPERCARGO_ENABLED=1` and a 32+ character `SUPERCARGO_NONCE_SECRET`.
+Enabled only with `SUPERCARGO_ENABLED=1` and a 32+ character `SUPERCARGO_NONCE_SECRET`. Blurring is used only when `SUPERCARGO_BLUR_URL` and a 32+ character `SUPERCARGO_BLUR_TOKEN` are set.
 
 - `POST /v1/supercargo/capture-nonce`
 - `POST /v1/supercargo/sightings`
@@ -186,15 +208,23 @@ Reads go to Supabase directly under row-level security.
 - No live map. Members who want "where is it now" will not get it, by design.
 - The mode is quieter than AutoRadar. Fewer pins, later.
 - Catalog quality is ours to keep. Unsourced cars stay Open until someone cites a number.
-- Until a blurring detector is wired, SupercarGO is a private logbook with a Ledger.
+- Until the blur service runs on Atlas, SupercarGO is a private logbook with a Ledger.
+- We hold no originals, so a lost phone means lost originals. Spotted is the member's album to back up.
+
+## Navigation
+
+```
+Tab bar ── SupercarGO (own tab)
+   ├─ MAP       sightings by cell · featured car · envelopes nearby → Open envelope
+   ├─ LEDGER    folios by tier · commissions this week · your clubs' combined marks
+   ├─ EXCHANGE  offers (Accept / Decline / Withdraw) · Propose → /supercargo/propose
+   ├─ PRIVACY (header) → /supercargo/privacy: on/off, show number, home zone, per-car opt-out
+   └─ LOG A SIGHTING (fixed button, every section) → /supercargo/capture
+```
+
+Every core action is one or two taps from the tab. Each pushed screen has a back link to where it came from. Each section has a plain empty state. With SupercarGO off, the tab shows one screen and one button: turn it on.
 
 ## Open questions
 
-1. Hold times: 6, 12 and 24 hours by tier. Longer?
-2. Cell size: about 2.2 km, and 11 km for the rarest. Coarser?
-3. Opt-out matching is by make and model near the owner's zone. Matching on a keyed plate hash would be exact but means reading plates before blurring. Worth it?
-4. Events: allow a shorter hold inside a curated event anchor (a Cars and Coffee, say)?
-5. Envelope contents: drawn from the catalog weighted toward rarity, or curated weekly?
-6. Should club totals of commission marks be shown inside a club? Still no member-against-member boards.
-7. Which detector for plates and faces, and where it runs: Aphrodite or Atlas.
-8. Where SupercarGO lives: an entry under Drive (MVP) or its own tab.
+1. Who reviews curated-meet anchors and featured cars, and how often.
+2. Catalog figures need a second check against their sources before launch.

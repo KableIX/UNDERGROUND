@@ -88,11 +88,12 @@ CREATE TABLE public.supercargo_sightings (
   cell_lat double precision NOT NULL CHECK (cell_lat BETWEEN -90 AND 90),
   cell_lng double precision NOT NULL CHECK (cell_lng BETWEEN -180 AND 180),
   photo_path text CHECK (photo_path IS NULL OR photo_path ~ '^supercargo/redacted/[a-z0-9/-]{8,120}\.jpg$'),
+  meet_id uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT supercargo_credit_needs_camera CHECK (NOT credited OR source = 'camera'),
   CONSTRAINT supercargo_public_needs_redaction CHECK (
     visibility <> 'public' OR (source = 'camera' AND credited AND redaction = 'done' AND photo_path IS NOT NULL)),
-  CONSTRAINT supercargo_hold_minimum CHECK (publish_at >= captured_at + interval '6 hours'),
+  CONSTRAINT supercargo_hold_minimum CHECK (publish_at >= captured_at + CASE WHEN meet_id IS NULL THEN interval '6 hours' ELSE interval '1 hour' END),
   CONSTRAINT supercargo_window CHECK (expires_at <= captured_at + interval '72 hours' AND expires_at > publish_at)
 );
 CREATE INDEX supercargo_sightings_spotter ON public.supercargo_sightings (spotter, captured_at DESC);
@@ -117,7 +118,7 @@ REVOKE ALL ON public.supercargo_sighting_points FROM PUBLIC, anon, authenticated
 CREATE TABLE public.supercargo_anchors (
   id text PRIMARY KEY CHECK (id ~ '^[a-z0-9-]{2,80}$'),
   name text NOT NULL CHECK (length(name) BETWEEN 1 AND 120),
-  kind text NOT NULL CHECK (kind IN ('route_start','route_finish','overlook','venue','museum','event')),
+  kind text NOT NULL CHECK (kind IN ('route_start','route_finish','overlook','venue','museum','event','curated_meet')),
   point geography(Point, 4326) NOT NULL,
   reviewed_public boolean NOT NULL CHECK (reviewed_public),
   active boolean NOT NULL DEFAULT true
@@ -127,6 +128,68 @@ REVOKE ALL ON public.supercargo_anchors FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON public.supercargo_anchors TO authenticated;
 CREATE POLICY supercargo_anchors_members ON public.supercargo_anchors FOR SELECT TO authenticated
   USING (active AND public.current_member_id() IS NOT NULL);
+
+-- Curated meets: a reviewed curated_meet anchor, for a few hours. Sightings
+-- captured inside one show after one hour instead of six. Still a cell.
+CREATE TABLE public.supercargo_meets (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  anchor_id text NOT NULL REFERENCES public.supercargo_anchors(id),
+  name text NOT NULL CHECK (length(name) BETWEEN 3 AND 120),
+  starts_at timestamptz NOT NULL,
+  ends_at timestamptz NOT NULL,
+  radius_m integer NOT NULL DEFAULT 200 CHECK (radius_m BETWEEN 50 AND 400),
+  reviewed_by uuid NOT NULL DEFAULT public.current_member_id() REFERENCES public.members(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT supercargo_meet_window CHECK (ends_at > starts_at AND ends_at <= starts_at + interval '12 hours')
+);
+CREATE FUNCTION public.supercargo_meet_guard() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM supercargo_anchors a WHERE a.id = NEW.anchor_id AND a.kind = 'curated_meet' AND a.reviewed_public) THEN
+    RAISE EXCEPTION 'meets need a reviewed curated_meet anchor' USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER supercargo_meet_guard BEFORE INSERT OR UPDATE ON public.supercargo_meets
+  FOR EACH ROW EXECUTE FUNCTION public.supercargo_meet_guard();
+ALTER TABLE public.supercargo_meets ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.supercargo_meets FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.supercargo_meets TO authenticated;
+CREATE POLICY supercargo_meets_members ON public.supercargo_meets FOR SELECT TO authenticated
+  USING (public.current_member_id() IS NOT NULL);
+CREATE POLICY supercargo_meets_admin ON public.supercargo_meets FOR ALL TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.members m WHERE m.id = public.current_member_id() AND m.role = 'admin'))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.members m WHERE m.id = public.current_member_id() AND m.role = 'admin'));
+
+ALTER TABLE public.supercargo_sightings
+  ADD CONSTRAINT supercargo_sightings_meet FOREIGN KEY (meet_id) REFERENCES public.supercargo_meets(id);
+CREATE FUNCTION public.supercargo_sighting_meet_guard() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+  IF NEW.meet_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM supercargo_meets m WHERE m.id = NEW.meet_id AND NEW.captured_at BETWEEN m.starts_at AND m.ends_at) THEN
+    RAISE EXCEPTION 'capture outside the meet' USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER supercargo_sighting_meet_guard BEFORE INSERT OR UPDATE ON public.supercargo_sightings
+  FOR EACH ROW EXECUTE FUNCTION public.supercargo_sighting_meet_guard();
+
+-- Featured car of the week, set by an admin. Appears in about one envelope in ten.
+CREATE TABLE public.supercargo_featured (
+  week_start date PRIMARY KEY CHECK (extract(isodow FROM week_start) = 1),
+  catalog_id text NOT NULL REFERENCES public.supercargo_catalog(id),
+  note text CHECK (note IS NULL OR length(note) <= 200),
+  set_by uuid NOT NULL DEFAULT public.current_member_id() REFERENCES public.members(id),
+  set_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.supercargo_featured ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.supercargo_featured FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.supercargo_featured TO authenticated;
+CREATE POLICY supercargo_featured_members ON public.supercargo_featured FOR SELECT TO authenticated
+  USING (public.current_member_id() IS NOT NULL);
+CREATE POLICY supercargo_featured_admin_add ON public.supercargo_featured FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM public.members m WHERE m.id = public.current_member_id() AND m.role = 'admin'));
+CREATE POLICY supercargo_featured_admin_edit ON public.supercargo_featured FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.members m WHERE m.id = public.current_member_id() AND m.role = 'admin'));
 
 -- Envelopes: sealed folios at anchors. The contents stay hidden until claimed.
 CREATE TABLE public.supercargo_envelopes (
@@ -405,12 +468,207 @@ END $$;
 REVOKE ALL ON FUNCTION public.supercargo_decide_exchange(uuid, boolean) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.supercargo_decide_exchange(uuid, boolean) TO authenticated;
 
--- Housekeeping, service role only: drop precise points after 30 days.
-CREATE FUNCTION public.supercargo_purge() RETURNS integer LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  WITH gone AS (DELETE FROM supercargo_sighting_points WHERE purge_after < now() RETURNING 1) SELECT count(*)::integer FROM gone
+-- Photo fingerprints: exact SHA-256 and a 64-bit difference hash. Service only.
+-- Fingerprints, never photos. Kept 90 days.
+CREATE TABLE public.supercargo_image_hashes (
+  sha256 text PRIMARY KEY CHECK (sha256 ~ '^[0-9a-f]{64}$'),
+  dhash bigint,
+  member_id uuid NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  purge_after timestamptz NOT NULL DEFAULT now() + interval '90 days'
+);
+CREATE INDEX supercargo_image_hashes_recent ON public.supercargo_image_hashes (created_at DESC) WHERE dhash IS NOT NULL;
+ALTER TABLE public.supercargo_image_hashes ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.supercargo_image_hashes FROM PUBLIC, anon, authenticated;
+
+CREATE FUNCTION public.supercargo_image_seen(p_sha256 text, p_dhash bigint)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM supercargo_image_hashes WHERE sha256 = p_sha256)
+      OR (p_dhash IS NOT NULL AND EXISTS (
+            SELECT 1 FROM supercargo_image_hashes
+             WHERE dhash IS NOT NULL AND created_at > now() - interval '90 days'
+               AND bit_count((dhash # p_dhash)::bit(64)) <= 6))
 $$;
+REVOKE ALL ON FUNCTION public.supercargo_image_seen(text, bigint) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.supercargo_image_seen(text, bigint) TO service_role;
+
+-- Is this point inside a curated meet that is on right now? Service only.
+CREATE FUNCTION public.supercargo_meet_at(p_lng double precision, p_lat double precision, p_at timestamptz)
+RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT m.id FROM supercargo_meets m JOIN supercargo_anchors a ON a.id = m.anchor_id
+   WHERE a.active AND a.kind = 'curated_meet' AND p_at BETWEEN m.starts_at AND m.ends_at
+     AND ST_DWithin(a.point, ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography, m.radius_m)
+   ORDER BY m.starts_at DESC LIMIT 1
+$$;
+REVOKE ALL ON FUNCTION public.supercargo_meet_at(double precision, double precision, timestamptz) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.supercargo_meet_at(double precision, double precision, timestamptz) TO service_role;
+
+-- Stock envelopes at an anchor: featured car one time in ten when set for the
+-- week, otherwise a tier by weight (40/25/18/10/5/2) and a car within it.
+CREATE FUNCTION public.supercargo_stock_envelopes(p_anchor text, p_opens timestamptz, p_closes timestamptz, p_count integer, p_stock smallint)
+RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE i integer; featured text; pick text; chosen_tier text; roll double precision; total integer;
+BEGIN
+  IF p_count NOT BETWEEN 1 AND 50 THEN RAISE EXCEPTION 'count' USING ERRCODE = 'check_violation'; END IF;
+  SELECT catalog_id INTO featured FROM supercargo_featured
+   WHERE week_start = (date_trunc('week', p_opens AT TIME ZONE 'UTC'))::date;
+  FOR i IN 1..p_count LOOP
+    pick := NULL;
+    IF featured IS NOT NULL AND random() < 0.1 THEN
+      pick := featured;
+    ELSE
+      SELECT sum(w)::integer INTO total FROM (VALUES ('open',40),('limited',25),('numbered',18),('allocated',10),('atelier',5),('singular',2)) t(tier, w)
+       WHERE EXISTS (SELECT 1 FROM supercargo_catalog c WHERE c.tier = t.tier);
+      IF total IS NULL THEN RAISE EXCEPTION 'empty catalog' USING ERRCODE = 'check_violation'; END IF;
+      roll := random() * total;
+      SELECT tier INTO chosen_tier FROM (
+        SELECT t.tier, sum(t.w) OVER (ORDER BY t.ord) AS upto
+          FROM (VALUES ('open',40,1),('limited',25,2),('numbered',18,3),('allocated',10,4),('atelier',5,5),('singular',2,6)) t(tier, w, ord)
+         WHERE EXISTS (SELECT 1 FROM supercargo_catalog c WHERE c.tier = t.tier)) x
+       WHERE roll < upto ORDER BY upto LIMIT 1;
+      SELECT id INTO pick FROM supercargo_catalog WHERE tier = chosen_tier ORDER BY random() LIMIT 1;
+    END IF;
+    INSERT INTO supercargo_envelopes (anchor_id, catalog_id, opens_at, closes_at, stock) VALUES (p_anchor, pick, p_opens, p_closes, p_stock);
+  END LOOP;
+  RETURN p_count;
+END $$;
+REVOKE ALL ON FUNCTION public.supercargo_stock_envelopes(text, timestamptz, timestamptz, integer, smallint) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.supercargo_stock_envelopes(text, timestamptz, timestamptz, integer, smallint) TO service_role;
+
+-- Commission progress, computed from sightings and claims (an exchange never counts).
+CREATE FUNCTION public.supercargo_progress_for(p_member uuid, p_week date)
+RETURNS TABLE (commission_id text, title text, have integer, need integer)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  WITH s AS (
+    SELECT array_position(ARRAY['open','limited','numbered','allocated','atelier','singular'], tier) AS rank,
+           lower(make) AS make, cell_id
+      FROM supercargo_sightings
+     WHERE spotter = p_member AND credited AND visibility <> 'removed'
+       AND captured_at >= p_week AND captured_at < p_week + 7),
+  e AS (SELECT count(*)::integer AS n FROM supercargo_envelope_claims
+         WHERE member_id = p_member AND claimed_at >= p_week AND claimed_at < p_week + 7)
+  SELECT c.id, c.title,
+         LEAST(c.target, CASE c.rule->>'kind'
+           WHEN 'sightings' THEN (SELECT count(*)::integer FROM s WHERE s.rank >= coalesce(array_position(
+             ARRAY['open','limited','numbered','allocated','atelier','singular'], c.rule->>'minTier'), 1))
+           WHEN 'distinct_makes' THEN (SELECT count(DISTINCT make)::integer FROM s)
+           WHEN 'distinct_cells' THEN (SELECT count(DISTINCT cell_id)::integer FROM s)
+           WHEN 'envelopes' THEN (SELECT n FROM e)
+           ELSE 0 END),
+         c.target::integer
+    FROM supercargo_commissions c
+   WHERE c.week_start = p_week
+   ORDER BY c.id
+$$;
+REVOKE ALL ON FUNCTION public.supercargo_progress_for(uuid, date) FROM PUBLIC, anon, authenticated;
+
+CREATE FUNCTION public.supercargo_my_commissions()
+RETURNS TABLE (commission_id text, title text, have integer, need integer, marked boolean)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT p.commission_id, p.title, p.have, p.need,
+         EXISTS (SELECT 1 FROM supercargo_marks k WHERE k.member_id = public.current_member_id() AND k.commission_id = p.commission_id)
+    FROM public.supercargo_progress_for(public.current_member_id(), (date_trunc('week', now() AT TIME ZONE 'UTC'))::date) p
+   WHERE public.current_member_id() IS NOT NULL
+$$;
+REVOKE ALL ON FUNCTION public.supercargo_my_commissions() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.supercargo_my_commissions() TO authenticated;
+
+-- Weekly: record a mark for every completed commission. Service only, idempotent.
+CREATE FUNCTION public.supercargo_settle_marks(p_week date)
+RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE n integer;
+BEGIN
+  WITH done AS (
+    SELECT m.member_id, p.commission_id
+      FROM (SELECT DISTINCT spotter AS member_id FROM supercargo_sightings WHERE captured_at >= p_week AND captured_at < p_week + 7
+            UNION SELECT DISTINCT member_id FROM supercargo_envelope_claims WHERE claimed_at >= p_week AND claimed_at < p_week + 7) m
+      CROSS JOIN LATERAL public.supercargo_progress_for(m.member_id, p_week) p
+     WHERE p.have >= p.need),
+  ins AS (INSERT INTO supercargo_marks (member_id, commission_id) SELECT member_id, commission_id FROM done
+          ON CONFLICT DO NOTHING RETURNING 1)
+  SELECT count(*) INTO n FROM ins;
+  RETURN n;
+END $$;
+REVOKE ALL ON FUNCTION public.supercargo_settle_marks(date) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.supercargo_settle_marks(date) TO service_role;
+
+-- A club's combined marks, for its own members. Totals only: no member is ranked.
+CREATE FUNCTION public.supercargo_my_club_marks()
+RETURNS TABLE (club_id uuid, club_name text, members integer, marks_this_week integer, marks_all_time integer)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT c.id, c.name,
+         (SELECT count(*)::integer FROM club_memberships x WHERE x.club_id = c.id),
+         (SELECT count(*)::integer FROM supercargo_marks k JOIN supercargo_commissions sc ON sc.id = k.commission_id
+           JOIN club_memberships x ON x.member_id = k.member_id AND x.club_id = c.id
+          WHERE sc.week_start = (date_trunc('week', now() AT TIME ZONE 'UTC'))::date),
+         (SELECT count(*)::integer FROM supercargo_marks k JOIN club_memberships x ON x.member_id = k.member_id AND x.club_id = c.id)
+    FROM clubs c
+   WHERE EXISTS (SELECT 1 FROM club_memberships me WHERE me.club_id = c.id AND me.member_id = public.current_member_id())
+   ORDER BY c.name
+$$;
+REVOKE ALL ON FUNCTION public.supercargo_my_club_marks() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.supercargo_my_club_marks() TO authenticated;
+
+-- The Exchange, readable. Another member's tradeable folios (only if they have SupercarGO on).
+CREATE FUNCTION public.supercargo_tradeable_folios(p_member_number char(6))
+RETURNS TABLE (id uuid, owner uuid, make text, model text, tier text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT l.id, m.id, c.make, c.model, c.tier
+    FROM members m
+    JOIN supercargo_settings st ON st.member_id = m.id AND st.enabled
+    JOIN supercargo_ledger l ON l.member_id = m.id AND l.origin = 'envelope' AND l.acquired_at <= now() - interval '24 hours'
+    JOIN supercargo_catalog c ON c.id = l.catalog_id
+   WHERE public.current_member_id() IS NOT NULL AND m.member_number = p_member_number
+   ORDER BY array_position(ARRAY['singular','atelier','allocated','numbered','limited','open'], c.tier), c.make, c.model
+   LIMIT 200
+$$;
+REVOKE ALL ON FUNCTION public.supercargo_tradeable_folios(char) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.supercargo_tradeable_folios(char) TO authenticated;
+
+CREATE FUNCTION public.supercargo_my_exchanges()
+RETURNS TABLE (id uuid, incoming boolean, other_number char(6), status text, created_at timestamptz, offered jsonb, requested jsonb)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT x.id, x.counterparty = public.current_member_id(),
+         (SELECT member_number FROM members WHERE id = CASE WHEN x.proposer = public.current_member_id() THEN x.counterparty ELSE x.proposer END),
+         x.status, x.created_at,
+         (SELECT coalesce(jsonb_agg(jsonb_build_object('make', c.make, 'model', c.model, 'tier', c.tier)), '[]')
+            FROM supercargo_ledger l JOIN supercargo_catalog c ON c.id = l.catalog_id WHERE l.id = ANY(x.offered)),
+         (SELECT coalesce(jsonb_agg(jsonb_build_object('make', c.make, 'model', c.model, 'tier', c.tier)), '[]')
+            FROM supercargo_ledger l JOIN supercargo_catalog c ON c.id = l.catalog_id WHERE l.id = ANY(x.requested))
+    FROM supercargo_exchanges x
+   WHERE public.current_member_id() IN (x.proposer, x.counterparty)
+   ORDER BY (x.status = 'open') DESC, x.created_at DESC
+   LIMIT 50
+$$;
+REVOKE ALL ON FUNCTION public.supercargo_my_exchanges() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.supercargo_my_exchanges() TO authenticated;
+
+-- Housekeeping, service role only: precise points after 30 days, fingerprints after 90.
+CREATE FUNCTION public.supercargo_purge() RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE a integer; b integer;
+BEGIN
+  DELETE FROM supercargo_sighting_points WHERE purge_after < now();
+  GET DIAGNOSTICS a = ROW_COUNT;
+  DELETE FROM supercargo_image_hashes WHERE purge_after < now();
+  GET DIAGNOSTICS b = ROW_COUNT;
+  RETURN a + b;
+END $$;
 REVOKE ALL ON FUNCTION public.supercargo_purge() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.supercargo_purge() TO service_role;
+
+-- Schedules, where pg_cron is available (Supabase: enable it under Database > Extensions).
+-- Daily purge at 03:17 UTC; marks settled Mondays 00:20 UTC for the week just ended.
+DO $cron$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    EXECUTE $q$SELECT cron.schedule('supercargo-purge', '17 3 * * *', 'SELECT public.supercargo_purge()')$q$;
+    EXECUTE $q$SELECT cron.schedule('supercargo-settle-marks', '20 0 * * 1',
+      'SELECT public.supercargo_settle_marks(((date_trunc(''week'', now() AT TIME ZONE ''UTC''))::date - 7))')$q$;
+  ELSE
+    RAISE NOTICE 'pg_cron not installed: schedule supercargo_purge() daily and supercargo_settle_marks() weekly elsewhere';
+  END IF;
+END
+$cron$;
 
 -- Privacy flags for one capture, service role only. Answers three questions
 -- without exposing any home zone or garage: inside a home zone, the spotter's
