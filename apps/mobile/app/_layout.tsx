@@ -8,6 +8,7 @@ import { DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold } from '@expo-g
 import { BarlowCondensed_500Medium, BarlowCondensed_600SemiBold, BarlowCondensed_700Bold } from '@expo-google-fonts/barlow-condensed';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { SessionProvider, useSession } from '../src/session/SessionContext';
+import { ResponsibleUseGate } from '../src/session/ResponsibleUse';
 import { shell } from '../src/theme/shell';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
@@ -39,7 +40,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }, [state.status, segments, router]);
 
-  return <>{children}</>;
+  return <ResponsibleUseGate>{children}</ResponsibleUseGate>;
 }
 
 function RootNavigator() {
