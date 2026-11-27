@@ -211,7 +211,7 @@ function CatalogBrowser({conquestOnly = false, onExit}: {conquestOnly?: boolean;
           {onExit && <Choice title="Back to Drive" onPress={onExit} />}
           {!conquestOnly && <Choice title="Cruises" detail={count(cruises.length, 'scenic and social drive')} onPress={() => setBrowseCruises(true)} />}
           {!conquestOnly && <Choice title="Runs" detail={count(runs.length, 'curated route')} onPress={() => setBrowseRuns(true)} />}
-          {featured?.run && <Choice title="Highway 1 Cruise" detail="Featured cruise · Moss Landing → Venice Beach" art={featured.art} onPress={() => router.push({ pathname: '/runs/[slug]', params: { slug: 'highway-1-cruise' } })} />}
+          {featured?.run && <Choice title="Highway 1 Cruise" detail="Featured cruise · Moss Landing → Venice Beach (Half Moon Bay)" art={featured.art} onPress={() => router.push({ pathname: '/runs/[slug]', params: { slug: 'highway-1-cruise' } })} />}
           <Choice title="Club Drives" detail="Saved drives and scheduled meetups" onPress={() => router.push('/club-drives')} />
           <Text accessibilityRole="header" style={s.section}>Explore by location</Text>
           <View style={s.books}>
