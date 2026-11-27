@@ -23,7 +23,7 @@ export function MapLayersButton({compact=false}:{compact?:boolean}) {
           <Text style={s.text}>{labels[k]}</Text>
           <Text style={{color: '#A1F572', fontSize: 12}}>ALWAYS ON</Text>
         </View>)}
-        <Text style={s.note}>{data ? 'California · saved '+data.retrieved+' · works offline. Zoom to street level for camera points. Coverage varies by area.' : 'Camera data unavailable.'}</Text>
+        <Text style={s.note}>{data ? 'California · saved '+data.retrieved+' · works offline. Camera shields appear at city and street scale. Zoom closer for additional records. Coverage varies by area.' : 'Camera data unavailable.'}</Text>
         <Text style={s.note}>Recurring checks appear on routes with reports from at least three members on three separate days in 90 days.</Text>
         <Pressable accessibilityRole="link" onPress={()=>void Linking.openURL('https://www.openstreetmap.org/copyright')}><Text style={s.note}>© OpenStreetMap contributors · ODbL</Text></Pressable>
         <Text style={s.note}>Municipal sources · LADOT, OakDOT, San José DOT and SFMTA</Text>

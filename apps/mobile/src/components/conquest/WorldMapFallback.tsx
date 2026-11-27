@@ -1,6 +1,7 @@
 import type {IntelWeather} from '../../lib/intel-weather';
-import { CompactIntelMarker, CameraMarkerDetails } from './IntelMarker';
-import { cameraPins, regionBox, snapshot, type CameraPin } from '../../map-layers/cameras';
+import { CameraMarkerDetails } from './IntelMarker';
+import {cameraImages} from '../../map-layers/camera-images';
+import { cameraPins, regionBox, snapshot, cameraViewportMode, cameraDisplayPins, cameraViewportNote, type CameraPin } from '../../map-layers/cameras';
 import { useLayers } from '../../map-layers/controls';
 import { type drawZones, zoneLabel } from '../../map-layers/history';
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
@@ -8,7 +9,7 @@ import type { MapLighting } from '../../lib/map-lighting';
 import type { Region } from 'react-native-maps';
 import { useStreetDetail } from './use-street-detail';
 import { exploreRoutes } from '../../data/explore-routes';
-import { Alert, Platform, StyleSheet, View } from 'react-native';
+import { Alert, Image, Platform, StyleSheet, View } from 'react-native';
 import type { TerritoryDefinition } from '@underground/domain';
 import { Text } from '@underground/ui';
 import { probeReactNativeMapsModule } from '../../lib/native-module-probe';
@@ -145,7 +146,11 @@ export function WorldMapFallback({
 
   const visibleRegion = viewport ?? region;
   const settings=useLayers();
-  const pins=useMemo(()=>cameraPins(settings.plate || settings.speed ? snapshot() : null,regionBox(visibleRegion),settings),[settings,visibleRegion]);
+  const box=useMemo(()=>regionBox(visibleRegion),[visibleRegion]);
+  const cameraData=useMemo(()=>settings.plate||settings.speed?snapshot():null,[settings]);
+  const allCameraPins=useMemo(()=>cameraPins(cameraData,box,settings),[cameraData,settings,box]);
+  const pins=useMemo(()=>cameraDisplayPins(allCameraPins,box),[allCameraPins,box]);
+  const cameraNote=cameraViewportNote(cameraViewportMode(box),allCameraPins.length,pins.length,!!cameraData);
   const [cameraDetail,setCameraDetail]=useState<CameraPin|null>(null);
   const visibleDrives = useMemo(() => {
     if (!onExploreRoute) return [];
@@ -216,9 +221,12 @@ export function WorldMapFallback({
           strokeColor={line.road ? '#DC9049' : '#546B80'} strokeWidth={line.road ? 2.4 : 1.1} />)}
         {historyLines.map(z=><Polyline key={'checks-'+z.start_m} coordinates={z.coords.map(([longitude,latitude])=>({longitude,latitude}))}
           strokeColor="#B89356C2" strokeWidth={13} tappable onPress={()=>Alert.alert('Recurring speed checks',zoneLabel(z))}/>)}
-        {pins.map((p,i)=><Marker key={p.id} identifier={p.id} coordinate={{latitude:p.lat,longitude:p.lon}}
-          anchor={{x:.5,y:i<32?.85:.5}} title={p.title} description={p.detail} onPress={()=>setCameraDetail(p)}>
-          {i<32?<CompactIntelMarker kind={p.marker}/>:<View style={{width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#151B22',backgroundColor:p.kind==='speed'?'#CFA868':'#90A5B5'}}/>}
+        {pins.map(p=><Marker key={p.id} identifier={p.id} coordinate={{latitude:p.lat,longitude:p.lon}}
+          anchor={{x:.5,y:.87}} title={p.title} description={p.detail} onPress={()=>setCameraDetail(p)}>
+          <View style={{width:30,height:34,alignItems:'center',justifyContent:'center'}}>
+            <View style={{position:'absolute',bottom:3,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#101820',backgroundColor:p.kind==='speed'?'#FFBF56':'#8DDBFF'}}/>
+            <Image source={cameraImages[p.marker]} resizeMode="contain" style={{width:30,height:34}}/>
+          </View>
         </Marker>)}
         {visibleDrives.map(drive => <Polyline key={'drive-' + drive.slug}
           coordinates={drive.points} strokeColor="#76FF03" strokeWidth={5}
@@ -306,7 +314,7 @@ export function WorldMapFallback({
       {ready && lighting.daylight < 1 && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: 1 - lighting.daylight }]}>
         <BeaconHighlights map={mapRef} ref={highlightRef} pins={highlights} />
       </View>}
-      {(settings.plate || settings.speed) && <View pointerEvents="none" style={{position:'absolute',left:8,bottom:26}}><Text style={{fontSize:9,color:'#ddd',backgroundColor:'#131a22'}}>© OpenStreetMap contributors · CA city data</Text></View>}
+      {(settings.plate || settings.speed) && <View pointerEvents="none" style={{position:'absolute',left:8,bottom:26}}><Text style={{fontSize:11,color:'#D3F4FF',backgroundColor:'#131a22',padding:3}}>{cameraNote}</Text><Text style={{fontSize:9,color:'#ddd',backgroundColor:'#131a22'}}>© OpenStreetMap contributors · CA city data</Text></View>}
       {badge && !fitCoordinates ? <View pointerEvents="none" style={styles.badge}>
         <Text variant="caption" gold>{badge} · APPLE MAPS</Text>
       </View> : null}

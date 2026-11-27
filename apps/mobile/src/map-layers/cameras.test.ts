@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {cameraPins,initialLayers,regionBox,snapshot} from './cameras';
+import {cameraPins,cameraDisplayPins,cameraViewportMode,cameraViewportNote,initialLayers,regionBox,snapshot} from './cameras';
 import {drawZones,zoneLabel} from './history';
 import {routeDistances,type RoutePoint} from '../drive/route-navigation';
 import saratoga from '../data/saratoga-club-route.json';
@@ -29,6 +29,22 @@ describe('California beta camera map',()=>{
     expect(cameraPins(db,square(-122,37,2),enabled)).toEqual([]);
     expect(cameraPins(db,square(-122,37,0.02),{plate:false,speed:false,history:false})).toEqual([]);
     expect(cameraPins(db,square(-80,27,0.02),enabled)).toEqual([]);
+  });
+  it('shows records in a city-scale view instead of the old street-only cutoff',()=>{
+    const b=square(-121.9677,37.3706,.15);
+    expect(cameraViewportMode(b)).toBe('city');
+    expect(cameraPins(db,b,enabled).length).toBeGreaterThan(100);
+    expect(cameraViewportMode(square(-121.9677,37.3706,.02))).toBe('street');
+    expect(cameraViewportMode(square(-121.9677,37.3706,2))).toBe('zoom');
+  });
+  it('bounds dense city rendering without inventing locations',()=>{
+    const b=square(-121.9677,37.3706,.35);
+    const all=cameraPins(db,b,enabled), shown=cameraDisplayPins(all,b);
+    expect(all.length).toBeGreaterThan(288);
+    expect(shown.length).toBeLessThanOrEqual(288);
+    expect(shown.every(p=>all.some(a=>a.id===p.id&&a.lon===p.lon&&a.lat===p.lat))).toBe(true);
+    expect(cameraViewportNote('city',all.length,shown.length,true)).toContain('zoom for more');
+    expect(cameraViewportNote('city',0,0,true)).toContain('No camera records');
   });
   it('replays the Saratoga road book without changing route geometry or guidance distances',()=>{
     const points=saratoga.geometry.coordinates as RoutePoint[];

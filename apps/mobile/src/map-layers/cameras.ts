@@ -21,12 +21,44 @@ export function regionBox(r: {latitude: number; longitude: number; latitudeDelta
   return { west:r.longitude-r.longitudeDelta/2, east:r.longitude+r.longitudeDelta/2,
     south:r.latitude-r.latitudeDelta/2, north:r.latitude+r.latitudeDelta/2 };
 }
+// Use a city-scale window instead of hiding all cameras above street zoom.
+export function cameraViewportMode(b:Box|null):'waiting'|'outside'|'zoom'|'city'|'street'{
+ if(!b)return 'waiting';
+ const {west,east,north,south}=b;
+ if(![west,east,north,south].every(Number.isFinite)||west>=east||south>=north)return 'waiting';
+ if(east<-125||west>-114||north<32||south>43)return 'outside';
+ if(east-west>.35||north-south>.65)return 'zoom';
+ return east-west<=.055&&north-south<=.13?'street':'city';
+}
+// At city scale cap native view count, keeping the real coordinates of one
+// representative per grid cell and category. Never fabricate camera locations.
+export function cameraDisplayPins(pins:CameraPin[],b:Box|null):CameraPin[]{
+ if(!b||pins.length<=288)return pins;
+ const byCell=new Map<string,CameraPin>();
+ for(const p of pins){
+  const x=Math.max(0,Math.min(11,Math.floor(12*(p.lon-b.west)/(b.east-b.west))));
+  const y=Math.max(0,Math.min(11,Math.floor(12*(p.lat-b.south)/(b.north-b.south))));
+  const key=x+','+y+','+p.kind;
+  const old=byCell.get(key);
+  // Prefer municipal sources for duplicate/nearby speed-camera listings.
+  const rank=(v:CameraPin)=>cameraSources[v.source].authority==='municipal'?0:1;
+  if(!old||rank(p)<rank(old)||(rank(p)===rank(old)&&p.id<old.id))byCell.set(key,p);
+ }
+ return [...byCell.values()];
+}
+export function cameraViewportNote(mode:ReturnType<typeof cameraViewportMode>,total:number,shown:number,available:boolean){
+ if(!available)return 'Camera data unavailable';
+ if(mode==='waiting')return 'Loading camera locations...';
+ if(mode==='outside')return 'Camera coverage: California only';
+ if(mode==='zoom')return 'Zoom in for camera locations';
+ if(!total)return 'No camera records in this view';
+ return shown<total?shown+' of '+total+' camera records / zoom for more':shown+' camera records in view';
+}
 export function cameraPins(db: Snapshot | null, b: Box | null, layers: Layers): CameraPin[] {
   if (!db || !b || (!layers.plate && !layers.speed)) return [];
   const {west,east,north,south} = b;
-  // Use geographic width on both renderers so an overview never fills with markers.
-  if (![west,east,north,south].every(Number.isFinite) || west >= east || south >= north ||
-      east-west > 0.055 || north-south > 0.13 || east < -125 || west > -114 || north < 32 || south > 43) return [];
+  const mode=cameraViewportMode(b);
+  if(mode!=='city'&&mode!=='street')return [];
   const pins: CameraPin[] = [];
   for (let x=Math.floor(west*10); x<=Math.floor(east*10); x++) {
     for (let y=Math.floor(south*10); y<=Math.floor(north*10); y++) {

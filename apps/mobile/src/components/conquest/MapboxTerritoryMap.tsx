@@ -1,10 +1,10 @@
 import {useIntelWeather} from '../../lib/use-intel-weather';
 import {seriousWeather,type IntelWeather} from '../../lib/intel-weather';
-import {goldTouch} from '../GoldTouch';
 import { CompactIntelMarker, CameraMarkerDetails } from './IntelMarker';
+import {cameraImages} from '../../map-layers/camera-images';
 import { useSpeedLimit } from '../../lib/use-speed-limit';
 import { MapLayersButton, useLayers, useRouteHistory } from '../../map-layers/controls';
-import { cameraPins, snapshot, type Box, type CameraPin } from '../../map-layers/cameras';
+import { cameraPins, snapshot, cameraViewportMode, cameraDisplayPins, cameraViewportNote, type Box, type CameraPin } from '../../map-layers/cameras';
 import { drawZones, zoneLabel, type Zone } from '../../map-layers/history';
 import { FinishBanner } from './FinishBanner';
 import { useSession } from '../../session/SessionContext';
@@ -104,6 +104,7 @@ type MapboxMod = {
   FillExtrusionLayer: ComponentType<Record<string, unknown>>;
   SymbolLayer: ComponentType<Record<string, unknown>>;
   MarkerView: ComponentType<Record<string, unknown>>;
+  Images?: ComponentType<Record<string, unknown>>;
   BackgroundLayer: ComponentType<Record<string, unknown>>;
   RasterLayer: ComponentType<Record<string, unknown>>;
   RasterSource: ComponentType<Record<string, unknown>>;
@@ -523,7 +524,10 @@ function TerritorySurface({
   const { lighting, reportCenter } = useMapLighting(camera);
   const settings=useLayers();
   const [view,setView]=useState<Box | null>(null);
-  const pins=useMemo(()=>cameraPins(settings.plate || settings.speed ? snapshot() : null,view,settings),[settings,view]);
+  const cameraData=useMemo(()=>settings.plate||settings.speed?snapshot():null,[settings]);
+  const allCameraPins=useMemo(()=>cameraPins(cameraData,view,settings),[cameraData,settings,view]);
+  const pins=useMemo(()=>cameraDisplayPins(allCameraPins,view),[allCameraPins,view]);
+  const cameraNote=cameraViewportNote(cameraViewportMode(view),allCameraPins.length,pins.length,!!cameraData);
   const [cameraDetail,setCameraDetail]=useState<CameraPin|null>(null);
   const historyLines=useMemo(()=>!approachLeg && fitCoordinates && historyZones ? drawZones(fitCoordinates,historyZones) : [],[approachLeg,fitCoordinates,historyZones]);
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
@@ -559,7 +563,7 @@ function TerritorySurface({
         SymbolLayer: api.SymbolLayer,
         FillExtrusionLayer: api.FillExtrusionLayer,
         BackgroundLayer: api.BackgroundLayer,
-        MarkerView: api.MarkerView, RasterLayer: api.RasterLayer, RasterSource: api.RasterSource,
+        MarkerView: api.MarkerView, Images: api.Images, RasterLayer: api.RasterLayer, RasterSource: api.RasterSource,
         UserLocation: api.UserLocation,
         StyleURL: api.StyleURL,
       });
@@ -645,7 +649,7 @@ function TerritorySurface({
     );
   }
 
-  const { MapView, Camera, ShapeSource, LineLayer, CircleLayer, SymbolLayer, FillExtrusionLayer, MarkerView, RasterLayer, RasterSource, UserLocation } = MapboxMod;
+  const { MapView, Camera, ShapeSource, LineLayer, CircleLayer, SymbolLayer, FillExtrusionLayer, MarkerView, Images, RasterLayer, RasterSource, UserLocation } = MapboxMod;
   const bounds = !streetView && fitCoordinates?.length ? { ne: [Math.max(...fitCoordinates.map(p => p[0])), Math.max(...fitCoordinates.map(p => p[1]))], sw: [Math.min(...fitCoordinates.map(p => p[0])), Math.min(...fitCoordinates.map(p => p[1]))], paddingTop: 75, paddingBottom: 75, paddingLeft: 55, paddingRight: 55 } : undefined;
 
   return (
@@ -708,16 +712,6 @@ function TerritorySurface({
           onPress={(e:{features?:{properties?:{detail?:string}}[]})=>Alert.alert('Recurring speed checks',e.features?.[0]?.properties?.detail)}>
           <LineLayer id="historical-check-segments" style={{lineColor:'#B89356',lineWidth:13,lineOpacity:0.76,lineCap:'round'}}/>
         </ShapeSource>}
-        {pins.length > 0 && <ShapeSource id="ca-cameras" hitbox={{width:24,height:24}}
-          shape={{type:'FeatureCollection',features:(MarkerView?pins.slice(32):pins).map(p=>({type:'Feature',id:p.id,properties:{id:p.id,kind:p.kind},geometry:{type:'Point',coordinates:[p.lon,p.lat]}}))}}
-          onPress={(e:{features?:{properties?:{id?:string}}[]})=>{const id=e.features?.[0]?.properties?.id;const pin=pins.find(p=>p.id===id);if(pin)setCameraDetail(pin);}}>
-          <CircleLayer id="ca-camera-dots" minZoomLevel={12} style={{circleColor:['match',['get','kind'],'speed','#CFA868','#90A5B5'],circleRadius:4,circleStrokeWidth:1,circleStrokeColor:'#151B22'}}/>
-        </ShapeSource>}
-        {MarkerView && pins.slice(0,32).map(p=><MarkerView key={p.id} coordinate={[p.lon,p.lat]} anchor={{x:.5,y:.85}}>
-          <Pressable accessibilityRole="button" accessibilityLabel={p.title} onPress={()=>setCameraDetail(p)} style={({pressed})=>[{width:36,height:40,borderRadius:18,alignItems:'center',justifyContent:'center'},pressed&&goldTouch]}>
-            <CompactIntelMarker kind={p.marker}/>
-          </Pressable>
-        </MarkerView>)}
         {onExploreRoute && <ShapeSource id="explore-drives" shape={exploreRoutes} hitbox={{ width: 22, height: 22 }}
           onPress={(event: { features?: Array<{ properties?: { slug?: string } }> }) => {
             const slug = event.features?.[0]?.properties?.slug;
@@ -805,9 +799,20 @@ function TerritorySurface({
             />
           </ShapeSource>
         ) : null}
+        {Images && <Images images={cameraImages}/>}
+        <ShapeSource id="ca-cameras" hitbox={{width:30,height:30}}
+          shape={{type:'FeatureCollection',features:pins.map(p=>({type:'Feature',id:p.id,properties:{id:p.id,kind:p.kind,marker:p.marker},geometry:{type:'Point',coordinates:[p.lon,p.lat]}}))}}
+          onPress={(e:{features?:{properties?:{id?:string}}[]})=>{const id=e.features?.[0]?.properties?.id;const pin=pins.find(p=>p.id===id);if(pin)setCameraDetail(pin);}}>
+          <CircleLayer id="ca-camera-halo" style={{circleColor:['match',['get','kind'],'speed','#FFBF56','#8DDBFF'],circleRadius:9,circleOpacity:.23,circleBlur:.45}}/>
+          <CircleLayer id="ca-camera-dots" style={{circleColor:['match',['get','kind'],'speed','#FFBF56','#8DDBFF'],circleRadius:4.5,circleStrokeWidth:1.25,circleStrokeColor:'#101820'}}/>
+          {Images && <SymbolLayer id="ca-camera-shields" style={{
+            iconImage:['get','marker'],iconSize:['interpolate',['linear'],['zoom'],10,.42,13,.55,16,.78],
+            iconAnchor:'bottom',iconAllowOverlap:false,iconIgnorePlacement:true,iconPitchAlignment:'viewport',iconRotationAlignment:'viewport',
+          }}/>}
+        </ShapeSource>
       </MapView>
       {cameraDetail && <CameraMarkerDetails pin={cameraDetail} onClose={()=>setCameraDetail(null)}/>}
-      {(settings.plate || settings.speed) && <View pointerEvents="none" style={{position:'absolute',left:8,bottom:26}}><Text style={{fontSize:9,color:'#ddd',backgroundColor:'#131a22'}}>© OpenStreetMap contributors · CA city data</Text></View>}
+      {(settings.plate || settings.speed) && <View pointerEvents="none" style={{position:'absolute',left:8,bottom:26}}><Text style={{fontSize:11,color:'#D3F4FF',backgroundColor:'#131a22',padding:3}}>{cameraNote}</Text><Text style={{fontSize:9,color:'#ddd',backgroundColor:'#131a22'}}>OpenStreetMap contributors / CA city data</Text></View>}
       {!!badge && !fitCoordinates && <View style={styles.badge} pointerEvents="none">
         <Text variant="caption" gold>
           {badge}
