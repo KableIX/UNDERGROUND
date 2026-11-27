@@ -1,0 +1,42 @@
+# UNDERGROUND 2026-11-20 security and canonical redirects.
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # HTTP -> HTTPS on the apex host (canonical).
+  RewriteCond %{HTTPS} !=on
+  RewriteRule ^ https://theunderground.vip%{REQUEST_URI} [L,R=301]
+
+  # www -> apex
+  RewriteCond %{HTTP_HOST} ^www\.theunderground\.vip$ [NC]
+  RewriteRule ^ https://theunderground.vip%{REQUEST_URI} [L,R=301]
+
+  # Pretty privacy URL
+  RewriteRule ^privacy/?$ privacy.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=31536000"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "DENY"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set Content-Security-Policy "upgrade-insecure-requests; default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; media-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+  Header always unset X-Powered-By
+  Header unset X-Powered-By
+</IfModule>
+
+# Block accidental web access to on-server backups and the CSRF secret file.
+<IfModule mod_rewrite.c>
+  RewriteRule ^_backup_20261120(/|$) - [F]
+</IfModule>
+<Files "secret.php">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Deny from all
+  </IfModule>
+</Files>

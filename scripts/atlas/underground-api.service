@@ -1,0 +1,20 @@
+[Unit]
+Description=UNDERGROUND app API (services/api)
+Documentation=https://github.com/KableIX/UNDERGROUND/blob/main/docs/ATLAS_DEPLOY.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=god
+Group=god
+WorkingDirectory=/data/underground
+EnvironmentFile=-/home/god/.config/underground/api.env
+Environment=UNDERGROUND_API_AUTOSTART=1
+ExecStart=/data/underground/scripts/atlas/start-underground-api.sh
+Restart=on-failure
+RestartSec=5
+# Do not put secrets in this unit. Use the EnvironmentFile.
+
+[Install]
+WantedBy=multi-user.target

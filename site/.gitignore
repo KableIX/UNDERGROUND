@@ -1,0 +1,5 @@
+# Real HMAC secret — never commit
+inc/secret.php
+# Applicant records are stored outside the web root and must not be added
+*.csv
+applications.csv
