@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { DatabaseSync } from 'node:sqlite';
 import { computeRunAnalytics, type FinishPhotoClaim } from '@underground/domain';
 import {
-  attemptPayload, localFinishCredit, localRouteHistory, pendingAttempts, recordLocalAttempt, resultSchema,
-  saveLocalFinishPhoto, purgeLocalRunAnalytics, type AttemptRecord, type ResultDatabase,
+  attemptPayload, attemptReady, localFinishCredit, localFinishPhotos, localRouteHistory, localRunPhotos, parseTopThree, pendingAttempts,
+  recordLocalAttempt, resultSchema, resultUpgrades, saveLocalFinishPhoto, settleAttempt, purgeLocalRunAnalytics,
+  type AttemptRecord, type ResultDatabase,
 } from './result-sql';
 
 const database = new DatabaseSync(':memory:');
@@ -58,19 +59,103 @@ describe('run attempt log on the device', () => {
     expect(await localFinishCredit(db, 'a', 'a1')).toMatchObject({ tier: 'verified', car: 'off_location' });
   });
 
-  it('sends only uploaded photos, never on aborted runs', async () => {
+  it('sends a non-image proof only, never on aborted runs', async () => {
     await recordLocalAttempt(db, 'a', run('a1'), true);
     const [row] = await pendingAttempts(db, 'a');
     const body = attemptPayload(row!, [
-      { claim: photo('car'), storagePath: 'runs/a/a1/car.jpg' },
-      { claim: photo('dash'), storagePath: null },
+      { claim: photo('car'), imageSha256: 'c'.repeat(64) },
+      { claim: photo('dash'), imageSha256: null },
     ]);
-    expect(body.photos).toEqual([{ ...photo('car'), storagePath: 'runs/a/a1/car.jpg' }]);
+    expect(body.photos).toEqual([{ ...photo('car'), imageSha256: 'c'.repeat(64) }, { ...photo('dash'), imageSha256: null }]);
+    expect(JSON.stringify(body)).not.toMatch(/file:|storagePath|base64/);
     expect(body.analytics).toEqual(analytics);
     await recordLocalAttempt(db, 'a', aborted('a2', 'traffic', T0 + 2e6), true);
     const abortRow = (await pendingAttempts(db, 'a')).find(r => r.attempt === 'a2')!;
-    expect(attemptPayload(abortRow, [{ claim: photo('car'), storagePath: 'x' }]).photos).toEqual([]);
+    expect(attemptPayload(abortRow, [{ claim: photo('car'), imageSha256: null }]).photos).toEqual([]);
     expect(attemptPayload(abortRow, []).abortReason).toBe('traffic');
+  });
+});
+
+describe('finish photos stay on the phone; location goes once accepted', () => {
+  beforeEach(() => {
+    database.exec(resultSchema);
+    database.exec('DELETE FROM run_attempts; DELETE FROM finish_photos;');
+  });
+  const WINDOW = 30 * 60_000;
+
+  it('waits for a final photo set before sending a completed run', async () => {
+    await recordLocalAttempt(db, 'a', run('a1'), true);
+    const [row] = await pendingAttempts(db, 'a');
+    const finishedAt = row!.finished_at!;
+    expect(attemptReady(row!, [], finishedAt + 60_000)).toBe(false);
+    expect(attemptReady(row!, [{ claim: photo('dash') }], finishedAt + 60_000)).toBe(false);
+    expect(attemptReady(row!, [{ claim: photo('dash') }, { claim: photo('car') }], finishedAt + 60_000)).toBe(true);
+    expect(attemptReady(row!, [], finishedAt + WINDOW)).toBe(true);
+    expect(attemptReady({ outcome: 'aborted', finished_at: null }, [], 0)).toBe(true);
+  });
+
+  it('keeps the credit result and deletes the capture location after acceptance', async () => {
+    await recordLocalAttempt(db, 'a', run('a1'), true);
+    await saveLocalFinishPhoto(db, 'a', 'a1', photo('dash'), 'file:///docs/finish-photos/dash.jpg', true, 'd'.repeat(64));
+    await saveLocalFinishPhoto(db, 'a', 'a1', photo('car'), 'file:///docs/finish-photos/car.jpg', true, 'c'.repeat(64));
+    await settleAttempt(db, 'a', 'a1', 0, { tier: 'top', points: 30 });
+    const stored = database.prepare("SELECT latitude, longitude, accuracy, uri, image_sha256 FROM finish_photos WHERE attempt='a1' ORDER BY kind").all();
+    expect(stored).toEqual([
+      { latitude: null, longitude: null, accuracy: null, uri: 'file:///docs/finish-photos/car.jpg', image_sha256: 'c'.repeat(64) },
+      { latitude: null, longitude: null, accuracy: null, uri: 'file:///docs/finish-photos/dash.jpg', image_sha256: 'd'.repeat(64) },
+    ]);
+    expect(await localFinishCredit(db, 'a', 'a1')).toEqual({ tier: 'top', points: 30, car: 'accepted', dash: 'accepted', final: true });
+    expect((await pendingAttempts(db, 'a')).length).toBe(0);
+    // A retake after the credit is final is kept as a photo, without location, and changes nothing.
+    await saveLocalFinishPhoto(db, 'a', 'a1', photo('car', { latitude: 36.4 }), 'file:///docs/finish-photos/car2.jpg', true, 'e'.repeat(64));
+    expect((await localFinishPhotos(db, 'a', 'a1')).find(p => p.claim.kind === 'car')!.claim.latitude).toBeNull();
+    expect(await localFinishCredit(db, 'a', 'a1')).toMatchObject({ tier: 'top', final: true });
+    expect((await pendingAttempts(db, 'a')).length).toBe(0);
+  });
+
+  it('a refused run keeps no credit and no location', async () => {
+    await recordLocalAttempt(db, 'a', run('a1'), true);
+    await saveLocalFinishPhoto(db, 'a', 'a1', photo('dash'), 'file:///dash.jpg', true);
+    await settleAttempt(db, 'a', 'a1', -1, null);
+    expect(await localFinishCredit(db, 'a', 'a1')).toMatchObject({ tier: 'none', points: 0, final: true });
+    expect(database.prepare("SELECT latitude FROM finish_photos WHERE attempt='a1'").get()).toEqual({ latitude: null });
+  });
+
+  it('lists the member\'s photos for in-app photos, newest first', async () => {
+    await recordLocalAttempt(db, 'a', run('a1'), false);
+    await saveLocalFinishPhoto(db, 'a', 'a1', photo('dash', { takenAtMs: T0 + 1 }), 'file:///d.jpg', false);
+    await saveLocalFinishPhoto(db, 'a', 'a1', photo('car', { takenAtMs: T0 + 2 }), 'file:///c.jpg', false);
+    await saveLocalFinishPhoto(db, 'b', 'b1', photo('car'), 'file:///other.jpg', false);
+    expect(await localRunPhotos(db, 'a')).toEqual([
+      { attempt: 'a1', route: 'big-sur', kind: 'car', uri: 'file:///c.jpg', takenAtMs: T0 + 2 },
+      { attempt: 'a1', route: 'big-sur', kind: 'dash', uri: 'file:///d.jpg', takenAtMs: T0 + 1 },
+    ]);
+  });
+
+  it('upgrades an older device database once', () => {
+    const old = new DatabaseSync(':memory:');
+    old.exec(`CREATE TABLE run_attempts (member TEXT, attempt TEXT, credit_tier TEXT);
+      CREATE TABLE finish_photos (member TEXT, attempt TEXT, kind TEXT, storage_path TEXT);`);
+    for (const sql of resultUpgrades) old.exec(sql);
+    for (const sql of resultUpgrades) expect(() => old.exec(sql)).toThrow(/duplicate column/);
+    expect((old.prepare('PRAGMA table_info(finish_photos)').all() as Array<{ name: string }>).map(c => c.name)).toContain('image_sha256');
+  });
+});
+
+describe('route all-time top 3', () => {
+  it('shows username and time, top 3 only, in place order', () => {
+    expect(parseTopThree([
+      { place: 2, username: 'APEX', duration_ms: '800000' },
+      { place: 1, username: 'STARK', duration_ms: 700000 },
+      { place: 3, username: 'NIGHTOWL', duration_ms: 800000 },
+      { place: 4, username: 'EXTRA', duration_ms: 900000 },
+      { place: 0, username: '', duration_ms: 1 },
+    ])).toEqual([
+      { place: 1, username: 'STARK', millis: 700000 },
+      { place: 2, username: 'APEX', millis: 800000 },
+      { place: 3, username: 'NIGHTOWL', millis: 800000 },
+    ]);
+    expect(parseTopThree(null)).toEqual([]);
   });
 });
 

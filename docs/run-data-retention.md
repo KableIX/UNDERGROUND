@@ -8,9 +8,13 @@ Decided by TJ on 2026-11-27.
 | Speed-derived detail on attempts (`max_speed_mps`, `avg_moving_speed_mps`) | 90 days | Set to null, `raw_purged_at` stamped |
 | Summary: average speed, completion time (`active_ms`, finish `duration_ms`), distance, counts | Kept | — |
 | On the phone: raw GPS samples of trips ended > 90 days ago, speed detail in local run analytics | 90 days | Deleted / nulled at app start |
+| Finish photo capture location (GPS fix) | Until the finish is accepted | Never stored on the server; deleted on the phone right after acceptance |
+| Finish photo image | On the member's phone only | Never uploaded (see `finish-photos-on-device.md`) |
 
-Run times and speeds are private. They are never ranked between members (`route_top_three` was
-dropped in `20261127000002_private_times_and_retention.sql`).
+Run times and speeds are private. The only shared view is each route's all-time top 3
+(`route_all_time_top_three`, `20261127000003_route_top_three_and_photo_privacy.sql`): each member's
+single best accepted time with their username. The older `route_top_three`, which listed raw
+attempts, was dropped in `20261127000002_private_times_and_retention.sql`.
 
 ## Server purge
 

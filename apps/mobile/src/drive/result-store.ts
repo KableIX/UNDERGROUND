@@ -4,11 +4,10 @@ import { getMobileSupabaseClient, isLiveAuthConfigured } from '../session/supaba
 import type { SessionMember } from '../session/types';
 import { resultSchema, recordLocalResult, localTopThree, mergePersonalTimes, type CruiseResult, type RunResult, type RecordRow,
   recordLocalAttempt, saveLocalFinishPhoto, purgeLocalRunAnalytics, localFinishPhotos, localFinishCredit, localRouteHistory, pendingAttempts, attemptPayload,
-  type AttemptRecord } from './result-sql';
+  attemptReady, settleAttempt, localRunPhotos, resultUpgrades, parseTopThree, type AttemptRecord, type TopRunner } from './result-sql';
 import { rawTrackCutoffMs, type FinishPhotoClaim, type RouteHistory } from '@underground/domain';
 import { getTripStore } from './trip-store';
-import { uploadRunPhoto } from './finish-photo-upload';
-export type { RecordRow, AttemptRecord } from './result-sql';
+export type { RecordRow, AttemptRecord, RunPhoto, TopRunner } from './result-sql';
 
 type Pending = {route: string; attempt: string | null; trace: string | null};
 const listeners = new Set<() => void>();
@@ -23,6 +22,7 @@ async function openStore() {
   const sqlite = require('expo-sqlite') as typeof import('expo-sqlite');
   const db = await sqlite.openDatabaseAsync(isLiveAuthConfigured() ? 'route-results.db' : 'preview-route-results.db');
   await db.execAsync(resultSchema);
+  for (const upgrade of resultUpgrades) await db.execAsync(upgrade).catch(() => undefined);
   return db;
 }
 function database() {
@@ -69,7 +69,7 @@ export function syncResults(member: string): Promise<void> {
         notify();
       }
       // Attempts after finishes: finish credit references the server-validated finish.
-      await syncAttempts(db, member, base, headers, token);
+      await syncAttempts(db, member, base, headers);
     } while (rerun.has(member));
   })().finally(() => { syncing.delete(member); rerun.delete(member); });
   syncing.set(member, job);
@@ -106,29 +106,34 @@ export async function readTimes(member: string, route?: string): Promise<RecordR
   }
 }
 
+/**
+ * The all-time top 3 on a route: each member's single best accepted time with their
+ * username. Members only, from the club server; empty offline or in preview.
+ */
+/** Club board for one route; null when not signed in to the live club. */
+export async function readAllTimeTopThree(route: string): Promise<TopRunner[] | null> {
+  if (!isLiveAuthConfigured()) return null;
+  const client = getMobileSupabaseClient();
+  if (!client) return null;
+  const {data, error} = await client.rpc('route_all_time_top_three', {target_route: route});
+  if (error) throw error;
+  return parseTopThree(data);
+}
+
 type Db = Awaited<ReturnType<typeof database>>;
-async function syncAttempts(db: Db, member: string, base: string, headers: Record<string, string>, token: string) {
+async function syncAttempts(db: Db, member: string, base: string, headers: Record<string, string>) {
   for (const row of await pendingAttempts(db, member)) {
     const photos = await localFinishPhotos(db, member, row.attempt);
-    if (row.outcome === 'completed') {
-      for (const photo of photos) {
-        if (photo.storagePath) continue;
-        const path = await uploadRunPhoto({base, token, attempt: row.attempt, kind: photo.claim.kind, uri: photo.uri});
-        if (!path) continue;
-        await db.runAsync('UPDATE finish_photos SET storage_path=? WHERE member=? AND attempt=? AND kind=?', path, member, row.attempt, photo.claim.kind);
-        photo.storagePath = path;
-      }
-    }
+    // Wait until the photo set is final, so the credit is decided once.
+    if (!attemptReady(row, photos, Date.now())) continue;
+    // Non-image proof only. The photo files never leave this phone.
     const response = await fetch(base + '/v1/run-attempts', {method: 'POST', headers, body: JSON.stringify(attemptPayload(row, photos))});
-    // 409: the finish or a photo has not reached the server yet. Retry on the next sync.
+    // 409: the finish has not reached the server yet. Retry on the next sync.
     // 404: this API has not been deployed with the run log yet. Keep it queued.
     if (!response.ok && response.status !== 422) continue;
-    const body = await response.json().catch(() => null) as {ok?: boolean; credit?: {tier: string} | null} | null;
-    const allUploaded = photos.every(photo => photo.storagePath);
-    // 422 means the server will never accept this record; stop retrying it (-1).
-    const pending = response.ok ? (allUploaded ? 0 : 1) : -1;
-    await db.runAsync('UPDATE run_attempts SET pending=?, credit_tier=? WHERE member=? AND attempt=?',
-      pending, body?.credit?.tier ?? null, member, row.attempt);
+    const body = await response.json().catch(() => null) as {ok?: boolean; credit?: {tier: string; points: number} | null} | null;
+    // Accepted (0) or never acceptable (-1, 422): keep the result, delete the photo location.
+    await settleAttempt(db, member, row.attempt, response.ok ? 0 : -1, response.ok ? body?.credit ?? null : null);
     notify();
   }
 }
@@ -142,11 +147,11 @@ export async function recordAttempt(member: string, attempt: AttemptRecord) {
   if (live) void syncResults(member).catch(() => undefined);
 }
 
-/** Store a location-stripped finish photo and its private capture metadata. */
-export async function addFinishPhoto(member: string, attempt: string, claim: FinishPhotoClaim, strippedUri: string) {
+/** Store a location-stripped finish photo on this phone with its private capture metadata. */
+export async function addFinishPhoto(member: string, attempt: string, claim: FinishPhotoClaim, strippedUri: string, imageSha256: string | null = null) {
   const db = await database();
   const live = isLiveAuthConfigured();
-  await saveLocalFinishPhoto(db, member, attempt, claim, strippedUri, live);
+  await saveLocalFinishPhoto(db, member, attempt, claim, strippedUri, live, imageSha256);
   notify();
   if (live) void syncResults(member).catch(() => undefined);
   return localFinishCredit(db, member, attempt);
@@ -158,6 +163,11 @@ export async function readFinishCredit(member: string, attempt: string) {
 
 export async function readFinishPhotos(member: string, attempt: string) {
   return localFinishPhotos(await database(), member, attempt);
+}
+
+/** The member's finish photos, stored on this phone only. */
+export async function readRunPhotos(member: string) {
+  return localRunPhotos(await database(), member);
 }
 
 /** Your own history on one route: completions, aborts and your trend. Never compared with anyone. */

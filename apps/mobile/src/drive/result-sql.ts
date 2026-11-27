@@ -4,11 +4,13 @@ export interface ResultDatabase {
   getAllAsync<T>(sql: string, ...args: BindValue[]): Promise<T[]>;
 }
 import {
+  FINISH_PHOTO_WINDOW_MS,
   finishCredit,
   summarizeRouteHistory,
   type FinishCredit,
   type FinishPhotoClaim,
   type FinishPhotoKind,
+  type FinishPhotoProof,
   type RouteHistory,
   type RunAbortReason,
   type RunAnalytics,
@@ -47,15 +49,21 @@ export const resultSchema = `
       progress_m REAL NOT NULL, progress_pct REAL NOT NULL,
       started_at INTEGER NOT NULL, ended_at INTEGER NOT NULL, finished_at INTEGER, duration_ms INTEGER,
       finish_lat REAL, finish_lng REAL, vehicle TEXT, start_label TEXT,
-      analytics TEXT NOT NULL, pending INTEGER NOT NULL, credit_tier TEXT,
+      analytics TEXT NOT NULL, pending INTEGER NOT NULL, credit_tier TEXT, credit TEXT,
       PRIMARY KEY(member,attempt));
     CREATE INDEX IF NOT EXISTS run_attempts_by_route ON run_attempts(member,route,ended_at);
     CREATE TABLE IF NOT EXISTS finish_photos (
       member TEXT NOT NULL, attempt TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('car','dash')),
       uri TEXT NOT NULL, taken_at INTEGER NOT NULL, latitude REAL, longitude REAL, accuracy REAL,
-      source TEXT NOT NULL, storage_path TEXT,
+      source TEXT NOT NULL, storage_path TEXT, image_sha256 TEXT,
       PRIMARY KEY(member,attempt,kind));
   `;
+
+/** Columns added after the first run-log schema. Each runs once; "duplicate column" is ignored. */
+export const resultUpgrades = [
+  'ALTER TABLE run_attempts ADD COLUMN credit TEXT',
+  'ALTER TABLE finish_photos ADD COLUMN image_sha256 TEXT',
+];
 
 /** One run attempt as logged on the device. Speed and time stay private to the member. */
 export type AttemptRecord = {
@@ -81,12 +89,16 @@ type AttemptRow = {
   member: string; attempt: string; route: string; outcome: RunOutcome; abort_reason: RunAbortReason | null;
   progress_m: number; progress_pct: number; started_at: number; ended_at: number; finished_at: number | null;
   duration_ms: number | null; finish_lat: number | null; finish_lng: number | null; vehicle: string | null;
-  start_label: string | null; analytics: string; pending: number; credit_tier: string | null;
+  start_label: string | null; analytics: string; pending: number; credit_tier: string | null; credit: string | null;
 };
 type PhotoRow = {
   kind: FinishPhotoKind; uri: string; taken_at: number; latitude: number | null; longitude: number | null;
-  accuracy: number | null; source: 'camera' | 'library'; storage_path: string | null;
+  accuracy: number | null; source: 'camera' | 'library'; image_sha256: string | null;
 };
+/** A finish photo as kept on this phone. The image file never leaves the device. */
+export type LocalFinishPhoto = { uri: string; imageSha256: string | null; claim: FinishPhotoClaim };
+/** Credit as shown on the phone. `final` once the club accepted it (photo location then deleted). */
+export type LocalFinishCredit = FinishCredit & { final?: boolean };
 
 export async function recordLocalAttempt(db: ResultDatabase, member: string, a: AttemptRecord, live: boolean) {
   await db.runAsync(`INSERT OR IGNORE INTO run_attempts(member,attempt,route,outcome,abort_reason,progress_m,progress_pct,
@@ -97,28 +109,46 @@ export async function recordLocalAttempt(db: ResultDatabase, member: string, a: 
     JSON.stringify(a.analytics), Number(live));
 }
 
-/** Save (or replace) the member's finish photo of one kind. `uri` must already be location-stripped. */
-export async function saveLocalFinishPhoto(db: ResultDatabase, member: string, attempt: string, claim: FinishPhotoClaim, uri: string, live: boolean) {
-  await db.runAsync(`INSERT OR REPLACE INTO finish_photos(member,attempt,kind,uri,taken_at,latitude,longitude,accuracy,source,storage_path)
-      VALUES (?,?,?,?,?,?,?,?,?,NULL)`,
-    member, attempt, claim.kind, uri, claim.takenAtMs, claim.latitude, claim.longitude, claim.accuracyM, claim.source);
-  if (live) await db.runAsync('UPDATE run_attempts SET pending=1 WHERE member=? AND attempt=?', member, attempt);
+/**
+ * Save (or replace) the member's finish photo of one kind, on this phone only. `uri` must
+ * already be location-stripped. After the credit is final the photo is still kept, but its
+ * capture location is not: it can no longer change the credit.
+ */
+export async function saveLocalFinishPhoto(db: ResultDatabase, member: string, attempt: string, claim: FinishPhotoClaim, uri: string, live: boolean, imageSha256: string | null = null) {
+  const [row] = await db.getAllAsync<{credit: string | null}>('SELECT credit FROM run_attempts WHERE member=? AND attempt=?', member, attempt);
+  const final = !!row?.credit;
+  await db.runAsync(`INSERT OR REPLACE INTO finish_photos(member,attempt,kind,uri,taken_at,latitude,longitude,accuracy,source,storage_path,image_sha256)
+      VALUES (?,?,?,?,?,?,?,?,?,NULL,?)`,
+    member, attempt, claim.kind, uri, claim.takenAtMs,
+    final ? null : claim.latitude, final ? null : claim.longitude, final ? null : claim.accuracyM, claim.source, imageSha256);
+  if (live && !final) await db.runAsync('UPDATE run_attempts SET pending=1 WHERE member=? AND attempt=?', member, attempt);
 }
 
-export async function localFinishPhotos(db: ResultDatabase, member: string, attempt: string) {
+export async function localFinishPhotos(db: ResultDatabase, member: string, attempt: string): Promise<LocalFinishPhoto[]> {
   const rows = await db.getAllAsync<PhotoRow>(
-    'SELECT kind,uri,taken_at,latitude,longitude,accuracy,source,storage_path FROM finish_photos WHERE member=? AND attempt=? ORDER BY kind', member, attempt);
+    'SELECT kind,uri,taken_at,latitude,longitude,accuracy,source,image_sha256 FROM finish_photos WHERE member=? AND attempt=? ORDER BY kind', member, attempt);
   return rows.map(row => ({
     uri: row.uri,
-    storagePath: row.storage_path,
+    imageSha256: row.image_sha256,
     claim: {kind: row.kind, takenAtMs: row.taken_at, latitude: row.latitude, longitude: row.longitude, accuracyM: row.accuracy, source: row.source} as FinishPhotoClaim,
   }));
 }
 
+/** Every finish photo on this phone, newest first, for the member's in-app photos. */
+export type RunPhoto = {attempt: string; route: string | null; kind: FinishPhotoKind; uri: string; takenAtMs: number};
+export async function localRunPhotos(db: ResultDatabase, member: string): Promise<RunPhoto[]> {
+  const rows = await db.getAllAsync<{attempt: string; route: string | null; kind: FinishPhotoKind; uri: string; taken_at: number}>(
+    `SELECT p.attempt, a.route, p.kind, p.uri, p.taken_at FROM finish_photos p
+     LEFT JOIN run_attempts a ON a.member=p.member AND a.attempt=p.attempt
+     WHERE p.member=? ORDER BY p.taken_at DESC, p.kind`, member);
+  return rows.map(r => ({attempt: r.attempt, route: r.route, kind: r.kind, uri: r.uri, takenAtMs: r.taken_at}));
+}
+
 /** Credit as the device sees it. The server recomputes it; this is for the member's own screen. */
-export async function localFinishCredit(db: ResultDatabase, member: string, attempt: string): Promise<FinishCredit | null> {
+export async function localFinishCredit(db: ResultDatabase, member: string, attempt: string): Promise<LocalFinishCredit | null> {
   const [row] = await db.getAllAsync<AttemptRow>('SELECT * FROM run_attempts WHERE member=? AND attempt=?', member, attempt);
   if (!row || row.outcome !== 'completed' || row.finished_at == null || row.finish_lat == null || row.finish_lng == null) return null;
+  if (row.credit) return {...(JSON.parse(row.credit) as FinishCredit), final: true};
   const photos = await localFinishPhotos(db, member, attempt);
   return finishCredit(photos.map(p => p.claim), {latitude: row.finish_lat, longitude: row.finish_lng, finishedAtMs: row.finished_at}, true);
 }
@@ -144,8 +174,33 @@ export async function purgeLocalRunAnalytics(db: ResultDatabase, cutoffMs: numbe
     cutoffMs);
 }
 
-/** Body for POST /v1/run-attempts. Photos are included only once uploaded (stripped). */
-export function attemptPayload(row: AttemptRow, photos: Array<{claim: FinishPhotoClaim; storagePath: string | null}>) {
+/**
+ * Completed runs are sent once their photo set is final: both photos taken, or the photo
+ * window closed. That way the credit is decided once and the location can be deleted.
+ */
+export function attemptReady(row: Pick<AttemptRow, 'outcome' | 'finished_at'>, photos: Array<{claim: FinishPhotoClaim}>, nowMs: number) {
+  if (row.outcome !== 'completed' || row.finished_at == null) return true;
+  const kinds = new Set(photos.map(p => p.claim.kind));
+  return (kinds.has('car') && kinds.has('dash')) || nowMs >= row.finished_at + FINISH_PHOTO_WINDOW_MS;
+}
+
+/**
+ * The club accepted (or finally refused) this attempt. Keep only the credit result and delete
+ * the photo capture location on this phone too. Photos themselves stay in the member's app.
+ */
+export async function settleAttempt(db: ResultDatabase, member: string, attempt: string, pending: 0 | -1, server: {tier: string; points: number} | null) {
+  const local = await localFinishCredit(db, member, attempt);
+  // The server's tier and points are the result. Refused (or no photos): no credit.
+  const credit = local && !local.final
+    ? {...local, tier: (server?.tier ?? 'none') as FinishCredit['tier'], points: server?.points ?? 0}
+    : null;
+  await db.runAsync('UPDATE run_attempts SET pending=?, credit_tier=?, credit=coalesce(credit, ?) WHERE member=? AND attempt=?',
+    pending, server?.tier ?? null, credit ? JSON.stringify({tier: credit.tier, points: credit.points, car: credit.car, dash: credit.dash}) : null, member, attempt);
+  await db.runAsync('UPDATE finish_photos SET latitude=NULL, longitude=NULL, accuracy=NULL WHERE member=? AND attempt=?', member, attempt);
+}
+
+/** Body for POST /v1/run-attempts. Photos are sent as non-image proof only; images stay on the phone. */
+export function attemptPayload(row: AttemptRow, photos: Array<{claim: FinishPhotoClaim; imageSha256: string | null}>) {
   return {
     attempt: row.attempt,
     route: row.route,
@@ -160,7 +215,7 @@ export function attemptPayload(row: AttemptRow, photos: Array<{claim: FinishPhot
     startLabel: row.start_label,
     analytics: JSON.parse(row.analytics) as RunAnalytics,
     photos: row.outcome === 'completed'
-      ? photos.filter(p => p.storagePath).map(p => ({...p.claim, storagePath: p.storagePath!}))
+      ? photos.map((p): FinishPhotoProof => ({...p.claim, imageSha256: p.imageSha256}))
       : [],
   };
 }
@@ -196,4 +251,19 @@ export function mergePersonalTimes(remote: RecordRow[], local: RecordRow[]): Rec
     place++;
     return place <= 3 ? [{...row,place}] : [];
   });
+}
+
+/**
+ * The all-time top 3 on a route (route_all_time_top_three): each member's single best accepted
+ * time with their username. Members only, from the club server; empty offline or in preview.
+ */
+export type TopRunner = {place: number; username: string; millis: number};
+export function parseTopThree(data: unknown): TopRunner[] {
+  if (!Array.isArray(data)) return [];
+  return data.flatMap(row => {
+    const r = row as {place?: unknown; username?: unknown; duration_ms?: unknown};
+    const place = Number(r.place), millis = Number(r.duration_ms);
+    if (typeof r.username !== 'string' || !r.username || !Number.isInteger(place) || place < 1 || !(millis > 0)) return [];
+    return [{place, username: r.username, millis}];
+  }).sort((a, b) => a.place - b.place).slice(0, 3);
 }

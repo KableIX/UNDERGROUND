@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@underground/ui';
 import { FINISH_PHOTO_WINDOW_MS, FINISH_POINTS_BOTH, FINISH_POINTS_CAR, FINISH_POINTS_DASH, type FinishCredit, type FinishPhotoKind } from '@underground/domain';
 import { captureFinishPhoto } from './finish-photo';
-import { addFinishPhoto, readFinishCredit } from './result-store';
+import { addFinishPhoto, readFinishCredit, syncResults } from './result-store';
+import type { LocalFinishCredit } from './result-sql';
 
 type Props = { member: string; attempt: string; finishedAtMs: number };
 
@@ -16,11 +17,12 @@ const TIER_LINE: Record<FinishCredit['tier'], string> = {
 
 /**
  * Finish photos after a GPS-completed Run. Open for 30 minutes after the finish,
- * so it still works after you park and unlock the phone. Location is checked privately
- * and stripped from the image; nobody else sees where it was taken.
+ * so it still works after you park and unlock the phone. The photo is saved on this
+ * phone only (My Run Photos) and never uploaded. The capture GPS fix and time are sent
+ * once to verify the finish, then deleted on the server and the phone.
  */
 export function FinishPhotoPanel({ member, attempt, finishedAtMs }: Props) {
-  const [credit, setCredit] = useState<FinishCredit | null>(null);
+  const [credit, setCredit] = useState<LocalFinishCredit | null>(null);
   const [busy, setBusy] = useState<FinishPhotoKind | null>(null);
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -31,6 +33,13 @@ export function FinishPhotoPanel({ member, attempt, finishedAtMs }: Props) {
   const closesAt = finishedAtMs + FINISH_PHOTO_WINDOW_MS;
   const open = now < closesAt;
   const minutes = Math.max(0, Math.ceil((closesAt - now) / 60_000));
+  // When the window closes the photo set is final: send the proof and settle the credit.
+  const settled = useRef(false);
+  useEffect(() => {
+    if (open || settled.current) return;
+    settled.current = true;
+    void syncResults(member).then(() => readFinishCredit(member, attempt)).then(setCredit).catch(() => undefined);
+  }, [open, member, attempt]);
 
   function take(kind: FinishPhotoKind) {
     Alert.alert(kind === 'car' ? 'Car at the finish' : 'Dash', undefined, [
@@ -44,7 +53,7 @@ export function FinishPhotoPanel({ member, attempt, finishedAtMs }: Props) {
     try {
       const photo = await captureFinishPhoto(kind, source);
       if (!photo) return;
-      setCredit(await addFinishPhoto(member, attempt, photo.claim, photo.uri));
+      setCredit(await addFinishPhoto(member, attempt, photo.claim, photo.uri, photo.imageSha256));
     } catch (error) {
       Alert.alert('Photo not saved', error instanceof Error ? error.message : 'Try again.');
     } finally {
@@ -63,7 +72,7 @@ export function FinishPhotoPanel({ member, attempt, finishedAtMs }: Props) {
     <View style={s.panel}>
       <Text style={s.kicker}>FINISH PHOTO</Text>
       <Text style={s.line}>{TIER_LINE[credit?.tier ?? 'none']}</Text>
-      {open ? <>
+      {credit?.final ? <Text style={s.note}>Credit confirmed. Photos saved on this phone in My Run Photos.</Text> : open ? <>
         <View style={s.row}>
           {(['car', 'dash'] as const).map(kind => (
             <Pressable key={kind} disabled={!!busy} accessibilityRole="button" style={[s.slot, credit?.[kind] === 'accepted' && s.done]} onPress={() => take(kind)}>
@@ -72,7 +81,7 @@ export function FinishPhotoPanel({ member, attempt, finishedAtMs }: Props) {
             </Pressable>
           ))}
         </View>
-        <Text style={s.note}>Both: {FINISH_POINTS_BOTH} points. Window closes in {minutes} min.</Text>
+        <Text style={s.note}>Both: {FINISH_POINTS_BOTH} points. Window closes in {minutes} min. Photos stay on this phone.</Text>
       </> : <Text style={s.note}>Photo window closed.</Text>}
     </View>
   );
