@@ -1,0 +1,14 @@
+[Unit]
+Description=UNDERGROUND INTEL route assessment API
+After=underground-intel.service
+[Service]
+WorkingDirectory=/data/underground/services/intel
+ExecStart=/usr/bin/python3 /data/underground/services/intel/api.py
+Restart=on-failure
+RestartSec=10
+CPUQuota=100%
+MemoryMax=512M
+NoNewPrivileges=true
+Nice=10
+[Install]
+WantedBy=default.target
