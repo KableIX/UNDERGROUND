@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {cameraPins,cameraDisplayPins,cameraViewportMode,cameraViewportNote,cameraShieldSize,initialLayers,regionBox,snapshot} from './cameras';
+import {cameraPins,cameraDisplayPins,cameraViewportMode,cameraViewportNote,cameraShieldSize,cameraSymbolScale,initialLayers,regionBox,snapshot} from './cameras';
 import {drawZones,zoneLabel} from './history';
 import {routeDistances,type RoutePoint} from '../drive/route-navigation';
 import saratoga from '../data/saratoga-club-route.json';
@@ -37,12 +37,23 @@ describe('California beta camera map',()=>{
     expect(cameraViewportMode(square(-121.9677,37.3706,.02))).toBe('street');
     expect(cameraViewportMode(square(-121.9677,37.3706,2))).toBe('zoom');
   });
-  it('uses reference-sized shields at street zoom and scales dense views',()=>{
-    expect(cameraShieldSize(square(-122,37,.005),4)).toBe(100);
-    expect(cameraShieldSize(square(-122,37,.02),5)).toBe(88);
-    expect(cameraShieldSize(square(-122,37,.05),12)).toBe(72);
-    expect(cameraShieldSize(square(-122,37,.15),150)).toBeLessThanOrEqual(40);
-    expect(cameraShieldSize(square(-122,37,.005),55)).toBeLessThanOrEqual(58);
+  it('increases marker size monotonically as horizontal map span narrows',()=>{
+    const widths=[.35,.14,.07,.035,.017,.008,.004,.002,.001];
+    const sizes=widths.map(width=>cameraShieldSize(square(-122,37,width)));
+    expect(sizes).toEqual([36,48,72,88,104,120,132,144,144]);
+    expect(sizes.every((size,i)=>i===0||size>=sizes[i-1]!)).toBe(true);
+  });
+  it('does not shrink when pitch changes the vertical extent',()=>{
+    const box=square(-122,37,.008);
+    expect(cameraShieldSize({...box,north:box.north+.1,south:box.south-.1})).toBe(cameraShieldSize(box));
+  });
+  it('uses a strictly increasing native Mapbox zoom scale',()=>{
+    const stops=cameraSymbolScale.slice(3) as number[];
+    for(let i=2;i<stops.length;i+=2){
+      expect(stops[i]).toBeGreaterThan(stops[i-2]!);
+      expect(stops[i+1]).toBeGreaterThan(stops[i-1]!);
+    }
+    expect(stops[stops.length-1]).toBe(144/112);
   });
   it('bounds dense city rendering without inventing locations',()=>{
     const b=square(-121.9677,37.3706,.35);
