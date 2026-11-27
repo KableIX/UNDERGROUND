@@ -43,10 +43,12 @@ pnpm-debug.log*
 playwright-report/
 test-results/
 
-# Local state and generated previews
+# Local state, generated previews, virtualenvs
 .underground/
 .capsule/
 .expo*/
+**/.expo-*/
+**/.venv/
 expo-env.d.ts
 docs/jacobs-pass/before*/
 *.pem
