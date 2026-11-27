@@ -54,9 +54,16 @@ export function cameraShieldSize(b:Box|null):number {
  if(!Number.isFinite(width)||width<=0)return 36;
  return width<=.0025?144:width<=.005?132:width<=.009?120:width<=.018?104:width<=.036?88:width<=.075?72:width<=.15?48:36;
 }
+// MapKit's pitched geographic bounds can grow when the camera moves closer.
+// Use the actual altitude (meters) instead. Lower altitude always means larger
+// screen-space shields, independently of bearing, pitch, and camera density.
+export function cameraShieldSizeForAltitude(altitude:unknown):number|null {
+ if(typeof altitude!=='number'||!Number.isFinite(altitude)||altitude<=0)return null;
+ return Math.max(32,Math.min(192,Math.round((96+32*Math.log2(1000/altitude))/8)*8));
+}
 // Mapbox uses its native zoom expression so size follows the camera continuously.
 export const cameraSymbolScale=['interpolate',['linear'],['zoom'],
- 10,36/112,11,48/112,12,72/112,13,88/112,14,104/112,15,120/112,16,132/112,17,144/112];
+ 10,32/112,11,48/112,12,64/112,13,80/112,14,96/112,15,120/112,16,144/112,17,176/112,18,192/112];
 export function cameraViewportNote(mode:ReturnType<typeof cameraViewportMode>,total:number,shown:number,available:boolean){
  if(!available)return 'Camera data unavailable';
  if(mode==='waiting')return 'Loading camera locations...';

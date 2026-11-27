@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {cameraPins,cameraDisplayPins,cameraViewportMode,cameraViewportNote,cameraShieldSize,cameraSymbolScale,initialLayers,regionBox,snapshot} from './cameras';
+import {cameraPins,cameraDisplayPins,cameraViewportMode,cameraViewportNote,cameraShieldSize,cameraShieldSizeForAltitude,cameraSymbolScale,initialLayers,regionBox,snapshot} from './cameras';
 import {drawZones,zoneLabel} from './history';
 import {routeDistances,type RoutePoint} from '../drive/route-navigation';
 import saratoga from '../data/saratoga-club-route.json';
@@ -47,13 +47,21 @@ describe('California beta camera map',()=>{
     const box=square(-122,37,.008);
     expect(cameraShieldSize({...box,north:box.north+.1,south:box.south-.1})).toBe(cameraShieldSize(box));
   });
+  it('uses smaller shields at higher native altitude and larger shields at street altitude',()=>{
+    const altitudes=[16000,4000,2000,1000,500,250,125,60];
+    const sizes=altitudes.map(cameraShieldSizeForAltitude);
+    expect(sizes).toEqual([32,32,64,96,128,160,192,192]);
+    expect(sizes.every((size,i)=>i===0||size!>=sizes[i-1]!)).toBe(true);
+    expect(cameraShieldSizeForAltitude(200)).toBeGreaterThan(cameraShieldSizeForAltitude(1200)!);
+    for(const value of [undefined,null,0,-1,NaN,Infinity,'100'])expect(cameraShieldSizeForAltitude(value)).toBeNull();
+  });
   it('uses a strictly increasing native Mapbox zoom scale',()=>{
     const stops=cameraSymbolScale.slice(3) as number[];
     for(let i=2;i<stops.length;i+=2){
       expect(stops[i]).toBeGreaterThan(stops[i-2]!);
       expect(stops[i+1]).toBeGreaterThan(stops[i-1]!);
     }
-    expect(stops[stops.length-1]).toBe(144/112);
+    expect(stops[stops.length-1]).toBe(192/112);
   });
   it('bounds dense city rendering without inventing locations',()=>{
     const b=square(-121.9677,37.3706,.35);
