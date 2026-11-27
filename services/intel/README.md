@@ -1,0 +1,2 @@
+# UNDERGROUND INTEL shadow collector
+Official Caltrans D4/D5 and NWS CA/FL only. Raw provider snapshots and health in local SQLite; no app publication, no patrol tracking, no radio, no GPU. Failed refresh preserves prior data but health marks it failed. Five minute cadence. Next: strict normalization, geospatial route correlation, coverage gates, reviewed publication, 511 token, Florida traffic, admin/member flow, RSVP notices. Never interpret missing data as clear roads.
