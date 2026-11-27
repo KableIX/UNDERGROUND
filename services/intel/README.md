@@ -1,2 +1,22 @@
 # UNDERGROUND INTEL shadow collector
-Official Caltrans D4/D5 and NWS CA/FL only. Raw provider snapshots and health in local SQLite; no app publication, no patrol tracking, no radio, no GPU. Failed refresh preserves prior data but health marks it failed. Five minute cadence. Next: strict normalization, geospatial route correlation, coverage gates, reviewed publication, 511 token, Florida traffic, admin/member flow, RSVP notices. Never interpret missing data as clear roads.
+Official sources only: Caltrans CWWP2 Lane Closure System D4/D5, NWS active alerts CA/FL, and 511 SF Bay Open511 traffic events (`https://api.511.org/traffic/events?format=json&status=ACTIVE&limit=500`; originators CHP, Caltrans, local agencies). No app publication (`PUBLISH=False`, `incidents.published` is CHECK-constrained to 0), no patrol tracking, no radio, no Waze, no GPU. Five minute cadence. Never interpret missing data as clear roads.
+
+## 511 credential
+Read at runtime from `~/.config/underground-intel/511.token` (dir 700, file 600; the collector refuses a group/world-readable file). Never committed, never logged: the 511 API echoes the key in `meta.url`/`pagination.next_url`, so responses are scrubbed before storage, stored URLs are key-free, and a logging filter redacts `api_key=` and the literal token. Missing token -> 511 health `BLOCKED`, other sources continue.
+
+## Limits
+511 allows 60 requests/3600 s per key. INTEL makes 1 call per 5-min cycle (12/h), self-caps at 30/h via `request_log` (retries counted), and pauses if the provider's `RateLimit-Remaining` drops below 5. Requests: 25 s timeout, 3 attempts with 2 s/4 s backoff on network/5xx errors, no retry on 4xx/429.
+
+## Tables (shadow.sqlite3)
+- `snapshots` / `health`: raw latest payload per source + simple health (unchanged, back-compatible).
+- `incidents`: normalized 511 events and Caltrans LCS closures. Coordinates (`lat/lon`, LCS end point, raw geometry), `geo_valid` (California bounds), `starts_at/ends_at/created_at/updated_at`, `expires_at` + `expiry_basis` (provider schedule, else rolling 15 min after last seen), `attribution`, `upstream` originator, `verification_status='unverified_official'`, `published=0`, `active`/`withdrawn_at` (records are never deleted), `duplicate_of`, `raw`.
+- `duplicate_links`: 511 event <-> Caltrans LCS record when same normalized road (CA-x == SR-x), 511 point within 1 km of the LCS begin-end segment, overlapping time, LCS not lifted (1098). Both raw records are kept.
+- `source_health`: state (OK/FAILED/BLOCKED/RATE_LIMITED_SELF), last success, consecutive failures, latency, provider rate remaining.
+- `ingest_stats`: per-cycle per-source counts (records, normalized, inserted, updated, expired, duplicates, by_category).
+- `request_log`: 511 request budget.
+
+## Tests
+`python3 -m unittest discover -s tests -v` (offline; uses `tests/fixture_511_events.json`, a real 511 response with the key removed).
+
+## Next
+Geospatial route correlation, coverage gates, reviewed publication, Florida traffic (FL511), more Caltrans districts, admin/member flow, RSVP notices.
