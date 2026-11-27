@@ -8,10 +8,12 @@ import { z } from 'zod';
  * - Entry is by vetting; a run never re-proves car ownership.
  * - GPS proves completion. There is no start photo.
  * - Finish photo tiers: dash only = verified (base points), car only = more points,
- *   both = top points. Photo location is cross-checked against the finish privately
- *   and never shown to other members.
- * - Speed and time are PRIVATE stats. They are never ranked between members and
- *   never decide who holds a route. Nothing in this module compares members.
+ *   both = top points. The photo stays on the phone. Only a non-image proof (capture
+ *   time, GPS fix, optional image hash) is sent; the server checks it against the finish
+ *   and keeps only the credit result. The location is discarded once verified.
+ * - Speed and run history are PRIVATE stats and never decide who holds a route.
+ *   The one shared view is each route's all-time top 3: each member's single best
+ *   accepted time with their username (server function route_all_time_top_three).
  */
 
 // ---------------------------------------------------------------------------
@@ -358,6 +360,24 @@ export function finishCredit(
   const dashOk = dash === 'accepted';
   const tier: FinishTier = carOk && dashOk ? 'top' : carOk ? 'car' : dashOk ? 'verified' : 'none';
   return { tier, points: FINISH_TIER_POINTS[tier], car, dash };
+}
+
+/** SHA-256 hex of the location-stripped image file kept on the phone. */
+export const IMAGE_SHA256 = /^[0-9a-f]{64}$/;
+
+/**
+ * Non-image proof for a finish photo. The image never leaves the phone: the server gets
+ * the capture time and GPS fix (used once, for the finish check) and an optional hash.
+ */
+export const FinishPhotoProofSchema = FinishPhotoClaimSchema.extend({
+  imageSha256: z.string().regex(IMAGE_SHA256).nullable(),
+}).strict();
+export type FinishPhotoProof = z.infer<typeof FinishPhotoProofSchema>;
+
+/** What may be kept after a proof is verified: no latitude, longitude or accuracy. */
+export type VerifiedFinishPhoto = Pick<FinishPhotoProof, 'kind' | 'takenAtMs' | 'source' | 'imageSha256'>;
+export function dropPhotoLocation(proof: FinishPhotoProof): VerifiedFinishPhoto {
+  return { kind: proof.kind, takenAtMs: proof.takenAtMs, source: proof.source, imageSha256: proof.imageSha256 };
 }
 
 /** Fields of a photo claim that may ever leave the owner's private record. Location never does. */

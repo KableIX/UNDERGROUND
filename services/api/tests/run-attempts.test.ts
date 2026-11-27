@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import catalog from '../../../apps/mobile/src/data/california-catalog.json';
 import { runFinishPoint } from '../src/routes/route-finishes';
-import { runPhotoPath, validateRunAttempt, validateRunPhotoIntent } from '../src/routes/run-attempts';
+import { validateRunAttempt } from '../src/routes/run-attempts';
 
 const member = '11111111-1111-4111-8111-111111111111';
 const route = catalog.find(row => row.id === 'M01')!.slug;
@@ -21,7 +21,7 @@ const completed = {
 };
 const photo = (kind: 'car' | 'dash', over: Record<string, unknown> = {}) => ({
   kind, takenAtMs: now - 60_000, latitude: finish.latitude, longitude: finish.longitude, accuracyM: 8, source: 'camera',
-  storagePath: runPhotoPath(member, 'trip_abc_1', kind), ...over,
+  imageSha256: (kind === 'car' ? 'c' : 'd').repeat(64), ...over,
 });
 
 describe('run attempts', () => {
@@ -46,12 +46,25 @@ describe('run attempts', () => {
     expect(tier([photo('car'), photo('car')])).toBe('duplicate_photo_kind');
   });
 
-  it('only accepts photos stored under the member and attempt', () => {
-    const other = { ...completed, photos: [photo('car', { storagePath: runPhotoPath('22222222-2222-4222-8222-222222222222', 'trip_abc_1', 'car') })] };
-    expect(validateRunAttempt(other, member, now)).toEqual({ ok: false, error: 'invalid_photo_path' });
-    expect(validateRunPhotoIntent({ attempt: 'trip_abc_1', kind: 'dash', contentType: 'image/jpeg' }, member))
-      .toEqual({ ok: true, path: `runs/${member}/trip_abc_1/dash.jpg` });
-    expect(validateRunPhotoIntent({ attempt: '../x', kind: 'dash', contentType: 'image/jpeg' }, member).ok).toBe(false);
+  it('takes a non-image proof only and keeps no photo location after the check', () => {
+    const result = validateRunAttempt({ ...completed, photos: [photo('car'), photo('dash')] }, member, now);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.write.credit).toMatchObject({ tier: 'top', points: 30, car: 'accepted', dash: 'accepted' });
+    expect(result.write.credit!.photos).toEqual([
+      { kind: 'car', takenAtMs: now - 60_000, source: 'camera', imageSha256: 'c'.repeat(64) },
+      { kind: 'dash', takenAtMs: now - 60_000, source: 'camera', imageSha256: 'd'.repeat(64) },
+    ]);
+    expect(JSON.stringify(result.write)).not.toMatch(/latitude|longitude|accuracy/);
+    // No image bytes or upload paths: the photo stays on the phone.
+    const reject = (over: Record<string, unknown>) => validateRunAttempt({ ...completed, photos: [photo('car', over)] }, member, now);
+    expect(reject({ storagePath: `runs/${member}/trip_abc_1/car.jpg` })).toEqual({ ok: false, error: 'invalid_run_attempt' });
+    expect(reject({ imageBase64: '/9j/4AAQSkZJRg' })).toEqual({ ok: false, error: 'invalid_run_attempt' });
+    expect(reject({ imageSha256: 'not-a-hash' })).toEqual({ ok: false, error: 'invalid_run_attempt' });
+    expect(reject({ imageSha256: null }).ok).toBe(true);
+    // One photo cannot be both the car and the dash shot.
+    expect(validateRunAttempt({ ...completed, photos: [photo('car'), photo('dash', { imageSha256: 'c'.repeat(64) })] }, member, now))
+      .toEqual({ ok: false, error: 'duplicate_photo' });
   });
 
   it('requires a reason for an abort and keeps photos off aborted runs', () => {

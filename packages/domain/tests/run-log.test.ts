@@ -172,3 +172,24 @@ describe('final values and retention', () => {
     expect(kept).toMatchObject({ avgSpeedMps: a.avgSpeedMps, activeMs: 60_000, distanceM: 1200, maxSpeedMps: null, avgMovingSpeedMps: null });
   });
 });
+
+describe('finish photo proof (image stays on the phone)', () => {
+  const proof = {
+    kind: 'car' as const, takenAtMs: T0, latitude: 36.27, longitude: -121.8, accuracyM: 8,
+    source: 'camera' as const, imageSha256: 'a'.repeat(64),
+  };
+  it('accepts a non-image proof and rejects image data or a bad hash', async () => {
+    const m = await import('../src/run-log');
+    expect(m.FinishPhotoProofSchema.safeParse(proof).success).toBe(true);
+    expect(m.FinishPhotoProofSchema.safeParse({ ...proof, imageSha256: null }).success).toBe(true);
+    expect(m.FinishPhotoProofSchema.safeParse({ ...proof, imageSha256: 'XYZ' }).success).toBe(false);
+    expect(m.FinishPhotoProofSchema.safeParse({ ...proof, imageBase64: '/9j/4AAQ' }).success).toBe(false);
+    expect(m.FinishPhotoProofSchema.safeParse({ ...proof, storagePath: 'runs/x/y/car.jpg' }).success).toBe(false);
+  });
+  it('drops latitude, longitude and accuracy after verification', async () => {
+    const m = await import('../src/run-log');
+    const kept = m.dropPhotoLocation(proof);
+    expect(kept).toEqual({ kind: 'car', takenAtMs: T0, source: 'camera', imageSha256: 'a'.repeat(64) });
+    expect(Object.keys(kept)).not.toEqual(expect.arrayContaining(['latitude']));
+  });
+});

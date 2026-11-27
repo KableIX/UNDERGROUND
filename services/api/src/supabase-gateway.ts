@@ -22,8 +22,6 @@ export interface RunLogGateway {
   recordRouteFinish(member: string, finish: FinishWrite): Promise<void>;
   /** Throws Error('finish_not_recorded') when credit arrives before the server-validated finish. */
   recordRunAttempt(member: string, write: RunAttemptWrite): Promise<void>;
-  createSignedRunPhotoUpload(path: string): Promise<string>;
-  runPhotoExists(path: string): Promise<boolean>;
 }
 
 export function createSupabaseMemberGateway(env: RuntimeEnv): (MemberGateway & RunLogGateway) | null {
@@ -94,29 +92,17 @@ export function createSupabaseMemberGateway(env: RuntimeEnv): (MemberGateway & R
         points: credit.points,
         car_status: credit.car,
         dash_status: credit.dash,
-        car_photo_path: car?.storagePath ?? null,
-        dash_photo_path: dash?.storagePath ?? null,
         car_taken_at: car ? new Date(car.takenAtMs).toISOString() : null,
         dash_taken_at: dash ? new Date(dash.takenAtMs).toISOString() : null,
-        car_lat: car?.latitude ?? null,
-        car_lng: car?.longitude ?? null,
-        dash_lat: dash?.latitude ?? null,
-        dash_lng: dash?.longitude ?? null,
-      }, { onConflict: 'member_id,attempt_id' });
+        car_image_sha256: car?.imageSha256 ?? null,
+        dash_image_sha256: dash?.imageSha256 ?? null,
+        // First accepted credit is final; a retry never rewrites it.
+      }, { onConflict: 'member_id,attempt_id', ignoreDuplicates: true });
       if (result.error?.code === '23503') throw new Error('finish_not_recorded');
+      if (result.error?.code === '23505') throw new Error('photo_reused');
       if (result.error) throw new Error('run_credit_unavailable');
     },
 
-    async createSignedRunPhotoUpload(path: string) {
-      const { data, error } = await admin.storage.from('evidence-originals').createSignedUploadUrl(path, { upsert: true });
-      if (error || !data?.signedUrl) throw new Error('run_photo_signing_unavailable');
-      return data.signedUrl;
-    },
-
-    async runPhotoExists(path: string) {
-      const { data, error } = await admin.storage.from('evidence-originals').info(path);
-      return !error && !!data;
-    },
     async verifyUserJwt(jwt) {
       // getUser contacts Supabase Auth; a decoded-but-unverified JWT is NEVER trusted.
       const { data, error } = await authClient.auth.getUser(jwt);
