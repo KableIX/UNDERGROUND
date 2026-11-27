@@ -1,7 +1,7 @@
 import type {IntelWeather} from '../../lib/intel-weather';
 import { CameraMarkerDetails } from './IntelMarker';
 import {cameraImages} from '../../map-layers/camera-images';
-import { cameraPins, regionBox, snapshot, cameraViewportMode, cameraDisplayPins, cameraViewportNote, type CameraPin } from '../../map-layers/cameras';
+import { cameraPins, regionBox, snapshot, cameraViewportMode, cameraDisplayPins, cameraViewportNote, cameraShieldSize, type CameraPin } from '../../map-layers/cameras';
 import { useLayers } from '../../map-layers/controls';
 import { type drawZones, zoneLabel } from '../../map-layers/history';
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
@@ -151,6 +151,8 @@ export function WorldMapFallback({
   const allCameraPins=useMemo(()=>cameraPins(cameraData,box,settings),[cameraData,settings,box]);
   const pins=useMemo(()=>cameraDisplayPins(allCameraPins,box),[allCameraPins,box]);
   const cameraNote=cameraViewportNote(cameraViewportMode(box),allCameraPins.length,pins.length,!!cameraData);
+  const shieldSize=cameraShieldSize(box,pins.length);
+  const shieldHeight=Math.round(shieldSize*122/112);
   const [cameraDetail,setCameraDetail]=useState<CameraPin|null>(null);
   const visibleDrives = useMemo(() => {
     if (!onExploreRoute) return [];
@@ -222,10 +224,10 @@ export function WorldMapFallback({
         {historyLines.map(z=><Polyline key={'checks-'+z.start_m} coordinates={z.coords.map(([longitude,latitude])=>({longitude,latitude}))}
           strokeColor="#B89356C2" strokeWidth={13} tappable onPress={()=>Alert.alert('Recurring speed checks',zoneLabel(z))}/>)}
         {pins.map(p=><Marker key={p.id} identifier={p.id} coordinate={{latitude:p.lat,longitude:p.lon}}
-          anchor={{x:.5,y:.87}} title={p.title} description={p.detail} onPress={()=>setCameraDetail(p)}>
-          <View style={{width:30,height:34,alignItems:'center',justifyContent:'center'}}>
+          anchor={{x:.5,y:.96}} title={p.title} description={p.detail} onPress={()=>setCameraDetail(p)}>
+          <View style={{width:shieldSize,height:shieldHeight,alignItems:'center',justifyContent:'center'}}>
             <View style={{position:'absolute',bottom:3,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#101820',backgroundColor:p.kind==='speed'?'#FFBF56':'#8DDBFF'}}/>
-            <Image source={cameraImages[p.marker]} resizeMode="contain" style={{width:30,height:34}}/>
+            <Image source={cameraImages[p.marker]} resizeMode="contain" style={{width:shieldSize,height:shieldHeight}}/>
           </View>
         </Marker>)}
         {visibleDrives.map(drive => <Polyline key={'drive-' + drive.slug}

@@ -46,6 +46,14 @@ export function cameraDisplayPins(pins:CameraPin[],b:Box|null):CameraPin[]{
  }
  return [...byCell.values()];
 }
+// Logical screen points. Reference-sized shields at street scale; density caps
+// avoid covering the entire basemap when many records are visible.
+export function cameraShieldSize(b:Box|null,count:number):number {
+ if(!b)return 40;
+ const width=Math.max(b.east-b.west,(b.north-b.south)*.48);
+ const ideal=width<=.012?100:width<=.03?88:width<=.055?72:width<=.15?48:36;
+ return count>100?Math.min(ideal,40):count>45?Math.min(ideal,58):ideal;
+}
 export function cameraViewportNote(mode:ReturnType<typeof cameraViewportMode>,total:number,shown:number,available:boolean){
  if(!available)return 'Camera data unavailable';
  if(mode==='waiting')return 'Loading camera locations...';
@@ -69,7 +77,7 @@ export function cameraPins(db: Snapshot | null, b: Box | null, layers: Layers): 
           marker==='redlight'?'Reported red-light camera':source==='osm'?'Reported speed camera':'City-listed speed camera';
         const meta=cameraSources[source];
         const operating=cameraStatus(status);
-        const detail = [kind==='speed' && label, meta.name, operating, 'Snapshot '+db.retrieved].filter(Boolean).join(' ? ');
+        const detail = [kind==='speed' && label, meta.name, operating, 'Snapshot '+db.retrieved].filter(Boolean).join(' \u00b7 ');
         pins.push({id:source+'/'+key,lon,lat,kind,marker,title,detail,source,sourceUrl:meta.url,license:meta.license,status:operating,lastChecked:db.retrieved});
       }
     }

@@ -23,6 +23,9 @@ describe('camera marker provenance',()=>{
    expect(pin.sourceUrl).toBe(cameraSources[source].url);
    expect(pin.license).toBe(cameraSources[source].license);
    expect(pin.lastChecked).toBe(db.retrieved);
+   expect(pin.detail).toContain(' \u00b7 ');
+   expect(pin.detail).not.toContain(' ? ');
+   if(cameraSources[source].authority==='municipal')expect(pin.license).toBe('Reuse terms require review');
   }
  });
 });

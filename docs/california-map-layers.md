@@ -28,3 +28,7 @@ Every existing snapshot pin now exposes the source URL, license information (or 
 
 ## Official weather preview
 The limited INTEL API returns fresh NWS alert geometry clipped to saved routes (not approach navigation). Weather segments are violet dashes over the existing green route; a severe/extreme road-relevant alert gets a route-wide banner. Low-priority voice can play using an available device TTS voice only when driving the saved route away from an imminent turn and at least 20 seconds after another cue; ordinary guidance takes priority. No distance-to-hazard claims, push notification or live road incident publication are enabled. Actual device audio and animation need validation.
+
+The map uses reference-style transparent artwork and a 72-100 point street-scale shield (density capped). City views scale down to preserve map legibility. The approved Explore wordmark omits the Drivers Club subtitle.
+
+**Public-release hold:** San Jose DOT, SFMTA, OakDOT and LADOT reuse terms have not been cleared. Do not ship their records in a public application bundle or expose them through a public registry/API until rights are verified; a UI-only filter is insufficient for bundled data. The existing offline snapshot remains an internal beta dataset. No new data sources or publication permissions are introduced by this visual change.
