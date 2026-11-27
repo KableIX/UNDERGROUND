@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { probeNativeMapbox } from '../lib/mapbox-native';
 import type { MapSighting, SealedEnvelope } from './client';
-import { TierMark } from './TierMark';
 
 type Mapbox = {
   MapView: ComponentType<Record<string, unknown>>;
@@ -68,14 +67,10 @@ export function SightingsLayer({
   if (!Mapbox) {
     return (
       <View style={s.fallback}>
-        <Text style={s.caption}>RECENT SIGHTINGS NEARBY</Text>
-        {sightings.length === 0 ? <Text style={s.body}>Nothing to show yet.</Text> : null}
-        {sightings.slice(0, 12).map((x) => (
-          <View key={x.id} style={s.row}>
-            <Text style={s.car}>{x.make} {x.model}</Text>
-            <TierMark tier={x.tier} />
-          </View>
-        ))}
+        <Text style={s.caption}>MAP</Text>
+        <Text style={s.body}>
+          {sightings.length} recent {sightings.length === 1 ? 'sighting' : 'sightings'} in {cells.features.length} {cells.features.length === 1 ? 'neighborhood' : 'neighborhoods'}.
+        </Text>
         {envelopes.length ? <Text style={s.body}>{envelopes.length} sealed {envelopes.length === 1 ? 'envelope' : 'envelopes'} within 5 km.</Text> : null}
       </View>
     );
@@ -121,6 +116,4 @@ const s = StyleSheet.create({
   fallback: { padding: 16, gap: 10, borderWidth: 1, borderColor: '#2C2D31', backgroundColor: '#0E0F12' },
   caption: { fontFamily: 'DMSans_500Medium', fontSize: 11, letterSpacing: 1.6, color: '#8F8F92' },
   body: { fontFamily: 'DMSans_400Regular', fontSize: 14, color: '#B7B7B8' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  car: { fontFamily: 'BarlowCondensed_700Bold', fontSize: 20, color: '#F4F2ED' },
 });

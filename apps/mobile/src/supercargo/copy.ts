@@ -88,3 +88,97 @@ export function groupByTier<T extends { tier: SupercargoTier }>(items: T[]) {
     .map((tier) => ({ tier, items: items.filter((i) => i.tier === tier) }))
     .filter((g) => g.items.length > 0);
 }
+
+// ---- Reports and moderation ----
+
+export const reportReasonText: Record<string, { label: string; detail: string }> = {
+  plate_visible: { label: 'A plate is readable', detail: 'Taken off the map at once.' },
+  face_visible: { label: 'A face is visible', detail: 'Taken off the map at once.' },
+  residential: { label: 'It is at someone’s home', detail: 'Taken off the map at once.' },
+  owner_request: { label: 'It is my car', detail: 'Taken off the map at once.' },
+  stalking: { label: 'Someone is being followed', detail: 'Taken off the map at once.' },
+  wrong_model: { label: 'Wrong model', detail: 'Reviewed after three reports.' },
+  not_original: { label: 'Not the member’s photo', detail: 'Reviewed after three reports.' },
+  spam: { label: 'Spam', detail: 'Reviewed after three reports.' },
+};
+
+export function decisionText(status: string) {
+  switch (status) {
+    case 'held':
+      return 'Off the map, under review';
+    case 'restore':
+      return 'Back on the map';
+    case 'remove':
+      return 'Removed';
+    case 'correct_model':
+      return 'Model corrected';
+    default:
+      return status;
+  }
+}
+
+// ---- Map: reload as you pan ----
+
+export type Bounds = { west: number; south: number; east: number; north: number };
+export const MAP_MAX_SPAN = 1.2;
+
+/**
+ * Bounds to query for what is on screen, padded a quarter each side and capped
+ * at MAP_MAX_SPAN degrees. Returns null when the last query already covers it.
+ */
+export function mapQueryBounds(previous: Bounds | null, visible: Bounds): Bounds | null {
+  if (
+    previous &&
+    visible.west >= previous.west &&
+    visible.east <= previous.east &&
+    visible.south >= previous.south &&
+    visible.north <= previous.north
+  ) {
+    return null;
+  }
+  const cx = (visible.west + visible.east) / 2;
+  const cy = (visible.south + visible.north) / 2;
+  const w = Math.min(MAP_MAX_SPAN, (visible.east - visible.west) * 1.5) / 2;
+  const h = Math.min(MAP_MAX_SPAN, (visible.north - visible.south) * 1.5) / 2;
+  return { west: cx - w, east: cx + w, south: Math.max(-90, cy - h), north: Math.min(90, cy + h) };
+}
+
+// ---- Admin helpers ----
+
+export function anchorSlug(name: string) {
+  return name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+
+/** Monday (UTC) of the week containing the date, as YYYY-MM-DD. */
+export function weekStartOf(date: Date, weeksAhead = 0) {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + weeksAhead * 7);
+  return d.toISOString().slice(0, 10);
+}
+
+export const anchorKinds = ['curated_meet', 'overlook', 'route_start', 'route_finish', 'venue', 'museum', 'event'] as const;
+export const anchorKindLabels: Record<string, string> = {
+  curated_meet: 'Curated meet',
+  overlook: 'Overlook',
+  route_start: 'Route start',
+  route_finish: 'Route finish',
+  venue: 'Venue',
+  museum: 'Museum',
+  event: 'Event',
+};
+
+export function anchorProblems(form: { name: string; lat: string; lng: string; publicPlace: boolean }) {
+  const problems: string[] = [];
+  if (anchorSlug(form.name).length < 2) problems.push('Name the place.');
+  const lat = Number(form.lat);
+  const lng = Number(form.lng);
+  if (!form.lat || !Number.isFinite(lat) || lat < -90 || lat > 90) problems.push('Latitude is between -90 and 90.');
+  if (!form.lng || !Number.isFinite(lng) || lng < -180 || lng > 180) problems.push('Longitude is between -180 and 180.');
+  if (!form.publicPlace) problems.push('Confirm it is a public place, not a residential street.');
+  return problems;
+}

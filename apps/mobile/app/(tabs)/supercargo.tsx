@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +12,9 @@ import {
   readExchanges,
   readFeatured,
   readLedger,
+  readIsAdmin,
   readMap,
+  readMyModeration,
   readSettings,
   saveSettings,
   type ClubMarks,
@@ -20,17 +22,21 @@ import {
   type ExchangeRow,
   type Folio,
   type MapSighting,
+  type ModerationNote,
   type SealedEnvelope,
 } from '../../src/supercargo/client';
 import {
+  decisionText,
   exchangeStatusText,
   groupByTier,
+  mapQueryBounds,
   parseSection,
   supercargoCopy,
   supercargoSectionLabels,
   supercargoSections,
   tierLabel,
   tierNote,
+  type Bounds,
   type SupercargoSection,
 } from '../../src/supercargo/copy';
 import { currentFix } from '../../src/supercargo/location';
@@ -64,10 +70,14 @@ function Hub() {
   const [refreshing, setRefreshing] = useState(false);
   const [tick, setTick] = useState(0);
   const [waiting, setWaiting] = useState(0);
+  const [admin, setAdmin] = useState(false);
 
   useEffect(() => {
     if (params.section) setSection(parseSection(params.section));
   }, [params.section]);
+  useEffect(() => {
+    readIsAdmin().then(setAdmin).catch(() => setAdmin(false));
+  }, []);
   useFocusEffect(
     useCallback(() => {
       readSettings()
@@ -106,9 +116,16 @@ function Hub() {
       <View style={[s.header, { paddingTop: inset.top + 10 }]}>
         <View style={s.titleRow}>
           <Text style={s.title}>{supercargoCopy.name}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Privacy and settings" onPress={() => router.push('/supercargo/privacy')} hitSlop={10}>
-            <Text style={s.link}>PRIVACY</Text>
-          </Pressable>
+          <View style={s.links}>
+            {admin ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Admin tools" onPress={() => router.push('/supercargo/admin')} hitSlop={10}>
+                <Text style={s.link}>ADMIN</Text>
+              </Pressable>
+            ) : null}
+            <Pressable accessibilityRole="button" accessibilityLabel="Privacy and settings" onPress={() => router.push('/supercargo/privacy')} hitSlop={10}>
+              <Text style={s.link}>PRIVACY</Text>
+            </Pressable>
+          </View>
         </View>
         {enabled ? (
           <View style={s.segments} accessibilityRole="tablist">
@@ -180,6 +197,8 @@ const envelopeText: Record<string, string> = {
 };
 
 function MapSection({ tick, onMessage }: { tick: number; onMessage: (m: string) => void }) {
+  const router = useRouter();
+  const queried = useRef<Bounds | null>(null);
   const [sightings, setSightings] = useState<MapSighting[] | null>(null);
   const [envelopes, setEnvelopes] = useState<SealedEnvelope[]>([]);
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
@@ -194,8 +213,10 @@ function MapSection({ tick, onMessage }: { tick: number; onMessage: (m: string) 
         if (!live) return;
         setCenter({ lat: fix.lat, lng: fix.lng });
         const span = 0.25;
+        const bounds = { west: fix.lng - span, east: fix.lng + span, south: fix.lat - span, north: fix.lat + span };
+        queried.current = bounds;
         const [map, near, feat] = await Promise.all([
-          readMap({ west: fix.lng - span, east: fix.lng + span, south: fix.lat - span, north: fix.lat + span }),
+          readMap(bounds),
           readEnvelopes(fix.lng, fix.lat),
           readFeatured().catch(() => null),
         ]);
@@ -213,6 +234,29 @@ function MapSection({ tick, onMessage }: { tick: number; onMessage: (m: string) 
       live = false;
     };
   }, [tick, onMessage]);
+
+  // Reload as the member pans: only when the view leaves what was last fetched.
+  const panTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onBounds = useCallback(
+    (visible: Bounds) => {
+      if (panTimer.current) clearTimeout(panTimer.current);
+      panTimer.current = setTimeout(() => {
+        const next = mapQueryBounds(queried.current, visible);
+        if (!next) return;
+        queried.current = next;
+        readMap(next)
+          .then(setSightings)
+          .catch(() => onMessage('The map is unavailable.'));
+      }, 350);
+    },
+    [onMessage],
+  );
+  useEffect(
+    () => () => {
+      if (panTimer.current) clearTimeout(panTimer.current);
+    },
+    [],
+  );
 
   async function open(envelope: SealedEnvelope) {
     if (busy) return;
@@ -232,9 +276,27 @@ function MapSection({ tick, onMessage }: { tick: number; onMessage: (m: string) 
   if (sightings === null) return <ActivityIndicator color="#C6B08B" />;
   return (
     <View style={{ gap: 14 }}>
-      <SightingsLayer sightings={sightings} envelopes={envelopes} center={center} />
+      <SightingsLayer sightings={sightings} envelopes={envelopes} center={center} onBounds={onBounds} />
       <Caption>{supercargoCopy.mapNote.toUpperCase()}</Caption>
       {sightings.length === 0 ? <Text style={ui.body}>{supercargoCopy.mapEmpty}</Text> : null}
+      {sightings.slice(0, 8).map((x) => (
+        <View key={x.id} style={s.line}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={ui.notice}>
+              {x.make} {x.model}
+            </Text>
+            <Text style={ui.caption}>{`${tierLabel(x.tier).toUpperCase()} · ${x.seen_on}${x.spotter_number ? ` · NO. ${x.spotter_number}` : ''}`}</Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Report ${x.make} ${x.model}`}
+            hitSlop={10}
+            onPress={() => router.push({ pathname: '/supercargo/report', params: { id: x.id, title: `${x.make} ${x.model}` } })}
+          >
+            <Text style={s.report}>REPORT</Text>
+          </Pressable>
+        </View>
+      ))}
       {featured ? (
         <View style={ui.card}>
           <Caption>FEATURED THIS WEEK</Caption>
@@ -262,16 +324,18 @@ function LedgerSection({ tick }: { tick: number }) {
   const [folios, setFolios] = useState<Folio[] | null>(null);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [clubs, setClubs] = useState<ClubMarks[]>([]);
+  const [reviews, setReviews] = useState<ModerationNote[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let live = true;
-    Promise.all([readLedger(), readCommissions().catch(() => [] as Commission[]), readClubMarks()])
-      .then(([f, c, k]) => {
+    Promise.all([readLedger(), readCommissions().catch(() => [] as Commission[]), readClubMarks(), readMyModeration().catch(() => [])])
+      .then(([f, c, k, r]) => {
         if (!live) return;
         setFolios(f);
         setCommissions(c);
         setClubs(k);
+        setReviews(r);
       })
       .catch((e: unknown) => {
         if (!live) return;
@@ -317,6 +381,21 @@ function LedgerSection({ tick }: { tick: number }) {
             </View>
           ))}
           <Text style={ui.caption}>{supercargoCopy.clubNote.toUpperCase()}</Text>
+        </View>
+      ) : null}
+
+      {reviews.length > 0 ? (
+        <View style={{ gap: 8 }}>
+          <Caption>REVIEWS OF YOUR SIGHTINGS</Caption>
+          {reviews.slice(0, 5).map((r, i) => (
+            <View key={`${r.sighting_id}-${i}`} style={[ui.card, r.status === 'held' && { borderColor: '#8F7A52' }]}>
+              <Caption>{`${decisionText(r.status).toUpperCase()} · ${new Date(r.at).toLocaleDateString()}`}</Caption>
+              <Text style={ui.notice}>
+                {r.make} {r.model}
+              </Text>
+              <Text style={ui.body}>{r.reason}</Text>
+            </View>
+          ))}
         </View>
       ) : null}
 
@@ -420,6 +499,7 @@ const s = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingBottom: 10, gap: 12, backgroundColor: '#08090A', borderBottomWidth: 1, borderColor: '#1E1F23' },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontFamily: 'BarlowCondensed_700Bold', fontSize: 34, color: '#F4F2ED' },
+  links: { flexDirection: 'row', gap: 18 },
   link: { fontFamily: 'DMSans_600SemiBold', fontSize: 12, letterSpacing: 1.4, color: '#C6B08B' },
   segments: { flexDirection: 'row', borderWidth: 1, borderColor: '#2C2D31' },
   segment: { flex: 1, paddingVertical: 10, alignItems: 'center' },
@@ -427,6 +507,7 @@ const s = StyleSheet.create({
   segmentText: { fontFamily: 'DMSans_600SemiBold', fontSize: 12, letterSpacing: 1.4, color: '#8F8F92' },
   segmentTextOn: { color: '#F4F2ED' },
   line: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  report: { fontFamily: 'DMSans_600SemiBold', fontSize: 11, letterSpacing: 1.4, color: '#8F8F92' },
   pair: { flexDirection: 'row', gap: 10 },
   captureBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingBottom: 12 },
   capture: { backgroundColor: '#D0B88F', paddingVertical: 18, alignItems: 'center' },

@@ -16,8 +16,8 @@ Missing model, bad image, detector error, or a face or plate still detectable af
 
 1. Decode. Refuse anything over 4096 px or under 64 px.
 2. Faces: YuNet at score 0.5. Plates: RF-DETR plate model at 0.25, on the full frame plus four overlapping 60% tiles for small plates.
-3. Pad each box 15%. Pixelate to 1/16 and Gaussian-blur.
-4. Run both detectors again on the result. A face at 0.6 or a plate at 0.35 means failure.
+3. Pad each box 15%. Pixelate to a coarse grid (at most 8 x 5 blocks) and Gaussian-blur.
+4. Run both detectors again on the result. Anything found at face 0.6 or plate 0.35 is obscured again with a 50% margin, up to three rounds. Still found after that: failure.
 5. Re-encode as JPEG (no EXIF). Return a 64-bit difference hash for near-duplicate checks.
 
 ## Models and licences
@@ -36,16 +36,21 @@ Model card numbers for the plate model: recall 0.87 / precision 0.91 at 0.25. We
 
 Photos live on members' phones. The full-resolution original never leaves the phone. The app sends a 1280 px working copy, EXIF stripped, which this service holds in memory for one request. Only the blurred derivative is stored, and only when the sighting can be published.
 
-## Running on Atlas (when approved)
+## Running on Atlas
 
-```
-python3 -m venv /opt/supercargo-blur/venv
-/opt/supercargo-blur/venv/bin/pip install -r requirements.txt
-./fetch_models.sh /opt/supercargo-blur/models
-SUPERCARGO_BLUR_TOKEN=... CUDA_VISIBLE_DEVICES= /opt/supercargo-blur/venv/bin/python server.py   # 127.0.0.1:8791
-```
+Installed 2026-11-27 as `supercargo-blur.service`. Not wired into the API.
 
-API side: `SUPERCARGO_BLUR_URL=http://127.0.0.1:8791/v1/redact` and the same token as `SUPERCARGO_BLUR_TOKEN`. CPU only by design; it does not use GPU0 or :8188.
+- Code, venv and models: `/data/supercargo-blur/{app,venv,models}`, owned by root, run as the `supercargo-blur` system user.
+- Listens on `10.0.0.93:8791` (LAN). Accepts private-network callers only, and every redact call needs the token.
+- Token: generated on Atlas, in `/etc/supercargo-blur/blur.env` (root, 0600). Never printed or committed.
+- CPU only: `CUDA_VISIBLE_DEVICES=` and `PrivateDevices=yes`, so no GPU device is even visible. `onnxruntime` (CPU build) only; the installer refuses `onnxruntime-gpu`.
+- Kept out of training's way: `Nice=15`, `CPUWeight=10`, `CPUQuota=400%` (4 cores at most), 4 inference threads, one photo at a time (others wait up to 15 s, then fail closed), idle IO, `MemoryMax=3G`.
+- Reinstall or update: put `redact.py`, `server.py`, `requirements.txt` and `fetch_models.sh` in `/tmp/sgblur-pkg/app/`, then run `sudo bash deploy/install.sh`. The token is kept if it already exists.
+- Smoke test: `sudo /data/supercargo-blur/venv/bin/python deploy/smoke.py` (health, auth, sample photos, latency, CPU seconds).
+
+Measured on Atlas with 8 sample photos x 3 (1280 px): p50 5.3 s, p95 5.9 s, 3.9 cores average while busy (cap 4), nothing on any GPU.
+
+To wire it in later, set on the API: `SUPERCARGO_BLUR_URL=http://10.0.0.93:8791/v1/redact` and `SUPERCARGO_BLUR_TOKEN` (same value as in `blur.env`).
 
 ## Tests
 

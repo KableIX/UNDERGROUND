@@ -162,17 +162,18 @@ Progress is computed live from sightings and envelope claims (`supercargo_my_com
 - Reporters stay anonymous to the spotter.
 - Every decision (restore, remove, correct the model) carries a written reason the spotter can read. No silent removals.
 - Model corrections go to the catalog editors, not to a vote.
+- In the app: REPORT beside each recent sighting under the map opens the report sheet (reason, optional note). Admins work the queue under Admin: Restore, Remove or Correct the model, each with a written reason. The spotter reads every decision, and every hold, under Reviews in the Ledger.
 
 ## Identification and blurring
 
 Make and model: the existing `POST /v1/spotted/identify` (Qwen3-VL 2B on Aphrodite) suggests; the member confirms. SupercarGO only matches the confirmed text to the catalog.
 
-Blurring runs as `services/blur`, a small Python HTTP service meant for Atlas, on CPU. It is built and tested locally only. Not deployed.
+Blurring runs as `services/blur`, a small Python HTTP service on Atlas, CPU only. Installed 2026-11-27 as `supercargo-blur.service` on `10.0.0.93:8791`, not yet wired into the API. It has no access to any GPU, is capped at 4 cores at low priority, and takes one photo at a time (p50 5.3 s on Atlas).
 
 1. The API posts the EXIF-free working copy to `POST /v1/redact` with a bearer token. Nothing is written to disk and requests are not logged.
 2. Faces: YuNet (`face_detection_yunet_2023mar.onnx`, OpenCV Zoo, MIT). Plates: RF-DETR medium plate detector (`rf-detr-medium-plate.onnx`, Hugging Face `imbcmdth/rfdetr-onnx`, Apache-2.0), run on the full frame and four overlapping tiles. Both files are pinned by SHA-256 in `fetch_models.sh`.
 3. Each box is padded 15%, then pixelated on a coarse grid and blurred.
-4. Both detectors run again on the result. Anything left means fail.
+4. Both detectors run again on the result. Anything found is obscured again, wider, up to three rounds. Anything left after that means fail.
 5. The service returns the redacted JPEG and a difference hash. The API stores only that in the private `supercargo-redacted` bucket.
 
 Any error, timeout, bad token or residual detection is a fail, and a fail keeps the sighting private. With no `SUPERCARGO_BLUR_URL` set, the API uses the fail-closed engine and nothing publishes.
@@ -189,9 +190,10 @@ Migration `20261127000010_supercargo.sql`:
 - `supercargo_ledger`, `supercargo_exchanges`, `supercargo_reports`, `supercargo_moderation`
 - `supercargo_commissions`, `supercargo_marks`
 - `supercargo_meets`, `supercargo_featured`, `supercargo_image_hashes` (service only)
+- Admin and moderation functions: `supercargo_is_admin`, `supercargo_admin_anchors`, `supercargo_admin_save_anchor`, `supercargo_admin_stock`, `supercargo_admin_queue`, `supercargo_admin_decide`, and for spotters `supercargo_my_moderation`
 - Functions: `supercargo_map`, `supercargo_envelopes_near`, `supercargo_claim_envelope` (service), `supercargo_propose_exchange`, `supercargo_decide_exchange`, `supercargo_privacy_flags` (service), `supercargo_meet_at` (service), `supercargo_image_seen` (service), `supercargo_stock_envelopes` (service), `supercargo_my_commissions`, `supercargo_settle_marks` (service), `supercargo_my_club_marks`, `supercargo_tradeable_folios`, `supercargo_my_exchanges`, `supercargo_purge` (service)
 
-`tests/supercargo-postgres.sql` holds 46 checks against a throwaway Postgres with PostGIS and emulated Supabase auth.
+`tests/supercargo-postgres.sql` holds 55 checks against a throwaway Postgres with PostGIS and emulated Supabase auth.
 
 ## API
 
@@ -208,17 +210,28 @@ Reads go to Supabase directly under row-level security.
 - No live map. Members who want "where is it now" will not get it, by design.
 - The mode is quieter than AutoRadar. Fewer pins, later.
 - Catalog quality is ours to keep. Unsourced cars stay Open until someone cites a number.
-- Until the blur service runs on Atlas, SupercarGO is a private logbook with a Ledger.
+- Until the API is pointed at the blur service, SupercarGO is a private logbook with a Ledger.
 - We hold no originals, so a lost phone means lost originals. Spotted is the member's album to back up.
+
+## Admin
+
+Admins are members with `role = 'admin'`. Every admin function checks it in the database. The Admin screen (header link, admins only) has four sections:
+
+- **Queue**: reported sightings, held ones first, with the blurred photo, report reasons and notes. Reporters are never shown.
+- **Places**: envelope places with open envelopes and what is left. Add a place (name, kind, coordinates or "use where I am", and a required "public place, not a residential street" confirmation). Stock a place now for 1 to 72 hours. Pause or resume a place.
+- **Meets**: create a curated meet on a curated-meet place (start, up to 12 hours, 50 to 400 m), or remove one.
+- **Featured**: pick this week's or next week's featured car from the catalog, with an optional note.
 
 ## Navigation
 
 ```
 Tab bar ── SupercarGO (own tab)
-   ├─ MAP       sightings by cell · featured car · envelopes nearby → Open envelope
-   ├─ LEDGER    folios by tier · commissions this week · your clubs' combined marks
+   ├─ MAP       sightings by cell, reloads as you pan · recent sightings · featured car · envelopes → Open
+   ├─ LEDGER    folios by tier · commissions · clubs' combined marks · reviews of your sightings
    ├─ EXCHANGE  offers (Accept / Decline / Withdraw) · Propose → /supercargo/propose
    ├─ PRIVACY (header) → /supercargo/privacy: on/off, show number, home zone, per-car opt-out
+   ├─ ADMIN (header, admins only) → /supercargo/admin: Queue · Places · Meets · Featured
+   ├─ REPORT (beside each recent sighting) → /supercargo/report
    └─ LOG A SIGHTING (fixed button, every section) → /supercargo/capture
 ```
 

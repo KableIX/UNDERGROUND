@@ -14,6 +14,10 @@ from typing import Callable, List, Optional, Sequence, Tuple
 import cv2
 import numpy as np
 
+# Small, fixed CPU footprint so the service never competes with training.
+THREADS = max(1, int(os.environ.get("SUPERCARGO_BLUR_THREADS", "4")))
+cv2.setNumThreads(THREADS)
+
 Box = Tuple[int, int, int, int]  # x, y, w, h in pixels
 
 MAX_SIDE = 4096
@@ -22,6 +26,8 @@ FACE_THRESHOLD = 0.5   # YuNet score; blur anything at or above
 PLATE_THRESHOLD = 0.25  # RF-DETR plate confidence; 0.87 recall / 0.91 precision per model card
 VERIFY_FACE = 0.6      # a face this sure after blurring means failure
 VERIFY_PLATE = 0.35    # a plate this sure after blurring means failure
+VERIFY_ROUNDS = 3      # re-obscure what the check still finds, at most this often
+RESIDUAL_PAD = 0.5     # extra margin around anything found on the check
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
@@ -72,7 +78,10 @@ class RfDetrPlates:
 
         if not os.path.isfile(path):
             raise FileNotFoundError(path)
-        self.session = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
+        opts = ort.SessionOptions()
+        opts.intra_op_num_threads = THREADS
+        opts.inter_op_num_threads = 1
+        self.session = ort.InferenceSession(path, sess_options=opts, providers=["CPUExecutionProvider"])
 
     def _pass(self, img: np.ndarray, threshold: float) -> List[Tuple[float, float, float, float]]:
         rgb = cv2.cvtColor(cv2.resize(img, (self.SIZE, self.SIZE)), cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
@@ -145,9 +154,17 @@ def redact_jpeg(jpeg_b64: str, faces: Optional[Detector], plates: Optional[Detec
         face_boxes = faces(img, FACE_THRESHOLD)
         plate_boxes = plates(img, PLATE_THRESHOLD)
         out = obscure(img, face_boxes + plate_boxes)
-        # Prove it: run both detectors again on the output.
-        if faces(out, VERIFY_FACE) or plates(out, VERIFY_PLATE):
-            return Result("unavailable", reason="residual_detection")
+        # Prove it: run both detectors again on the output. Anything still found
+        # is obscured again, wider, up to VERIFY_ROUNDS times; then fail closed.
+        for _ in range(VERIFY_ROUNDS):
+            residual = faces(out, VERIFY_FACE) + plates(out, VERIFY_PLATE)
+            if not residual:
+                break
+            plate_boxes = plate_boxes + residual
+            out = obscure(out, [pad_box(r, w, h, RESIDUAL_PAD) for r in residual])
+        else:
+            if faces(out, VERIFY_FACE) or plates(out, VERIFY_PLATE):
+                return Result("unavailable", reason="residual_detection")
     except Exception:
         return Result("unavailable", reason="detector_error")
     ok, enc = cv2.imencode(".jpg", out, [int(cv2.IMWRITE_JPEG_QUALITY), 85])  # no EXIF is written

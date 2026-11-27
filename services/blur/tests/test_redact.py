@@ -151,3 +151,14 @@ class RealModels(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Callers(unittest.TestCase):
+    def test_only_private_networks(self):
+        import server
+
+        self.assertTrue(server.allowed("10.0.0.93"))
+        self.assertTrue(server.allowed("127.0.0.1"))
+        self.assertFalse(server.allowed("8.8.8.8"))
+        self.assertFalse(server.allowed("100.77.37.88"))
+        self.assertFalse(server.allowed("not-an-ip"))

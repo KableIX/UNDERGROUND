@@ -418,4 +418,100 @@ BEGIN
   END;
 END
 $check$;
+
+-- Admin tools, reports and written moderation reasons.
+RESET ROLE;
+INSERT INTO public.supercargo_sightings (id, spotter, catalog_id, make, model, tier, source, credited, visibility, redaction,
+  captured_at, publish_at, expires_at, cell_id, cell_lat, cell_lng, photo_path) VALUES
+ ('a0000000-0000-4000-8000-0000000000aa','22222222-2222-4222-8222-222222222222','porsche-918-spyder','Porsche','918 Spyder','numbered','camera',true,'public','done',
+   now()-interval '20 hours', now()-interval '8 hours', now()+interval '52 hours','c0.02:1866:-5000',37.33,-121.89,'supercargo/redacted/bbbb/000000aa.jpg');
+INSERT INTO public.supercargo_ledger (member_id, catalog_id, origin, sighting_id) VALUES
+ ('22222222-2222-4222-8222-222222222222','porsche-918-spyder','sighting','a0000000-0000-4000-8000-0000000000aa');
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-8ccc-cccccccccccc',true);
+INSERT INTO public.supercargo_reports (sighting_id, reason, note) VALUES ('a0000000-0000-4000-8000-0000000000aa','wrong_model','Looks like a Carrera GT');
+DO $check$
+BEGIN
+  IF public.supercargo_is_admin() THEN RAISE EXCEPTION 'FAIL: C is not an admin'; END IF;
+  BEGIN
+    PERFORM * FROM public.supercargo_admin_queue();
+    RAISE EXCEPTION 'FAIL: member read the moderation queue';
+  EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS: the moderation queue is admin-only';
+  END;
+  BEGIN
+    PERFORM public.supercargo_admin_stock('pch-overlook', 6, 2, 5::smallint);
+    RAISE EXCEPTION 'FAIL: member stocked envelopes';
+  EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS: only admins stock envelopes';
+  END;
+END
+$check$;
+SELECT set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',true);
+INSERT INTO public.supercargo_reports (sighting_id, reason) VALUES ('a0000000-0000-4000-8000-0000000000aa','wrong_model');
+
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
+DO $check$
+DECLARE r record; n integer; anchor_id text;
+BEGIN
+  IF NOT public.supercargo_is_admin() THEN RAISE EXCEPTION 'FAIL: A should be an admin'; END IF;
+  SELECT * INTO r FROM public.supercargo_admin_queue() q WHERE q.sighting_id = 'a0000000-0000-4000-8000-0000000000aa';
+  IF NOT FOUND OR r.reports->0->>'reason' <> 'wrong_model' OR (r.reports->0->>'count')::int <> 2 OR r.notes[1] <> 'Looks like a Carrera GT' THEN
+    RAISE EXCEPTION 'FAIL: queue row %', r;
+  END IF;
+  IF r.reports::text LIKE '%cccccccc%' OR r.reports::text LIKE '%3333%' THEN RAISE EXCEPTION 'FAIL: queue names a reporter'; END IF;
+  RAISE NOTICE 'PASS: the queue shows reasons and notes, not reporters';
+  BEGIN
+    PERFORM public.supercargo_admin_decide('a0000000-0000-4000-8000-0000000000aa', 'correct_model', ' ', 'ferrari-laferrari');
+    RAISE EXCEPTION 'FAIL: decision without a reason';
+  EXCEPTION WHEN check_violation THEN RAISE NOTICE 'PASS: every decision needs a written reason';
+  END;
+  PERFORM public.supercargo_admin_decide('a0000000-0000-4000-8000-0000000000aa', 'correct_model', 'It is a LaFerrari: the rear wing and lights match.', 'ferrari-laferrari');
+  SELECT count(*) INTO n FROM public.supercargo_admin_queue() q WHERE q.sighting_id = 'a0000000-0000-4000-8000-0000000000aa';
+  IF n <> 0 THEN RAISE EXCEPTION 'FAIL: decided sighting still queued'; END IF;
+  RAISE NOTICE 'PASS: a decision clears the queue';
+
+  BEGIN
+    PERFORM public.supercargo_admin_save_anchor('quiet-street', 'Quiet street', 'venue', -121.9, 37.3, true, false);
+    RAISE EXCEPTION 'FAIL: unconfirmed place saved';
+  EXCEPTION WHEN check_violation THEN RAISE NOTICE 'PASS: a place needs the public-place confirmation';
+  END;
+  anchor_id := public.supercargo_admin_save_anchor('test-museum', 'Test Museum', 'museum', -121.9, 37.3, true, true);
+  n := public.supercargo_admin_stock(anchor_id, 6, 3, 4::smallint);
+  IF n <> 3 THEN RAISE EXCEPTION 'FAIL: stocked % envelopes', n; END IF;
+  SELECT * INTO r FROM public.supercargo_admin_anchors() a WHERE a.id = 'test-museum';
+  IF r.open_envelopes <> 3 OR r.remaining <> 12 THEN RAISE EXCEPTION 'FAIL: anchor summary %', r; END IF;
+  RAISE NOTICE 'PASS: admins add a place, stock it and see what is left';
+END
+$check$;
+
+RESET ROLE;
+UPDATE public.supercargo_sightings SET visibility = 'public', hold_reason = NULL WHERE id = 'a0000000-0000-4000-8000-0000000000aa';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
+INSERT INTO public.supercargo_reports (sighting_id, reason) VALUES ('a0000000-0000-4000-8000-0000000000aa','plate_visible');
+SELECT set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',true);
+DO $check$
+DECLARE r record; v text;
+BEGIN
+  SELECT visibility INTO v FROM public.supercargo_sightings WHERE id = 'a0000000-0000-4000-8000-0000000000aa';
+  IF v <> 'held' THEN RAISE EXCEPTION 'FAIL: plate report did not hold (%)', v; END IF;
+  SELECT * INTO r FROM public.supercargo_my_moderation() ORDER BY at DESC LIMIT 1;
+  IF r.status <> 'held' THEN RAISE EXCEPTION 'FAIL: spotter not told of the hold %', r; END IF;
+  PERFORM 1 FROM public.supercargo_my_moderation() WHERE status = 'correct_model' AND reason LIKE 'It is a LaFerrari%' AND model = 'LaFerrari';
+  IF NOT FOUND THEN RAISE EXCEPTION 'FAIL: spotter cannot read the written reason'; END IF;
+  PERFORM 1 FROM public.supercargo_ledger WHERE sighting_id = 'a0000000-0000-4000-8000-0000000000aa' AND catalog_id = 'ferrari-laferrari';
+  IF NOT FOUND THEN RAISE EXCEPTION 'FAIL: folio not corrected'; END IF;
+  RAISE NOTICE 'PASS: the spotter sees holds and every written reason, and the folio follows a correction';
+END
+$check$;
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
+DO $check$
+DECLARE v text;
+BEGIN
+  PERFORM public.supercargo_admin_decide('a0000000-0000-4000-8000-0000000000aa', 'remove', 'The plate is readable at full size.');
+  SELECT visibility INTO v FROM public.supercargo_sightings WHERE id = 'a0000000-0000-4000-8000-0000000000aa';
+  IF v <> 'removed' THEN RAISE EXCEPTION 'FAIL: remove left %', v; END IF;
+  RAISE NOTICE 'PASS: an admin removes a sighting with a reason';
+END
+$check$;
 ROLLBACK;

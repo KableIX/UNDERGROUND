@@ -690,6 +690,157 @@ $$;
 REVOKE ALL ON FUNCTION public.supercargo_privacy_flags(uuid, text, text, double precision, double precision) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.supercargo_privacy_flags(uuid, text, text, double precision, double precision) TO service_role;
 
+-- Admin tools. Admin is members.role = 'admin'. Every function checks it.
+CREATE FUNCTION public.supercargo_is_admin() RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM members m WHERE m.id = public.current_member_id() AND m.role = 'admin')
+$$;
+REVOKE ALL ON FUNCTION public.supercargo_is_admin() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.supercargo_is_admin() TO authenticated;
+
+CREATE FUNCTION public.supercargo_require_admin() RETURNS void
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT public.supercargo_is_admin() THEN
+    RAISE EXCEPTION 'admins only' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+END $$;
+REVOKE ALL ON FUNCTION public.supercargo_require_admin() FROM PUBLIC, anon, authenticated;
+
+-- Envelope places with what is open at each.
+CREATE FUNCTION public.supercargo_admin_anchors()
+RETURNS TABLE (id text, name text, kind text, lng double precision, lat double precision, active boolean,
+               open_envelopes integer, remaining integer)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  PERFORM public.supercargo_require_admin();
+  RETURN QUERY
+  SELECT a.id, a.name, a.kind, ST_X(a.point::geometry), ST_Y(a.point::geometry), a.active,
+         coalesce(e.n, 0)::integer, coalesce(e.left_over, 0)::integer
+    FROM supercargo_anchors a
+    LEFT JOIN LATERAL (
+      SELECT count(*) AS n, sum(x.stock - x.claimed) AS left_over
+        FROM supercargo_envelopes x WHERE x.anchor_id = a.id AND now() < x.closes_at) e ON true
+   ORDER BY a.active DESC, a.name;
+END $$;
+REVOKE ALL ON FUNCTION public.supercargo_admin_anchors() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.supercargo_admin_anchors() TO authenticated;
+
+-- Add or edit a place. Saving it is the review: the admin confirms it is a public place.
+CREATE FUNCTION public.supercargo_admin_save_anchor(p_id text, p_name text, p_kind text, p_lng double precision,
+  p_lat double precision, p_active boolean, p_public_place boolean)
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  PERFORM public.supercargo_require_admin();
+  IF p_public_place IS NOT TRUE THEN
+    RAISE EXCEPTION 'confirm this is a public place, not a residential street' USING ERRCODE = 'check_violation';
+  END IF;
+  IF p_lng NOT BETWEEN -180 AND 180 OR p_lat NOT BETWEEN -90 AND 90 THEN
+    RAISE EXCEPTION 'coordinates' USING ERRCODE = 'check_violation';
+  END IF;
+  INSERT INTO supercargo_anchors (id, name, kind, point, reviewed_public, active)
+  VALUES (p_id, p_name, p_kind, ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography, true, coalesce(p_active, true))
+  ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, kind = EXCLUDED.kind, point = EXCLUDED.point,
+                                 reviewed_public = true, active = EXCLUDED.active;
+  RETURN p_id;
+END $$;
+REVOKE ALL ON FUNCTION public.supercargo_admin_save_anchor(text, text, text, double precision, double precision, boolean, boolean) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.supercargo_admin_save_anchor(text, text, text, double precision, double precision, boolean, boolean) TO authenticated;
+
+-- Stock a place from now for a number of hours. Contents follow the rarity draw.
+CREATE FUNCTION public.supercargo_admin_stock(p_anchor text, p_hours integer, p_count integer, p_stock smallint)
+RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  PERFORM public.supercargo_require_admin();
+  IF p_hours NOT BETWEEN 1 AND 72 THEN RAISE EXCEPTION 'hours' USING ERRCODE = 'check_violation'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM supercargo_anchors a WHERE a.id = p_anchor AND a.active) THEN
+    RAISE EXCEPTION 'place is not active' USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN public.supercargo_stock_envelopes(p_anchor, now(), now() + make_interval(hours => p_hours), p_count, p_stock);
+END $$;
+REVOKE ALL ON FUNCTION public.supercargo_admin_stock(text, integer, integer, smallint) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.supercargo_admin_stock(text, integer, integer, smallint) TO authenticated;
+
+-- Moderation queue: sightings with reports since their last decision. Reporters stay anonymous.
+CREATE FUNCTION public.supercargo_admin_queue()
+RETURNS TABLE (sighting_id uuid, make text, model text, tier text, visibility text, hold_reason text,
+               captured_on date, photo_path text, reports jsonb, notes text[])
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  PERFORM public.supercargo_require_admin();
+  RETURN QUERY
+  WITH last_decision AS (
+    SELECT d.sighting_id, max(d.decided_at) AS at FROM supercargo_moderation d GROUP BY d.sighting_id
+  ), open_reports AS (
+    SELECT r.* FROM supercargo_reports r LEFT JOIN last_decision l ON l.sighting_id = r.sighting_id
+     WHERE l.at IS NULL OR r.created_at > l.at
+  ), by_reason AS (
+    SELECT o.sighting_id, o.reason, count(*)::integer AS n FROM open_reports o GROUP BY o.sighting_id, o.reason
+  )
+  SELECT s.id, s.make, s.model, s.tier, s.visibility, s.hold_reason, (s.captured_at AT TIME ZONE 'UTC')::date, s.photo_path,
+         (SELECT jsonb_agg(jsonb_build_object('reason', b.reason, 'count', b.n) ORDER BY b.n DESC) FROM by_reason b WHERE b.sighting_id = s.id),
+         (SELECT array_agg(o.note ORDER BY o.created_at) FROM open_reports o WHERE o.sighting_id = s.id AND o.note IS NOT NULL)
+    FROM supercargo_sightings s
+   WHERE s.visibility IN ('held', 'public')
+     AND EXISTS (SELECT 1 FROM open_reports o WHERE o.sighting_id = s.id)
+   ORDER BY (s.visibility = 'held') DESC, s.captured_at;
+END $$;
+REVOKE ALL ON FUNCTION public.supercargo_admin_queue() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.supercargo_admin_queue() TO authenticated;
+
+-- A decision always carries a written reason the spotter can read.
+CREATE FUNCTION public.supercargo_admin_decide(p_sighting uuid, p_decision text, p_reason text, p_catalog text DEFAULT NULL)
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE c record;
+BEGIN
+  PERFORM public.supercargo_require_admin();
+  IF p_reason IS NULL OR length(btrim(p_reason)) NOT BETWEEN 3 AND 280 THEN
+    RAISE EXCEPTION 'write a reason the spotter can read' USING ERRCODE = 'check_violation';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM supercargo_sightings WHERE id = p_sighting) THEN
+    RAISE EXCEPTION 'no such sighting' USING ERRCODE = 'no_data_found';
+  END IF;
+  IF p_decision = 'remove' THEN
+    UPDATE supercargo_sightings SET visibility = 'removed', hold_reason = 'moderation' WHERE id = p_sighting;
+  ELSIF p_decision = 'restore' THEN
+    UPDATE supercargo_sightings SET visibility = 'public', hold_reason = NULL
+     WHERE id = p_sighting AND visibility = 'held' AND redaction = 'done' AND credited AND photo_path IS NOT NULL;
+  ELSIF p_decision = 'correct_model' THEN
+    SELECT * INTO c FROM supercargo_catalog WHERE id = p_catalog;
+    IF NOT FOUND THEN RAISE EXCEPTION 'pick a catalog model' USING ERRCODE = 'check_violation'; END IF;
+    UPDATE supercargo_sightings SET catalog_id = c.id, make = c.make, model = c.model, tier = c.tier,
+           visibility = CASE WHEN visibility = 'held' AND redaction = 'done' AND credited AND photo_path IS NOT NULL THEN 'public' ELSE visibility END,
+           hold_reason = CASE WHEN visibility = 'held' THEN NULL ELSE hold_reason END
+     WHERE id = p_sighting;
+    UPDATE supercargo_ledger SET catalog_id = c.id WHERE sighting_id = p_sighting;
+  ELSE
+    RAISE EXCEPTION 'decision' USING ERRCODE = 'check_violation';
+  END IF;
+  INSERT INTO supercargo_moderation (sighting_id, decision, reason, decided_by)
+  VALUES (p_sighting, p_decision, btrim(p_reason), public.current_member_id());
+  RETURN p_decision;
+END $$;
+REVOKE ALL ON FUNCTION public.supercargo_admin_decide(uuid, text, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.supercargo_admin_decide(uuid, text, text, text) TO authenticated;
+
+-- What happened to my sightings: holds waiting for review, and every decision with its reason.
+CREATE FUNCTION public.supercargo_my_moderation()
+RETURNS TABLE (sighting_id uuid, make text, model text, status text, reason text, at timestamptz)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT * FROM (
+    SELECT s.id, s.make, s.model, d.decision, d.reason, d.decided_at
+      FROM supercargo_moderation d JOIN supercargo_sightings s ON s.id = d.sighting_id
+     WHERE s.spotter = public.current_member_id()
+    UNION ALL
+    SELECT s.id, s.make, s.model, 'held', 'Taken off the map after a report. A moderator will review it and write the reason here.',
+           (SELECT max(r.created_at) FROM supercargo_reports r WHERE r.sighting_id = s.id)
+      FROM supercargo_sightings s
+     WHERE s.spotter = public.current_member_id() AND s.visibility = 'held' AND s.hold_reason LIKE 'report:%'
+  ) x ORDER BY 6 DESC, (x.decision = 'held') DESC LIMIT 50
+$$;
+REVOKE ALL ON FUNCTION public.supercargo_my_moderation() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.supercargo_my_moderation() TO authenticated;
+
 -- Redacted photos only. Members read; only the API writes.
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES ('supercargo-redacted', 'supercargo-redacted', false, 1048576, ARRAY['image/jpeg'])
@@ -697,6 +848,7 @@ ON CONFLICT (id) DO NOTHING;
 CREATE POLICY supercargo_redacted_members_read ON storage.objects FOR SELECT TO authenticated
   USING (bucket_id = 'supercargo-redacted' AND public.current_member_id() IS NOT NULL AND EXISTS (
     SELECT 1 FROM public.supercargo_sightings s WHERE s.photo_path = name
-      AND (s.spotter = public.current_member_id() OR (s.visibility = 'public' AND now() >= s.publish_at AND now() < s.expires_at))));
+      AND (s.spotter = public.current_member_id() OR (s.visibility = 'public' AND now() >= s.publish_at AND now() < s.expires_at)
+           OR (s.visibility IN ('held', 'public') AND public.supercargo_is_admin()))));
 
 COMMIT;

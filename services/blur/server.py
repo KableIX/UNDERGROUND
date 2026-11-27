@@ -1,4 +1,6 @@
-"""SupercarGO blur service for Atlas. Localhost only, bearer token, CPU only.
+"""SupercarGO blur service for Atlas.
+
+LAN-bound on Atlas, private callers only, bearer token, CPU only, one photo at a time.
 
 POST /v1/redact {"jpeg": "<base64>"} -> {"status": "done", "jpeg", "faces", "plates", "dhash"}
                                       or {"status": "unavailable", "reason"}
@@ -9,8 +11,10 @@ Photos are held in memory for one request and never written to disk or logs.
 from __future__ import annotations
 
 import hmac
+import ipaddress
 import json
 import os
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")  # never touch the GPUs
@@ -18,6 +22,19 @@ os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")  # never touch the GPUs
 from redact import load_detectors, redact_jpeg  # noqa: E402
 
 MAX_BODY = 1_600_000
+# Detectors are not thread-safe and CPU is shared with training: one photo at a time by default.
+SLOTS = threading.BoundedSemaphore(max(1, int(os.environ.get("SUPERCARGO_BLUR_CONCURRENCY", "1"))))
+QUEUE_WAIT_S = 15.0
+# Only private-network callers (the API on the LAN or this host). Token is still required.
+ALLOWED = [ipaddress.ip_network(n.strip()) for n in os.environ.get("SUPERCARGO_BLUR_ALLOW", "127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16").split(",") if n.strip()]
+
+
+def allowed(addr: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(addr)
+    except ValueError:
+        return False
+    return any(ip in net for net in ALLOWED)
 
 
 def make_handler(token: str, faces, plates):
@@ -42,6 +59,8 @@ def make_handler(token: str, faces, plates):
             return self._send(404, {"ok": False})
 
         def do_POST(self):
+            if not allowed(self.client_address[0]):
+                return self._send(403, {"status": "unavailable", "reason": "forbidden"})
             if self.path != "/v1/redact":
                 return self._send(404, {"ok": False})
             given = self.headers.get("Authorization", "")
@@ -57,7 +76,12 @@ def make_handler(token: str, faces, plates):
                     raise ValueError
             except Exception:
                 return self._send(400, {"status": "unavailable", "reason": "bad_request"})
-            r = redact_jpeg(jpeg, faces, plates)
+            if not SLOTS.acquire(timeout=QUEUE_WAIT_S):
+                return self._send(503, {"status": "unavailable", "reason": "busy"})
+            try:
+                r = redact_jpeg(jpeg, faces, plates)
+            finally:
+                SLOTS.release()
             if r.status != "done":
                 return self._send(200, {"status": "unavailable", "reason": r.reason})
             return self._send(200, {"status": "done", "jpeg": r.jpeg, "faces": r.faces, "plates": r.plates, "dhash": r.dhash})

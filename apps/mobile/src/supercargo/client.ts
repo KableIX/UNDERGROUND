@@ -75,11 +75,6 @@ export async function readEnvelopes(lng: number, lat: number) {
   return (data ?? []) as SealedEnvelope[];
 }
 
-export async function reportSighting(sighting: string, reason: string) {
-  const { error } = await db().from('supercargo_reports').insert({ sighting_id: sighting, reason });
-  if (error) throw new Error('Report not sent. Try again.');
-}
-
 export function captureNonce() {
   return api<{ nonce: string }>('/v1/supercargo/capture-nonce', {});
 }
@@ -205,4 +200,148 @@ export async function setOptOut(vehicleId: string, optedOut: boolean) {
     : db().from('supercargo_optouts').delete().eq('vehicle_id', vehicleId);
   const { error } = await q;
   if (error) throw new Error('Could not save that.');
+}
+
+// ---- Reports and moderation ----
+
+export async function fileReport(sighting: string, reason: string, note: string) {
+  const { error } = await db()
+    .from('supercargo_reports')
+    .insert({ sighting_id: sighting, reason, note: note.trim() ? note.trim().slice(0, 280) : null });
+  if (error) throw new Error(error.code === '23505' ? 'You have already reported this sighting.' : 'Report not sent. Try again.');
+}
+
+export type ModerationNote = { sighting_id: string; make: string; model: string; status: string; reason: string; at: string };
+
+export async function readMyModeration() {
+  const { data } = await db().rpc('supercargo_my_moderation');
+  return (data ?? []) as ModerationNote[];
+}
+
+export async function photoUrl(path: string | null) {
+  if (!path) return null;
+  const { data } = await db().storage.from('supercargo-redacted').createSignedUrl(path, 300);
+  return data?.signedUrl ?? null;
+}
+
+// ---- Admin ----
+
+export async function readIsAdmin() {
+  const { data } = await db().rpc('supercargo_is_admin');
+  return data === true;
+}
+
+export type QueueItem = {
+  sighting_id: string;
+  make: string;
+  model: string;
+  tier: SupercargoTier;
+  visibility: string;
+  hold_reason: string | null;
+  captured_on: string;
+  photo_path: string | null;
+  reports: Array<{ reason: string; count: number }> | null;
+  notes: string[] | null;
+};
+
+export async function readQueue() {
+  const { data, error } = await db().rpc('supercargo_admin_queue');
+  if (error) throw new Error('The queue is unavailable.');
+  return (data ?? []) as QueueItem[];
+}
+
+export async function decide(sighting: string, decision: 'restore' | 'remove' | 'correct_model', reason: string, catalogId?: string) {
+  const { error } = await db().rpc('supercargo_admin_decide', {
+    p_sighting: sighting,
+    p_decision: decision,
+    p_reason: reason,
+    p_catalog: catalogId ?? null,
+  });
+  if (error) throw new Error('Not saved. Write a reason of at least three characters.');
+}
+
+export type AdminAnchor = {
+  id: string;
+  name: string;
+  kind: string;
+  lng: number;
+  lat: number;
+  active: boolean;
+  open_envelopes: number;
+  remaining: number;
+};
+
+export async function readAnchors() {
+  const { data, error } = await db().rpc('supercargo_admin_anchors');
+  if (error) throw new Error('Places are unavailable.');
+  return (data ?? []) as AdminAnchor[];
+}
+
+export async function saveAnchor(a: { id: string; name: string; kind: string; lng: number; lat: number; active: boolean; publicPlace: boolean }) {
+  const { error } = await db().rpc('supercargo_admin_save_anchor', {
+    p_id: a.id,
+    p_name: a.name,
+    p_kind: a.kind,
+    p_lng: a.lng,
+    p_lat: a.lat,
+    p_active: a.active,
+    p_public_place: a.publicPlace,
+  });
+  if (error) throw new Error('Place not saved.');
+}
+
+export async function stockAnchor(anchor: string, hours: number, count: number, stock: number) {
+  const { data, error } = await db().rpc('supercargo_admin_stock', { p_anchor: anchor, p_hours: hours, p_count: count, p_stock: stock });
+  if (error) throw new Error('Not stocked. 1 to 72 hours, 1 to 50 envelopes, 1 to 50 each.');
+  return data as number;
+}
+
+export type Meet = { id: string; anchor_id: string; name: string; starts_at: string; ends_at: string; radius_m: number };
+
+export async function readMeets() {
+  const { data, error } = await db()
+    .from('supercargo_meets')
+    .select('id, anchor_id, name, starts_at, ends_at, radius_m')
+    .gte('ends_at', new Date().toISOString())
+    .order('starts_at');
+  if (error) throw new Error('Meets are unavailable.');
+  return (data ?? []) as Meet[];
+}
+
+export async function createMeet(m: { anchorId: string; name: string; startsAt: Date; hours: number; radiusM: number }) {
+  const { error } = await db()
+    .from('supercargo_meets')
+    .insert({
+      anchor_id: m.anchorId,
+      name: m.name,
+      starts_at: m.startsAt.toISOString(),
+      ends_at: new Date(m.startsAt.getTime() + m.hours * 3_600_000).toISOString(),
+      radius_m: m.radiusM,
+    });
+  if (error) throw new Error('Meet not saved. It needs a curated-meet place, at most 12 hours, 50 to 400 m.');
+}
+
+export async function deleteMeet(id: string) {
+  const { error } = await db().from('supercargo_meets').delete().eq('id', id);
+  if (error) throw new Error('Could not remove that meet.');
+}
+
+export type CatalogCar = { id: string; make: string; model: string; tier: SupercargoTier };
+
+export async function readCatalog() {
+  const { data, error } = await db().from('supercargo_catalog').select('id, make, model, tier').order('make');
+  if (error) throw new Error('The catalog is unavailable.');
+  return (data ?? []) as CatalogCar[];
+}
+
+export async function readFeaturedWeeks(weeks: string[]) {
+  const { data } = await db().from('supercargo_featured').select('week_start, catalog_id, note').in('week_start', weeks);
+  return (data ?? []) as Array<{ week_start: string; catalog_id: string; note: string | null }>;
+}
+
+export async function setFeatured(week: string, catalogId: string, note: string) {
+  const { error } = await db()
+    .from('supercargo_featured')
+    .upsert({ week_start: week, catalog_id: catalogId, note: note.trim() || null }, { onConflict: 'week_start' });
+  if (error) throw new Error('Featured car not saved.');
 }
