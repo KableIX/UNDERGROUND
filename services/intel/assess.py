@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from shapely.geometry import Point, LineString, shape
 from shapely.strtree import STRtree
+from collector import geo_valid
 ROOT=Path(__file__).parent
 DATA=ROOT.parent.parent/'apps/mobile/src/data'
 def epoch(value):
@@ -17,19 +18,9 @@ def point(location,prefix):
  return None
 def normalize(source,payload,now):
  events=[]
- for row in payload.get('data',[]) if source.startswith('caltrans') else payload.get('features',[]):
+ for row in payload.get('features',[]):
   try:
-   if source.startswith('caltrans'):
-    c=row['lcs']; loc=c['location']; cl=c['closure']; ts=cl['closureTimestamp']
-    start=epoch(ts['closureStartEpoch']); end=epoch(ts['closureEndEpoch'])
-    if start is None or end is None or not start<=now<end: continue
-    a=point(loc['begin'],'begin'); b=point(loc['end'],'end')
-    if a is None or b is None: continue
-    # Endpoints alone are not a verified road path. Flag nearby work only,
-    # never infer a complete route closure from a point/chord intersection.
-    for i,p in enumerate((a,b)):
-     events.append(dict(id=source+':'+c['index']+':'+str(i),source=source,kind='roadwork',title=cl['typeOfClosure']+' - '+cl['typeOfWork'],road=loc['begin']['beginRoute'],expires=end,geometry=p,precision='closure endpoint'))
-   elif source.startswith('nws'):
+   if source in ('nws-CA','nws-FL'):
     p=row['properties']; start=epoch(p.get('onset') or p.get('effective')); end=epoch(p.get('expires'))
     if p.get('status')!='Actual' or start is None or end is None or not start<=now<end or not row.get('geometry'): continue
     geom=shape(row['geometry'])
@@ -37,19 +28,54 @@ def normalize(source,payload,now):
     events.append(dict(id=row['id'],source=source,kind='weather',title=p['event'],road=None,expires=end,geometry=geom,precision='official alert polygon'))
   except (KeyError,TypeError,ValueError,AttributeError): continue
  return events
-def assess(now=None):
- now=now or time.time()
+def fresh_source(health, source, now):
+ h=health.get(source,{})
+ return bool(h.get('ok')) and 0<=now-h.get('checked_at',0)<=900
+
+ROAD_CATEGORIES={'closure','construction','accident','debris_hazard','fire','weather','disabled_vehicle'}
+
+def road_candidates(db, health, now):
+ """Shadow-only official road events; spatial proximity is not a road identity."""
+ db.row_factory=sqlite3.Row
+ for r in db.execute("""SELECT source,source_id,category,headline,road_name,lat,lon,end_lat,end_lon,
+ geometry,expires_at,starts_at,status,upstream FROM incidents
+ WHERE active=1 AND published=0 AND geo_valid=1 AND expires_at>? AND (starts_at IS NULL OR starts_at<=?)""",(now,now)):
+  source=r['source']
+  if not fresh_source(health,source,now) or r['category'] not in ROAD_CATEGORIES: continue
+  if source=='511-bayarea':
+   if r['status']!='ACTIVE': continue
+   # No enforcement reports, unknown originators or user-generated data.
+   if not r['upstream'] or r['upstream'].lower() not in ('chp','caltrans','local agency','local agencies'): continue
+   coords=[]
+   try:
+    g=shape(json.loads(r['geometry']))
+    if g.geom_type=='Point' and geo_valid(g.y,g.x): coords=[g]
+    elif g.geom_type in ('LineString','MultiLineString') and g.is_valid and not g.is_empty:
+     minx,miny,maxx,maxy=g.bounds
+     if geo_valid(miny,minx) and geo_valid(maxy,maxx): coords=[g]
+   except (ValueError,TypeError,AttributeError,KeyError): pass
+  elif source in ('caltrans-d4','caltrans-d5'):
+   if r['status']!='IN_PLACE': continue
+   coords=[Point(x,y) for x,y in ((r['lon'],r['lat']),(r['end_lon'],r['end_lat'])) if geo_valid(y,x)]
+  else: continue
+  for i,g in enumerate(coords):
+   yield dict(id=f"{source}:{r['source_id']}:{i}",source=source,kind='roadwork',category=r['category'],title=r['headline'] or r['category'],road=r['road_name'],expires=r['expires_at'],geometry=g,precision='provider geometry; road identity unverified' if source=='511-bayarea' else 'closure endpoint')
+
+def assess(now=None, db_path=None, data_path=None):
+ now=time.time() if now is None else now
+ data_path=Path(data_path or DATA)
  events=[]; health={}
- with sqlite3.connect(ROOT/'shadow.sqlite3') as db:
+ with sqlite3.connect(db_path or ROOT/'shadow.sqlite3') as db:
   for name,checked,ok,detail in db.execute('select * from health'): health[name]={'checked_at':checked,'ok':bool(ok),'detail':detail}
   for name,url,fetched,payload,count in db.execute('select * from snapshots'):
-   if now-fetched>900 or not health.get(name,{}).get('ok'): continue
+   if name not in ('nws-CA','nws-FL') or not 0<=now-fetched<=900 or not fresh_source(health,name,now): continue
    events.extend(normalize(name,json.loads(payload),now))
+  events.extend(road_candidates(db,health,now))
  tree=STRtree([e['geometry'] for e in events])
  routes={}
  for state in ('california','florida'):
-  catalog=json.loads((DATA/(state+'-catalog.json')).read_text())
-  roads=json.loads((DATA/(state+'-road-routes.json')).read_text())
+  catalog=json.loads((data_path/(state+'-catalog.json')).read_text())
+  roads=json.loads((data_path/(state+'-road-routes.json')).read_text())
   for row in catalog:
    road=roads.get(row['id'])
    if not road or len(road.get('coordinates',[]))<2: continue
@@ -59,6 +85,7 @@ def assess(now=None):
     e=events[int(idx)]
     if e['source'].startswith('nws') and not e['source'].endswith('CA' if state=='california' else 'FL'): continue
     if e['kind']=='weather' and not line.intersects(e['geometry']): continue
+    if e['kind']=='roadwork' and state!='california': continue
     if e['kind']=='roadwork' and line.distance(e['geometry'])>0.0003: continue
     # Proximity is not road identity. Keep roadwork candidates internal.
     matches.append({k:v for k,v in e.items() if k!='geometry'})

@@ -1,3 +1,4 @@
+import { IntelRouteStatus } from './IntelRouteStatus';
 import { DrivePhoto } from './DrivePhoto';
 import { useEffect, useState } from 'react';
 import { AppState, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -86,6 +87,7 @@ export function MappedRunPreview({ run, route }: Props) {
           <Text style={styles.copy}>{i===0 ? 'Start · ' : i===run.sequence.length-1 ? 'Finish · ' : ''}{point}</Text>
           {(i===0 || i===run.sequence.length-1) && <Text style={styles.note}>{i===0 ? startLat.toFixed(5)+', '+startLng.toFixed(5) : endLat.toFixed(5)+', '+endLng.toFixed(5)}</Text>}
         </View></View>)}
+        <IntelRouteStatus slug={run.slug} />
         <Text style={styles.label}>Road conditions</Text>
         <Text style={styles.copy}>{run.accessNote}</Text>
         <Text style={styles.note}>{notices.length?'Saved bulletins below. Open the traffic report for current conditions.':'Live road conditions have not been checked for this drive.'}</Text>

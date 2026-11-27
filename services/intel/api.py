@@ -1,7 +1,7 @@
 import json,time,threading,logging
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from urllib.parse import urlsplit
-from assess import assess
+from assess import assess,fresh_source
 from pathlib import Path
 ROOT=Path(__file__).parent
 def refresh():
@@ -20,7 +20,7 @@ def public_route(data,slug,now):
  if not route:return None
  fresh=0<=now-data.get('generated_at',0)<=600
  # Only expose valid official weather polygons, never nearby closure candidates.
- weather=[{'title':e['title'],'source':e['source'],'expires':e['expires']} for e in route['candidates'] if e['kind']=='weather' and e['expires']>now] if fresh else []
+ weather=[{'title':e['title'],'source':e['source'],'expires':e['expires']} for e in route['candidates'] if e['kind']=='weather' and e['source'] in ('nws-CA','nws-FL') and e['expires']>now and fresh_source(data.get('health',{}),e['source'],now)] if fresh else []
  return {'route':slug,'status':'CAUTION' if weather else 'UNKNOWN','coverage':'partial','generated_at':data['generated_at'],'weather':weather,'road_status':'Not assessed','mode':'limited_preview'}
 class Handler(BaseHTTPRequestHandler):
  def do_GET(self):

@@ -30,6 +30,8 @@ LIMIT_511_PER_HOUR = 30      # 511 allows 60 / 3600 s per key; we self-cap at ha
 MIN_REMAINING_511 = 5        # back off if provider says we are near its limit
 
 DEDUP_RADIUS_M = 1000.0
+RETENTION_S = 14 * 86400
+RAW_RETENTION_S = 7 * 86400
 STALE_GRACE_S = 900          # open-ended items expire if not re-seen within 15 min
 
 # ---------------------------------------------------------------- secrets / redaction
@@ -290,28 +292,48 @@ def init_db(db):
     db.executescript(SCHEMA)
 
 def upsert_incidents(db, source, rows, now):
-    existing = {r[0] for r in db.execute('SELECT source_id FROM incidents WHERE source=?', (source,))}
-    ins = upd = 0
+    existing = {r[0]: (r[1], r[2]) for r in db.execute(
+        'SELECT source_id,active,withdrawn_at FROM incidents WHERE source=?', (source,))}
+    ins = upd = expired = 0
     for r in rows:
+        sid = r['source_id']
+        # Ended/lifted records may remain in a provider snapshot for several cycles.
+        active = int(r['status'] not in ('LIFTED', 'INACTIVE', 'CANCELLED', 'CLOSED_EVENT')
+                     and (r['expires_at'] is None or r['expires_at'] > now))
+        prior = existing.get(sid)
+        withdrawn = None if active else (prior[1] if prior and not prior[0] and prior[1] is not None else now)
         vals = [r[c] for c in COLS]
-        if r['source_id'] in existing:
+        if prior is not None:
+            if prior[0] and not active:
+                expired += 1
             sets = ','.join(f'{c}=?' for c in COLS[2:])
-            db.execute(f'UPDATE incidents SET {sets},active=1,withdrawn_at=NULL,last_seen=? WHERE source=? AND source_id=?',
-                       vals[2:] + [now, source, r['source_id']])
+            db.execute(f'UPDATE incidents SET {sets},active=?,withdrawn_at=?,last_seen=? WHERE source=? AND source_id=?',
+                       vals[2:] + [active, withdrawn, now, source, sid])
             upd += 1
         else:
-            db.execute(f'INSERT INTO incidents ({",".join(COLS)},first_seen,last_seen) VALUES ({",".join("?" * len(COLS))},?,?)',
-                       vals + [now, now])
+            db.execute(f'INSERT INTO incidents ({",".join(COLS)},first_seen,last_seen,active,withdrawn_at) VALUES ({",".join("?" * len(COLS))},?,?,?,?)',
+                       vals + [now, now, active, withdrawn])
             ins += 1
+        existing[sid] = (active, withdrawn)
     seen = {r['source_id'] for r in rows}
-    gone = [sid for sid in existing if sid not in seen]
-    expired = 0
-    for sid in gone:  # keep the record; mark withdrawn instead of deleting
+    for sid in existing.keys() - seen:
         expired += db.execute('UPDATE incidents SET active=0, withdrawn_at=? WHERE source=? AND source_id=? AND active=1',
                               (now, source, sid)).rowcount
-    expired += db.execute('UPDATE incidents SET active=0 WHERE source=? AND active=1 AND expires_at IS NOT NULL AND expires_at<?',
-                          (source, now)).rowcount
     return ins, upd, expired
+
+def cleanup(db, now):
+    """Retain current source snapshots, active events, and short-lived audit evidence.
+    Keep lightweight tombstones for ended events still present in a feed so they
+    cannot be counted as fresh expirations. Purge unseen inactive records after 14 days.
+    """
+    db.execute('UPDATE incidents SET active=0,withdrawn_at=COALESCE(withdrawn_at,?) WHERE active=1 AND expires_at IS NOT NULL AND expires_at<=?', (now,now))
+    db.execute("UPDATE incidents SET raw='{}' WHERE active=0 AND withdrawn_at<=? AND raw!='{}'", (now-RAW_RETENTION_S,))
+    removed=db.execute('DELETE FROM incidents WHERE active=0 AND last_seen<?', (now-RETENTION_S,)).rowcount
+    db.execute('DELETE FROM duplicate_links WHERE last_confirmed<? OR NOT EXISTS (SELECT 1 FROM incidents WHERE source=source_a AND source_id=id_a) OR NOT EXISTS (SELECT 1 FROM incidents WHERE source=source_b AND source_id=id_b)', (now-RETENTION_S,))
+    db.execute('DELETE FROM ingest_stats WHERE cycle_at<?', (now-RETENTION_S,))
+    db.execute('DELETE FROM request_log WHERE requested_at<?', (now-86400,))
+    db.execute('DELETE FROM snapshots WHERE fetched_at<?', (now-86400,))
+    return removed
 
 def record_links(db, links, now):
     for sa, ia, sb, ib, d in links:
@@ -429,6 +451,9 @@ def cycle(db_path=DB_PATH):
                        (len({(l[0], l[1]) for l in links}), S511, now))
             logging.info('%s dedup: %s events linked to Caltrans LCS (%s links)', S511, len({(l[0], l[1]) for l in links}), len(links))
         assert not PUBLISH
+        removed = cleanup(db, now)
+        if removed:
+            logging.info("retention: %s inactive incidents removed", removed)
         db.commit()
 
 def setup_logging():
