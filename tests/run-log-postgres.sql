@@ -1,4 +1,6 @@
 -- Disposable checks for 20261127000001_run_log.sql (Supabase auth emulated).
+-- Targets the schema as of 20261127000001/0002. 20261127000003 drops the photo location
+-- and path columns checked here; its checks are in route-top-three-photo-privacy-postgres.sql.
 -- Run against a throwaway database with every migration applied. Rolls back.
 BEGIN;
 INSERT INTO public.members (id, auth_user_id, member_number, display_name) VALUES
