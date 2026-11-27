@@ -1,4 +1,5 @@
 import { validateFinish } from './routes/route-finishes';
+import { validateRunAttempt, validateRunPhotoIntent } from './routes/run-attempts';
 import { createEditorialHandler } from './routes/editorial';
 import { createServer } from 'node:http';
 import { MemoryStore } from '@underground/persistence';
@@ -85,6 +86,8 @@ const server = createServer(async (req, res) => {
   // lookups. All other mutations continue to fail closed below.
   if (
     (req.url === '/v1/route-finishes' && req.method === 'POST') ||
+    (req.url === '/v1/run-attempts' && req.method === 'POST') ||
+    (req.url === '/v1/run-photos/upload-intent' && req.method === 'POST') ||
     (req.url === '/v1/spotted/identify' && req.method === 'POST') ||
     (req.url === '/v1/me' && req.method === 'GET') ||
     (req.url === '/v1/garage/media/upload-intent' && req.method === 'POST') ||
@@ -108,6 +111,48 @@ const server = createServer(async (req, res) => {
         if (result) await memberGateway!.recordRouteFinish(auth.session.memberId, result);
         res.writeHead(result ? 200 : 422, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ ok: !!result }));
+        return;
+      }
+      if (req.url === '/v1/run-attempts') {
+        const checked = validateRunAttempt(await readJsonBody(req), auth.session.memberId);
+        if (!checked.ok) {
+          res.writeHead(422, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+          res.end(JSON.stringify(checked));
+          return;
+        }
+        const photos = checked.write.credit?.photos ?? [];
+        const uploaded = await Promise.all(photos.map(photo => memberGateway!.runPhotoExists(photo.storagePath)));
+        if (uploaded.includes(false)) {
+          res.writeHead(409, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+          res.end(JSON.stringify({ ok: false, error: 'photo_not_uploaded' }));
+          return;
+        }
+        try {
+          await memberGateway!.recordRunAttempt(auth.session.memberId, checked.write);
+        } catch (error) {
+          if (error instanceof Error && error.message === 'finish_not_recorded') {
+            res.writeHead(409, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+            res.end(JSON.stringify({ ok: false, error: 'finish_not_recorded' }));
+            return;
+          }
+          throw error;
+        }
+        // Tier and points only. Photo location never leaves the server.
+        const credit = checked.write.credit;
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify({ ok: true, credit: credit ? { tier: credit.tier, points: credit.points } : null }));
+        return;
+      }
+      if (req.url === '/v1/run-photos/upload-intent') {
+        const intent = validateRunPhotoIntent(await readJsonBody(req), auth.session.memberId);
+        if (!intent.ok) {
+          res.writeHead(422, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+          res.end(JSON.stringify(intent));
+          return;
+        }
+        const uploadUrl = await memberGateway!.createSignedRunPhotoUpload(intent.path);
+        res.writeHead(201, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify({ ok: true, bucket: 'evidence-originals', storagePath: intent.path, uploadUrl }));
         return;
       }
       const body = await readJsonBody(req);
@@ -135,7 +180,7 @@ const server = createServer(async (req, res) => {
       res.end(JSON.stringify(upload));
     } catch {
       res.writeHead(502, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-      res.end(JSON.stringify({ ok: false, error: req.url === '/v1/route-finishes' ? 'route_result_unavailable' : 'garage_backend_unavailable' }));
+      res.end(JSON.stringify({ ok: false, error: req.url === '/v1/route-finishes' || req.url?.startsWith('/v1/run-') ? 'route_result_unavailable' : 'garage_backend_unavailable' }));
     }
     return;
   }

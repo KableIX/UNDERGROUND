@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import type { FinishWrite } from './routes/route-finishes';
+import type { RunAttemptWrite } from './routes/run-attempts';
 import type { RuntimeEnv } from './env';
 
 const UuidSchema = z.string().uuid();
@@ -16,7 +17,16 @@ export interface MemberGateway {
   getOwnProfile(memberId: string): Promise<unknown>;
 }
 
-export function createSupabaseMemberGateway(env: RuntimeEnv): (MemberGateway & { recordRouteFinish(member: string, finish: FinishWrite): Promise<void> }) | null {
+/** Private run log writes (service role only). */
+export interface RunLogGateway {
+  recordRouteFinish(member: string, finish: FinishWrite): Promise<void>;
+  /** Throws Error('finish_not_recorded') when credit arrives before the server-validated finish. */
+  recordRunAttempt(member: string, write: RunAttemptWrite): Promise<void>;
+  createSignedRunPhotoUpload(path: string): Promise<string>;
+  runPhotoExists(path: string): Promise<boolean>;
+}
+
+export function createSupabaseMemberGateway(env: RuntimeEnv): (MemberGateway & RunLogGateway) | null {
   if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return null;
   }
@@ -37,6 +47,75 @@ export function createSupabaseMemberGateway(env: RuntimeEnv): (MemberGateway & {
         ? await admin.from('route_run_finishes').upsert({ member_id: member, attempt_id: finish.attempt, route_slug: finish.route, duration_ms: finish.duration }, { onConflict: 'member_id,attempt_id', ignoreDuplicates: true })
         : await admin.from('cruise_completions').upsert({member_id: member, route_slug: finish.route}, {onConflict: 'member_id,route_slug', ignoreDuplicates: true});
       if (result.error) throw new Error('result_save_unavailable');
+    },
+
+    async recordRunAttempt(member: string, write: RunAttemptWrite) {
+      const a = write.analytics;
+      const attempt = await admin.from('route_run_attempts').upsert({
+        member_id: member,
+        attempt_id: write.attempt,
+        route_slug: write.route,
+        outcome: write.outcome,
+        abort_reason: write.abortReason,
+        progress_m: write.progressM,
+        progress_pct: write.progressPct,
+        started_at: new Date(write.startedAtMs).toISOString(),
+        ended_at: new Date(write.endedAtMs).toISOString(),
+        finished_at: write.finishedAtMs === null ? null : new Date(write.finishedAtMs).toISOString(),
+        vehicle_ref: write.vehicleId,
+        start_label: write.startLabel,
+        distance_m: a.distanceM,
+        active_ms: Math.round(a.activeMs),
+        moving_ms: Math.round(a.movingMs),
+        stopped_ms: Math.round(a.stoppedMs),
+        avg_speed_mps: a.avgSpeedMps,
+        avg_moving_speed_mps: a.avgMovingSpeedMps,
+        max_speed_mps: a.maxSpeedMps,
+        elevation_gain_m: a.elevationGainM,
+        elevation_loss_m: a.elevationLossM,
+        min_altitude_m: a.minAltitudeM,
+        max_altitude_m: a.maxAltitudeM,
+        start_local_hour: a.startLocalHour,
+        time_of_day: a.timeOfDay,
+        gps_coverage_pct: a.gpsCoveragePct,
+        good_fix_pct: a.goodFixPct,
+        sample_count: a.sampleCount,
+        signal_gap_count: a.signalGapCount,
+      }, { onConflict: 'member_id,attempt_id', ignoreDuplicates: true });
+      if (attempt.error) throw new Error('run_attempt_unavailable');
+      if (!write.credit) return;
+      const credit = write.credit;
+      const car = credit.photos.find(photo => photo.kind === 'car') ?? null;
+      const dash = credit.photos.find(photo => photo.kind === 'dash') ?? null;
+      const result = await admin.from('route_run_credits').upsert({
+        member_id: member,
+        attempt_id: write.attempt,
+        tier: credit.tier,
+        points: credit.points,
+        car_status: credit.car,
+        dash_status: credit.dash,
+        car_photo_path: car?.storagePath ?? null,
+        dash_photo_path: dash?.storagePath ?? null,
+        car_taken_at: car ? new Date(car.takenAtMs).toISOString() : null,
+        dash_taken_at: dash ? new Date(dash.takenAtMs).toISOString() : null,
+        car_lat: car?.latitude ?? null,
+        car_lng: car?.longitude ?? null,
+        dash_lat: dash?.latitude ?? null,
+        dash_lng: dash?.longitude ?? null,
+      }, { onConflict: 'member_id,attempt_id' });
+      if (result.error?.code === '23503') throw new Error('finish_not_recorded');
+      if (result.error) throw new Error('run_credit_unavailable');
+    },
+
+    async createSignedRunPhotoUpload(path: string) {
+      const { data, error } = await admin.storage.from('evidence-originals').createSignedUploadUrl(path, { upsert: true });
+      if (error || !data?.signedUrl) throw new Error('run_photo_signing_unavailable');
+      return data.signedUrl;
+    },
+
+    async runPhotoExists(path: string) {
+      const { data, error } = await admin.storage.from('evidence-originals').info(path);
+      return !error && !!data;
     },
     async verifyUserJwt(jwt) {
       // getUser contacts Supabase Auth; a decoded-but-unverified JWT is NEVER trusted.

@@ -5,7 +5,7 @@ import caRoads from '../../../../apps/mobile/src/data/california-road-routes.jso
 import flRoads from '../../../../apps/mobile/src/data/florida-road-routes.json';
 import valleyRoads from '../../../../apps/mobile/src/data/silicon-valley-road-routes.json';
 import { verifiedDuration } from '../../../../apps/mobile/src/drive/finish-proof';
-import type { RoutePoint } from '../../../../apps/mobile/src/drive/route-navigation';
+import { routeDistances, type RoutePoint } from '../../../../apps/mobile/src/drive/route-navigation';
 
 type Road = { coordinates: number[][]; signalGap?: {entryIndex: number; exitIndex: number} };
 const roads: Record<string, Road> = { ...caRoads, ...flRoads };
@@ -39,4 +39,13 @@ export function validateFinish(body: unknown, now = Date.now()): FinishWrite | n
   if (data.trace.some((point, i) => point[3] > now + 15000 || (i > 0 && point[3] <= data.trace[i - 1]![3]))) return null;
   const duration = verifiedDuration(catalog.road.coordinates as RoutePoint[], data.trace, catalog.road.signalGap);
   return duration === null ? null : {route: data.route, attempt: data.attempt, duration};
+}
+
+/** Finish point of a catalog Run (last mapped coordinate). Null for Cruises, test loops and unknown routes. */
+export function runFinishPoint(slug: string): {latitude: number; longitude: number; lengthM: number} | null {
+  const catalog = routes.get(slug);
+  const coordinates = catalog?.road?.coordinates;
+  if (!catalog || catalog.category !== 'RUN' || !coordinates || coordinates.length < 2) return null;
+  const last = coordinates[coordinates.length - 1]!;
+  return {longitude: last[0]!, latitude: last[1]!, lengthM: routeDistances(coordinates as RoutePoint[]).at(-1)!};
 }
