@@ -124,7 +124,8 @@ async function syncAttempts(db: Db, member: string, base: string, headers: Recor
     }
     const response = await fetch(base + '/v1/run-attempts', {method: 'POST', headers, body: JSON.stringify(attemptPayload(row, photos))});
     // 409: the finish or a photo has not reached the server yet. Retry on the next sync.
-    if (response.status === 409 || response.status >= 500) continue;
+    // 404: this API has not been deployed with the run log yet. Keep it queued.
+    if (!response.ok && response.status !== 422) continue;
     const body = await response.json().catch(() => null) as {ok?: boolean; credit?: {tier: string} | null} | null;
     const allUploaded = photos.every(photo => photo.storagePath);
     // 422 means the server will never accept this record; stop retrying it (-1).
