@@ -35,7 +35,10 @@ do $$begin
  raise exception 'unverified join succeeded';exception when others then if sqlerrm<>'Vehicle verification required' then raise;end if;end;
 end$$;
 reset role;
+-- Verified fixture creation must emulate the trusted service-role claim.
+select set_config('request.jwt.claim.role','service_role',true);
 insert into public.vehicles(owner_member_id,year,make,model,color,verification_status) values(public.current_member_id(),2010,'Audi','R8','black','verified');
+select set_config('request.jwt.claim.role','authenticated',true);
 set local role authenticated;
 select public.answer_club_access((public.my_club_hub()#>>'{invites,0,id}')::uuid,true);
 do $$begin
