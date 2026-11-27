@@ -10,7 +10,10 @@ set -euo pipefail
 mode="${1:-daily}"
 container="${UG_DB_CONTAINER:-supabase_db_underground-atlas-test}"
 psql_run() {
-  sudo -n docker exec "$container" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -P pager=off "$@" </dev/null
+  # Capture, then print: under systemd the docker CLI's own stdout did not reach the journal.
+  local out
+  out="$(sudo -n docker exec "$container" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -P pager=off "$@" </dev/null 2>&1)" || { printf '%s\n' "$out" >&2; return 1; }
+  printf '%s\n' "$out"
 }
 echo "$(date -Is) underground-db-maintenance ${mode} start"
 case "$mode" in
