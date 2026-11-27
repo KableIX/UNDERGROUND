@@ -57,6 +57,12 @@ export const resultSchema = `
       uri TEXT NOT NULL, taken_at INTEGER NOT NULL, latitude REAL, longitude REAL, accuracy REAL,
       source TEXT NOT NULL, storage_path TEXT, image_sha256 TEXT,
       PRIMARY KEY(member,attempt,kind));
+    CREATE TABLE IF NOT EXISTS finish_nonces (
+      member TEXT NOT NULL, attempt TEXT NOT NULL, token TEXT NOT NULL,
+      issued_at INTEGER NOT NULL, finished_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+      PRIMARY KEY(member,attempt));
+    CREATE TABLE IF NOT EXISTS integrity_keys (
+      member TEXT PRIMARY KEY, key_id TEXT NOT NULL, registered INTEGER NOT NULL);
   `;
 
 /** Columns added after the first run-log schema. Each runs once; "duplicate column" is ignored. */
@@ -64,6 +70,16 @@ export const resultUpgrades = [
   'ALTER TABLE run_attempts ADD COLUMN credit TEXT',
   'ALTER TABLE finish_photos ADD COLUMN image_sha256 TEXT',
 ];
+
+/** This member's App Attest key on this device (Apple: one key per user per device). */
+export async function readIntegrityKey(db: ResultDatabase, member: string) {
+  const [row] = await db.getAllAsync<{key_id: string; registered: number}>('SELECT key_id, registered FROM integrity_keys WHERE member=?', member);
+  return row ? {keyId: row.key_id, registered: row.registered === 1} : null;
+}
+export async function saveIntegrityKey(db: ResultDatabase, member: string, keyId: string | null, registered: boolean) {
+  if (keyId === null) { await db.runAsync('DELETE FROM integrity_keys WHERE member=?', member); return; }
+  await db.runAsync('INSERT OR REPLACE INTO integrity_keys(member,key_id,registered) VALUES (?,?,?)', member, keyId, Number(registered));
+}
 
 /** One run attempt as logged on the device. Speed and time stay private to the member. */
 export type AttemptRecord = {
@@ -144,13 +160,43 @@ export async function localRunPhotos(db: ResultDatabase, member: string): Promis
   return rows.map(r => ({attempt: r.attempt, route: r.route, kind: r.kind, uri: r.uri, takenAtMs: r.taken_at}));
 }
 
+/** Finish nonce from the server's accepted GPS finish. Photo proofs must carry it. */
+export type FinishNonce = {token: string; issuedAtMs: number; finishedAtMs: number; expiresAtMs: number};
+export function parseFinishNonce(value: unknown): FinishNonce | null {
+  const v = value as Partial<FinishNonce> | null;
+  if (!v || typeof v.token !== 'string' || !v.token || ![v.issuedAtMs, v.finishedAtMs, v.expiresAtMs].every(n => typeof n === 'number' && Number.isFinite(n))) return null;
+  return {token: v.token, issuedAtMs: v.issuedAtMs!, finishedAtMs: v.finishedAtMs!, expiresAtMs: v.expiresAtMs!};
+}
+/** Keep the first nonce for an attempt (only one can be redeemed). */
+export async function saveFinishNonce(db: ResultDatabase, member: string, attempt: string, nonce: FinishNonce) {
+  await db.runAsync('INSERT OR IGNORE INTO finish_nonces(member,attempt,token,issued_at,finished_at,expires_at) VALUES (?,?,?,?,?,?)',
+    member, attempt, nonce.token, nonce.issuedAtMs, nonce.finishedAtMs, nonce.expiresAtMs);
+}
+export async function readLocalFinishNonce(db: ResultDatabase, member: string, attempt: string): Promise<FinishNonce | null> {
+  const [row] = await db.getAllAsync<{token: string; issued_at: number; finished_at: number; expires_at: number}>(
+    'SELECT token,issued_at,finished_at,expires_at FROM finish_nonces WHERE member=? AND attempt=?', member, attempt);
+  return row ? {token: row.token, issuedAtMs: row.issued_at, finishedAtMs: row.finished_at, expiresAtMs: row.expires_at} : null;
+}
+
+/**
+ * Credited photos must be taken with the in-app camera after the finish nonce arrived.
+ * Before it arrives (or once it expired) the camera slot waits or closes.
+ */
+export function cameraState(nonce: FinishNonce | null, live: boolean, nowMs: number): 'ready' | 'waiting' | 'expired' {
+  if (!live) return 'ready';
+  if (!nonce) return 'waiting';
+  return nowMs <= nonce.expiresAtMs ? 'ready' : 'expired';
+}
+
 /** Credit as the device sees it. The server recomputes it; this is for the member's own screen. */
 export async function localFinishCredit(db: ResultDatabase, member: string, attempt: string): Promise<LocalFinishCredit | null> {
   const [row] = await db.getAllAsync<AttemptRow>('SELECT * FROM run_attempts WHERE member=? AND attempt=?', member, attempt);
   if (!row || row.outcome !== 'completed' || row.finished_at == null || row.finish_lat == null || row.finish_lng == null) return null;
   if (row.credit) return {...(JSON.parse(row.credit) as FinishCredit), final: true};
   const photos = await localFinishPhotos(db, member, attempt);
-  return finishCredit(photos.map(p => p.claim), {latitude: row.finish_lat, longitude: row.finish_lng, finishedAtMs: row.finished_at}, true);
+  const nonce = await readLocalFinishNonce(db, member, attempt);
+  return finishCredit(photos.map(p => p.claim), {latitude: row.finish_lat, longitude: row.finish_lng, finishedAtMs: nonce?.finishedAtMs ?? row.finished_at}, true,
+    nonce ? {notBeforeMs: nonce.issuedAtMs} : {});
 }
 
 export async function localRouteHistory(db: ResultDatabase, member: string, route: string): Promise<RouteHistory> {
@@ -188,11 +234,13 @@ export function attemptReady(row: Pick<AttemptRow, 'outcome' | 'finished_at'>, p
  * The club accepted (or finally refused) this attempt. Keep only the credit result and delete
  * the photo capture location on this phone too. Photos themselves stay in the member's app.
  */
-export async function settleAttempt(db: ResultDatabase, member: string, attempt: string, pending: 0 | -1, server: {tier: string; points: number} | null) {
+export type ServerCredit = {tier: string; points: number; car?: FinishCredit['car']; dash?: FinishCredit['dash']; proofError?: string | null};
+export async function settleAttempt(db: ResultDatabase, member: string, attempt: string, pending: 0 | -1, server: ServerCredit | null) {
   const local = await localFinishCredit(db, member, attempt);
-  // The server's tier and points are the result. Refused (or no photos): no credit.
+  // The server's result is the result. Refused (or no photos): no credit.
   const credit = local && !local.final
-    ? {...local, tier: (server?.tier ?? 'none') as FinishCredit['tier'], points: server?.points ?? 0}
+    ? {...local, tier: (server?.tier ?? 'none') as FinishCredit['tier'], points: server?.points ?? 0,
+      car: server?.car !== undefined ? server.car : local.car, dash: server?.dash !== undefined ? server.dash : local.dash}
     : null;
   await db.runAsync('UPDATE run_attempts SET pending=?, credit_tier=?, credit=coalesce(credit, ?) WHERE member=? AND attempt=?',
     pending, server?.tier ?? null, credit ? JSON.stringify({tier: credit.tier, points: credit.points, car: credit.car, dash: credit.dash}) : null, member, attempt);
@@ -200,7 +248,7 @@ export async function settleAttempt(db: ResultDatabase, member: string, attempt:
 }
 
 /** Body for POST /v1/run-attempts. Photos are sent as non-image proof only; images stay on the phone. */
-export function attemptPayload(row: AttemptRow, photos: Array<{claim: FinishPhotoClaim; imageSha256: string | null}>) {
+export function attemptPayload(row: AttemptRow, photos: Array<{claim: FinishPhotoClaim; imageSha256: string | null}>, finishNonce: string | null = null) {
   return {
     attempt: row.attempt,
     route: row.route,
@@ -217,6 +265,7 @@ export function attemptPayload(row: AttemptRow, photos: Array<{claim: FinishPhot
     photos: row.outcome === 'completed'
       ? photos.map((p): FinishPhotoProof => ({...p.claim, imageSha256: p.imageSha256}))
       : [],
+    finishNonce: row.outcome === 'completed' ? finishNonce : null,
   };
 }
 

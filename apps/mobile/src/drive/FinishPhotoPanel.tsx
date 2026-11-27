@@ -3,8 +3,9 @@ import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@underground/ui';
 import { FINISH_PHOTO_WINDOW_MS, FINISH_POINTS_BOTH, FINISH_POINTS_CAR, FINISH_POINTS_DASH, type FinishCredit, type FinishPhotoKind } from '@underground/domain';
 import { captureFinishPhoto } from './finish-photo';
-import { addFinishPhoto, readFinishCredit, syncResults } from './result-store';
-import type { LocalFinishCredit } from './result-sql';
+import { addFinishPhoto, onResultChange, readFinishCredit, readFinishNonce, syncResults } from './result-store';
+import { cameraState, type FinishNonce, type LocalFinishCredit } from './result-sql';
+import { isLiveAuthConfigured } from '../session/supabase-session';
 
 type Props = { member: string; attempt: string; finishedAtMs: number };
 
@@ -20,16 +21,29 @@ const TIER_LINE: Record<FinishCredit['tier'], string> = {
  * so it still works after you park and unlock the phone. The photo is saved on this
  * phone only (My Run Photos) and never uploaded. The capture GPS fix and time are sent
  * once to verify the finish, then deleted on the server and the phone.
+ * Anti-cheat: only in-app camera photos taken after the server's finish nonce arrives earn
+ * points. Library photos are kept for the member but flagged and earn nothing.
  */
 export function FinishPhotoPanel({ member, attempt, finishedAtMs }: Props) {
   const [credit, setCredit] = useState<LocalFinishCredit | null>(null);
   const [busy, setBusy] = useState<FinishPhotoKind | null>(null);
   const [now, setNow] = useState(Date.now);
+  const [nonce, setNonce] = useState<FinishNonce | null>(null);
   useEffect(() => {
-    void readFinishCredit(member, attempt).then(setCredit).catch(() => undefined);
+    const load = () => {
+      void readFinishCredit(member, attempt).then(setCredit).catch(() => undefined);
+      void readFinishNonce(member, attempt).then(setNonce).catch(() => undefined);
+    };
+    load();
+    const unsubscribe = onResultChange(load);
     const timer = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(timer);
+    return () => { clearInterval(timer); unsubscribe(); };
   }, [member, attempt]);
+  const camera = cameraState(nonce, isLiveAuthConfigured(), now);
+  // Still waiting for the finish nonce: nudge the sync that fetches it.
+  useEffect(() => {
+    if (camera === 'waiting') void syncResults(member).catch(() => undefined);
+  }, [camera, member, now]);
   const closesAt = finishedAtMs + FINISH_PHOTO_WINDOW_MS;
   const open = now < closesAt;
   const minutes = Math.max(0, Math.ceil((closesAt - now) / 60_000));
@@ -42,10 +56,10 @@ export function FinishPhotoPanel({ member, attempt, finishedAtMs }: Props) {
   }, [open, member, attempt]);
 
   function take(kind: FinishPhotoKind) {
-    Alert.alert(kind === 'car' ? 'Car at the finish' : 'Dash', undefined, [
-      { text: 'Camera', onPress: () => void capture(kind, 'camera') },
-      { text: 'Library', onPress: () => void capture(kind, 'library') },
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(kind === 'car' ? 'Car at the finish' : 'Dash', camera === 'ready' ? undefined : 'Camera opens once the club confirms your finish.', [
+      ...(camera === 'ready' ? [{ text: 'Camera', onPress: () => void capture(kind, 'camera') }] : []),
+      { text: 'Library (no points)', onPress: () => void capture(kind, 'library') },
+      { text: 'Cancel', style: 'cancel' as const },
     ]);
   }
   async function capture(kind: FinishPhotoKind, source: 'camera' | 'library') {
@@ -65,6 +79,7 @@ export function FinishPhotoPanel({ member, attempt, finishedAtMs }: Props) {
     const value = credit?.[kind];
     if (!value) return null;
     // Failures stay quiet: the photo is held, not announced.
+    if (value === 'library') return 'Library photo · no points';
     return value === 'accepted' ? 'Saved' : 'Held for review';
   };
 
@@ -81,7 +96,7 @@ export function FinishPhotoPanel({ member, attempt, finishedAtMs }: Props) {
             </Pressable>
           ))}
         </View>
-        <Text style={s.note}>Both: {FINISH_POINTS_BOTH} points. Window closes in {minutes} min. Photos stay on this phone.</Text>
+        <Text style={s.note}>{camera === 'waiting' ? 'Confirming your finish… camera unlocks when it is confirmed. ' : camera === 'expired' ? 'Finish confirmation expired. ' : ''}Both: {FINISH_POINTS_BOTH} points. Window closes in {minutes} min. In-app camera only. Photos stay on this phone.</Text>
       </> : <Text style={s.note}>Photo window closed.</Text>}
     </View>
   );

@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { DatabaseSync } from 'node:sqlite';
 import { computeRunAnalytics, type FinishPhotoClaim } from '@underground/domain';
 import {
-  attemptPayload, attemptReady, localFinishCredit, localFinishPhotos, localRouteHistory, localRunPhotos, parseTopThree, pendingAttempts,
+  attemptPayload, attemptReady, cameraState, localFinishCredit, localFinishPhotos, localRouteHistory, localRunPhotos, parseFinishNonce, parseTopThree, pendingAttempts,
+  readLocalFinishNonce, saveFinishNonce,
   recordLocalAttempt, resultSchema, resultUpgrades, saveLocalFinishPhoto, settleAttempt, purgeLocalRunAnalytics,
   type AttemptRecord, type ResultDatabase,
 } from './result-sql';
@@ -175,3 +176,50 @@ describe('90-day retention on the device', () => {
     expect(byId.new).toMatchObject({ maxSpeedMps: 31.2, avgMovingSpeedMps: 14.5 });
   });
 });
+
+describe('finish nonce on the device', () => {
+  beforeEach(() => {
+    database.exec(resultSchema);
+    database.exec('DELETE FROM run_attempts; DELETE FROM finish_photos; DELETE FROM finish_nonces;');
+  });
+  const issued = { token: 'tok.sig', issuedAtMs: T0 + 900_000 + 20_000, finishedAtMs: T0 + 900_000, expiresAtMs: T0 + 900_000 + 45 * 60_000 };
+
+  it('keeps the first nonce and sends it with the completed run only', async () => {
+    expect(parseFinishNonce(issued)).toEqual(issued);
+    expect(parseFinishNonce({ token: '', issuedAtMs: 1, finishedAtMs: 1, expiresAtMs: 1 })).toBeNull();
+    await saveFinishNonce(db, 'a', 'a1', issued);
+    await saveFinishNonce(db, 'a', 'a1', { ...issued, token: 'second' });
+    expect(await readLocalFinishNonce(db, 'a', 'a1')).toEqual(issued);
+    await recordLocalAttempt(db, 'a', run('a1'), true);
+    const [row] = await pendingAttempts(db, 'a');
+    expect(attemptPayload(row!, [], issued.token).finishNonce).toBe('tok.sig');
+    await recordLocalAttempt(db, 'a', aborted('a2', 'traffic', T0 + 2e6), true);
+    const abortRow = (await pendingAttempts(db, 'a')).find(r => r.attempt === 'a2')!;
+    expect(attemptPayload(abortRow, [], 'tok').finishNonce).toBeNull();
+  });
+
+  it('opens the camera only once the nonce arrived, until it expires', () => {
+    expect(cameraState(null, true, T0)).toBe('waiting');
+    expect(cameraState(issued, true, issued.issuedAtMs)).toBe('ready');
+    expect(cameraState(issued, true, issued.expiresAtMs + 1)).toBe('expired');
+    expect(cameraState(null, false, T0)).toBe('ready'); // preview mode
+  });
+
+  it('shows library or pre-nonce photos as earning nothing', async () => {
+    await recordLocalAttempt(db, 'a', run('a1'), true);
+    await saveFinishNonce(db, 'a', 'a1', issued);
+    await saveLocalFinishPhoto(db, 'a', 'a1', photo('dash', { takenAtMs: issued.issuedAtMs + 60_000 }), 'file:///d.jpg', true);
+    await saveLocalFinishPhoto(db, 'a', 'a1', photo('car', { source: 'library', takenAtMs: issued.issuedAtMs + 60_000 }), 'file:///c.jpg', true);
+    expect(await localFinishCredit(db, 'a', 'a1')).toMatchObject({ tier: 'verified', car: 'library', dash: 'accepted' });
+    await saveLocalFinishPhoto(db, 'a', 'a1', photo('dash', { takenAtMs: issued.issuedAtMs - 60_000 }), 'file:///d2.jpg', true);
+    expect(await localFinishCredit(db, 'a', 'a1')).toMatchObject({ tier: 'none', dash: 'early' });
+  });
+
+  it('settles with the server\'s photo statuses', async () => {
+    await recordLocalAttempt(db, 'a', run('a1'), true);
+    await saveLocalFinishPhoto(db, 'a', 'a1', photo('dash'), 'file:///d.jpg', true);
+    await settleAttempt(db, 'a', 'a1', 0, { tier: 'none', points: 0, car: null, dash: 'unverified', proofError: 'attestation_required' });
+    expect(await localFinishCredit(db, 'a', 'a1')).toEqual({ tier: 'none', points: 0, car: null, dash: 'unverified', final: true });
+  });
+});
+

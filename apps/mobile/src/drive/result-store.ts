@@ -4,7 +4,10 @@ import { getMobileSupabaseClient, isLiveAuthConfigured } from '../session/supaba
 import type { SessionMember } from '../session/types';
 import { resultSchema, recordLocalResult, localTopThree, mergePersonalTimes, type CruiseResult, type RunResult, type RecordRow,
   recordLocalAttempt, saveLocalFinishPhoto, purgeLocalRunAnalytics, localFinishPhotos, localFinishCredit, localRouteHistory, pendingAttempts, attemptPayload,
-  attemptReady, settleAttempt, localRunPhotos, resultUpgrades, parseTopThree, type AttemptRecord, type TopRunner } from './result-sql';
+  attemptReady, settleAttempt, localRunPhotos, resultUpgrades, parseTopThree, parseFinishNonce, saveFinishNonce, readLocalFinishNonce,
+  type AttemptRecord, type TopRunner, type ServerCredit } from './result-sql';
+import { proofClientData } from '@underground/domain';
+import { attestProof } from './device-integrity';
 import { rawTrackCutoffMs, type FinishPhotoClaim, type RouteHistory } from '@underground/domain';
 import { getTripStore } from './trip-store';
 export type { RecordRow, AttemptRecord, RunPhoto, TopRunner } from './result-sql';
@@ -64,6 +67,10 @@ export function syncResults(member: string): Promise<void> {
           : {kind: 'CRUISE', route: row.route};
         const response = await fetch(base + '/v1/route-finishes', {method: 'POST', headers, body: JSON.stringify(payload)});
         if (!response.ok) continue;
+        // An accepted Run finish returns the nonce that finish photo proofs must carry.
+        const accepted = await response.json().catch(() => null) as {finishNonce?: unknown} | null;
+        const nonce = parseFinishNonce(accepted?.finishNonce);
+        if (row.attempt && nonce) await saveFinishNonce(db, member, row.attempt, nonce);
         if (row.attempt) await db.runAsync('UPDATE finishes SET trace=NULL WHERE member=? AND attempt=?', member, row.attempt);
         else await db.runAsync('UPDATE cruises SET pending=0 WHERE member=? AND route=?', member, row.route);
         notify();
@@ -127,11 +134,22 @@ async function syncAttempts(db: Db, member: string, base: string, headers: Recor
     // Wait until the photo set is final, so the credit is decided once.
     if (!attemptReady(row, photos, Date.now())) continue;
     // Non-image proof only. The photo files never leave this phone.
-    const response = await fetch(base + '/v1/run-attempts', {method: 'POST', headers, body: JSON.stringify(attemptPayload(row, photos))});
+    const nonce = await readLocalFinishNonce(db, member, row.attempt);
+    const payload: Record<string, unknown> = attemptPayload(row, photos, nonce?.token ?? null);
+    if (row.outcome === 'completed' && photos.length) {
+      // Sign the exact canonical body with this device's App Attest key, when available.
+      const post = async (path: string, body: unknown) => {
+        const r = await fetch(base + path, {method: 'POST', headers, body: JSON.stringify(body)});
+        return {status: r.status, json: await r.json().catch(() => null) as Record<string, unknown> | null};
+      };
+      const attestation = await attestProof(db, member, proofClientData(payload), post);
+      if (attestation) payload.attestation = attestation;
+    }
+    const response = await fetch(base + '/v1/run-attempts', {method: 'POST', headers, body: JSON.stringify(payload)});
     // 409: the finish has not reached the server yet. Retry on the next sync.
     // 404: this API has not been deployed with the run log yet. Keep it queued.
     if (!response.ok && response.status !== 422) continue;
-    const body = await response.json().catch(() => null) as {ok?: boolean; credit?: {tier: string; points: number} | null} | null;
+    const body = await response.json().catch(() => null) as {ok?: boolean; credit?: ServerCredit | null} | null;
     // Accepted (0) or never acceptable (-1, 422): keep the result, delete the photo location.
     await settleAttempt(db, member, row.attempt, response.ok ? 0 : -1, response.ok ? body?.credit ?? null : null);
     notify();
@@ -159,6 +177,10 @@ export async function addFinishPhoto(member: string, attempt: string, claim: Fin
 
 export async function readFinishCredit(member: string, attempt: string) {
   return localFinishCredit(await database(), member, attempt);
+}
+
+export async function readFinishNonce(member: string, attempt: string) {
+  return readLocalFinishNonce(await database(), member, attempt);
 }
 
 export async function readFinishPhotos(member: string, attempt: string) {
