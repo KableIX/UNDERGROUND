@@ -10,12 +10,14 @@ const db: ResultDatabase = {
 
 describe('completed route records', () => {
   beforeEach(() => { database.exec(resultSchema); database.exec('DELETE FROM personal_bests; DELETE FROM finishes; DELETE FROM cruises;'); });
-  it('keeps route and personal standings independent and retries idempotent', async () => {
+  it('keeps times private per member and retries idempotent', async () => {
     const add = (member:string,route:string,attempt:string,duration:number) => recordLocalResult(db, {memberId:member,displayName:member}, {kind:'RUN',route,attempt,duration,trace:[]}, false);
     await add('a','one','a1',4000); await add('a','one','a2',2000); await add('a','one','a3',3000);
     await add('a','one','a4',1500); await add('b','one','b1',1000); await add('b','one','b1',500);
     await add('b','one','b2',1500); await add('a','two','a5',999);
-    expect((await localTopThree(db,'a','one')).map(r=>[r.name,r.millis])).toEqual([['b',1000],['a',1500],['b',1500]]);
+    // Never ranked against other members: a route shows only your own best three.
+    expect((await localTopThree(db,'a','one')).map(r=>[r.name,r.millis,r.place])).toEqual([['a',1500,1],['a',2000,2],['a',3000,3]]);
+    expect((await localTopThree(db,'b','one')).map(r=>r.millis)).toEqual([1000,1500]);
     expect(database.prepare("SELECT count(*) AS n FROM personal_bests WHERE member='a' AND route='one'").get()?.n).toBe(3);
     const local = await localTopThree(db,'a');
     const synced = [...local,{...local[0]!,attempt:'other-device',millis:800}];

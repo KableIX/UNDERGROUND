@@ -1,4 +1,5 @@
 import { validateFinish } from './routes/route-finishes';
+import { validateRunAttempt } from './routes/run-attempts';
 import { createEditorialHandler } from './routes/editorial';
 import { createServer } from 'node:http';
 import { MemoryStore } from '@underground/persistence';
@@ -23,6 +24,8 @@ import { handleCreateRoutePlan, handleRouteArchitecture } from './routes/route-p
 import { getPersistenceStatus } from './routes/persistence-status';
 import { mutationGate } from './routes/mutation-gate';
 import { authenticateMember, createSupabaseMemberGateway } from './supabase-gateway';
+import { assessPhotoProof, attestChallenge, loadIntegrityConfig, registerDeviceKey } from './integrity/photo-proof';
+import { issueFinishNonce, nonceSecretUsable } from './integrity/finish-nonce';
 
 const env = loadEnv();
 const handleEditorial = createEditorialHandler(env, process.env.NEWSWIRE_EDITORIAL_TOKEN_SHA256);
@@ -30,6 +33,7 @@ const health = getHealth(env);
 const runStore = createRunStore();
 const memoryStore = new MemoryStore();
 const memberGateway = createSupabaseMemberGateway(env);
+const integrity = loadIntegrityConfig(process.env, env.APP_ENV);
 
 console.info(
   JSON.stringify({
@@ -85,6 +89,9 @@ const server = createServer(async (req, res) => {
   // lookups. All other mutations continue to fail closed below.
   if (
     (req.url === '/v1/route-finishes' && req.method === 'POST') ||
+    (req.url === '/v1/run-attempts' && req.method === 'POST') ||
+    (req.url === '/v1/attest/challenge' && req.method === 'POST') ||
+    (req.url === '/v1/attest/register' && req.method === 'POST') ||
     (req.url === '/v1/spotted/identify' && req.method === 'POST') ||
     (req.url === '/v1/me' && req.method === 'GET') ||
     (req.url === '/v1/garage/media/upload-intent' && req.method === 'POST') ||
@@ -106,8 +113,57 @@ const server = createServer(async (req, res) => {
       if (req.url === '/v1/route-finishes') {
         const result = validateFinish(await readJsonBody(req, 8 * 1024 * 1024));
         if (result) await memberGateway!.recordRouteFinish(auth.session.memberId, result);
-        res.writeHead(result ? 200 : 422, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ ok: !!result }));
+        // Accepted Run finish: a short-lived, single-use nonce that finish photo proofs must carry.
+        const finishNonce = result && 'duration' in result && nonceSecretUsable(integrity.nonceSecret)
+          ? issueFinishNonce(integrity.nonceSecret, { member: auth.session.memberId, attempt: result.attempt, route: result.route, finishedAtMs: result.finishedAtMs })
+          : null;
+        res.writeHead(result ? 200 : 422, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify(finishNonce ? { ok: !!result, finishNonce } : { ok: !!result }));
+        return;
+      }
+      if (req.url === '/v1/attest/challenge' || req.url === '/v1/attest/register') {
+        const out = req.url === '/v1/attest/challenge'
+          ? attestChallenge(auth.session.memberId, integrity)
+          : await registerDeviceKey(await readJsonBody(req), auth.session.memberId, integrity, memberGateway);
+        res.writeHead(out.status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify(out.body));
+        return;
+      }
+      if (req.url === '/v1/run-attempts') {
+        const raw = await readJsonBody(req);
+        const shape = validateRunAttempt(raw, auth.session.memberId);
+        if (!shape.ok) {
+          res.writeHead(422, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+          res.end(JSON.stringify(shape));
+          return;
+        }
+        // Finish nonce + device attestation. An untrusted proof keeps the run but earns no photo credit.
+        const proof = await assessPhotoProof(raw, auth.session.memberId, integrity, memberGateway);
+        const checked = validateRunAttempt(raw, auth.session.memberId, Date.now(), proof);
+        if (!checked.ok) {
+          res.writeHead(422, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+          res.end(JSON.stringify(checked));
+          return;
+        }
+        try {
+          await memberGateway!.recordRunAttempt(auth.session.memberId, checked.write);
+        } catch (error) {
+          if (error instanceof Error && error.message === 'finish_not_recorded') {
+            res.writeHead(409, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+            res.end(JSON.stringify({ ok: false, error: 'finish_not_recorded' }));
+            return;
+          }
+          if (error instanceof Error && error.message === 'photo_reused') {
+            res.writeHead(422, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+            res.end(JSON.stringify({ ok: false, error: 'photo_reused' }));
+            return;
+          }
+          throw error;
+        }
+        // Tier and points only. Photo location never leaves the server.
+        const credit = checked.write.credit;
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify({ ok: true, credit: credit ? { tier: credit.tier, points: credit.points, car: credit.car, dash: credit.dash, proofError: credit.proofError } : null }));
         return;
       }
       const body = await readJsonBody(req);
@@ -135,7 +191,7 @@ const server = createServer(async (req, res) => {
       res.end(JSON.stringify(upload));
     } catch {
       res.writeHead(502, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-      res.end(JSON.stringify({ ok: false, error: req.url === '/v1/route-finishes' ? 'route_result_unavailable' : 'garage_backend_unavailable' }));
+      res.end(JSON.stringify({ ok: false, error: req.url === '/v1/route-finishes' || req.url?.startsWith('/v1/run-') ? 'route_result_unavailable' : req.url?.startsWith('/v1/attest/') ? 'integrity_unavailable' : 'garage_backend_unavailable' }));
     }
     return;
   }

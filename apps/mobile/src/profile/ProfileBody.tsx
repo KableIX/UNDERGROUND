@@ -179,6 +179,7 @@ export function ProfileBody({
               </Pressable>
               <LinkButton label="Customize page" onPress={() => onEdit?.('Customize page')} />
               <LinkButton label="My Run Records" onPress={() => router.push('/trips/personal-records')} />
+              <LinkButton label="My Run Photos" onPress={() => router.push('/trips/run-photos')} />
               <LinkButton label="Preview as a visitor" onPress={onPreview} />
             </View>
           )}

@@ -53,7 +53,7 @@ export default function NvidiaRouteMapScreen() {
   const garage=useGarageVehicles();
   const active = status === 'recording';
   const paused = status === 'paused' || status === 'interrupted';
-  async function action(fn: () => Promise<void>) {
+  async function action(fn: () => Promise<unknown>) {
     if (busy) return;
     setBusy(true);
     try { await fn(); } catch { Alert.alert('Recording unavailable', 'Please retry.'); }
@@ -94,7 +94,7 @@ export default function NvidiaRouteMapScreen() {
             if(garage.loading){Alert.alert('Loading your garage', 'Try again in a moment.');return false;}
             if(garage.cars.length>1&&!garage.selected){Alert.alert('Choose your car first');return false;}return true;
           }}
-          onDriveStart={()=>drive.start({...garage.trip,curatedRouteId:territory.slug})} onDriveFinish={drive.end} elapsedMs={drive.summary?.durationMs} interrupted={paused} resumeTrip={drive.resume}
+          onDriveStart={()=>drive.start({...garage.trip,curatedRouteId:territory.slug})} onDriveFinish={async () => { await drive.end(); }} elapsedMs={drive.summary?.durationMs} interrupted={paused} resumeTrip={drive.resume}
           fitCoordinates={coordinates} badge="NVIDIA / ROUTE PREVIEW"
           showUserLocation={location.status === 'granted'} userPosition={location.position} />
       </View>

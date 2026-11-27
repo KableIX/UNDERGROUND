@@ -17,6 +17,13 @@ import {
   type TripSummary,
 } from '@underground/drive-tracking';
 import { getTripStore } from './trip-store';
+import {
+  isBackgroundDriveRunning,
+  onDriveFixes,
+  startBackgroundDrive,
+  stopBackgroundDrive,
+  type DriveFix,
+} from './background-location';
 
 type LocationSubscription = { remove(): void };
 
@@ -26,18 +33,21 @@ export type PersistentDriveControls = {
   /** Private live speed (m/s) — UI may show locally; never analytics. */
   privateSpeedMps: number | null;
   recovering: boolean;
+  /** True while background GPS is on: recording continues with the phone locked. */
+  background: boolean;
   start: (opts?: { vehicleId?: string | null; vehicleLabel?: string | null; curatedRouteId?: string }) => Promise<boolean>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
-  end: () => Promise<void>;
+  /** Ends the recording and returns the saved state (for run analytics). */
+  end: () => Promise<SessionEngineState>;
   refreshRecoverable: () => Promise<void>;
 };
 
 /**
- * Foreground persistent drive recorder.
+ * Persistent drive recorder.
  * - Persists to local SQLite (survive network loss / relaunch)
- * - Auto-pauses on AppState inactive and lost permissions
- * - Does not enable background location entitlements
+ * - Keeps recording with the phone locked when "Always" location is granted
+ *   (background task, see background-location.ts); otherwise pauses on lock as before
  * - Does not award ownership or CLOUT
  */
 export function usePersistentDrive(): PersistentDriveControls {
@@ -46,6 +56,9 @@ export function usePersistentDrive(): PersistentDriveControls {
   const stateRef = useRef(state);
   const sub = useRef<LocationSubscription | null>(null);
   const persistTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [background, setBackground] = useState(false);
+  const backgroundRef = useRef(false);
+  const lastPersistAt = useRef(0);
 
   useEffect(() => {
     stateRef.current = state;
@@ -71,6 +84,31 @@ export function usePersistentDrive(): PersistentDriveControls {
     }
   }, []);
 
+  const setBackgroundOn = useCallback((on: boolean) => {
+    backgroundRef.current = on;
+    setBackground(on);
+  }, []);
+
+  /** Apply real fixes from either the foreground watch or the background task. */
+  const applyFixes = useCallback((fixes: DriveFix[]) => {
+    let next = stateRef.current;
+    for (const fix of fixes) {
+      const applied = applyGpsFix(next, fix);
+      if (applied.result.accepted) next = applied.state;
+    }
+    if (next === stateRef.current) return;
+    stateRef.current = next;
+    setState(next);
+    // Timers are unreliable while locked; persist from the fix stream as well.
+    const now = Date.now();
+    if (backgroundRef.current && now - lastPersistAt.current > 8_000) {
+      lastPersistAt.current = now;
+      void persist(next);
+    }
+  }, [persist]);
+
+  useEffect(() => onDriveFixes(applyFixes), [applyFixes]);
+
   const watchPosition = useCallback(async () => {
     releaseWatch();
     try {
@@ -84,7 +122,7 @@ export function usePersistentDrive(): PersistentDriveControls {
         },
         fix => {
           const { latitude, longitude, accuracy, speed, altitude, heading } = fix.coords;
-          const applied = applyGpsFix(stateRef.current, {
+          applyFixes([{
             timestampMs: fix.timestamp,
             latitude,
             longitude,
@@ -92,10 +130,7 @@ export function usePersistentDrive(): PersistentDriveControls {
             accuracyM: accuracy,
             speedMps: speed,
             headingDeg: heading,
-          });
-          if (!applied.result.accepted) return;
-          stateRef.current = applied.state;
-          setState(applied.state);
+          }]);
         },
       );
     } catch {
@@ -104,7 +139,7 @@ export function usePersistentDrive(): PersistentDriveControls {
       setState(next);
       await persist(next);
     }
-  }, [persist, releaseWatch]);
+  }, [applyFixes, persist, releaseWatch]);
 
   const start = useCallback(
     async (opts?: { vehicleId?: string | null; vehicleLabel?: string | null; curatedRouteId?: string }) => {
@@ -133,6 +168,8 @@ export function usePersistentDrive(): PersistentDriveControls {
         setState(next);
         await persist(next);
         await watchPosition();
+        // Ask for "Always" once; declining keeps the old foreground-only behaviour.
+        setBackgroundOn(await startBackgroundDrive());
         clearPersistTimer();
         persistTimer.current = setInterval(() => {
           void persist(stateRef.current);
@@ -146,17 +183,19 @@ export function usePersistentDrive(): PersistentDriveControls {
         return false;
       }
     },
-    [clearPersistTimer, persist, watchPosition],
+    [clearPersistTimer, persist, setBackgroundOn, watchPosition],
   );
 
   const pause = useCallback(async () => {
     releaseWatch();
     clearPersistTimer();
+    await stopBackgroundDrive();
+    setBackgroundOn(false);
     const next = pauseRecording(stateRef.current, { reason: 'user' });
     stateRef.current = next;
     setState(next);
     await persist(next);
-  }, [clearPersistTimer, persist, releaseWatch]);
+  }, [clearPersistTimer, persist, releaseWatch, setBackgroundOn]);
 
   const resume = useCallback(async () => {
     await start();
@@ -165,11 +204,14 @@ export function usePersistentDrive(): PersistentDriveControls {
   const end = useCallback(async () => {
     releaseWatch();
     clearPersistTimer();
+    await stopBackgroundDrive();
+    setBackgroundOn(false);
     const next = endRecording(stateRef.current);
     stateRef.current = next;
     setState(next);
     await persist(next);
-  }, [clearPersistTimer, persist, releaseWatch]);
+    return next;
+  }, [clearPersistTimer, persist, releaseWatch, setBackgroundOn]);
 
   const refreshRecoverable = useCallback(async () => {
     setRecovering(true);
@@ -179,6 +221,19 @@ export function usePersistentDrive(): PersistentDriveControls {
         setRecovering(false);
         return;
       }
+      // Background GPS kept this recording alive while the app was closed: carry on.
+      if (found.session.status === 'recording' && (await isBackgroundDriveRunning())) {
+        stateRef.current = found;
+        setState(found);
+        setBackgroundOn(true);
+        await watchPosition();
+        clearPersistTimer();
+        persistTimer.current = setInterval(() => {
+          void persist(stateRef.current);
+        }, 8_000);
+        return;
+      }
+      await stopBackgroundDrive();
       const recovered = recoverInterruptedSession(found);
       stateRef.current = recovered.state;
       setState(recovered.state);
@@ -186,16 +241,21 @@ export function usePersistentDrive(): PersistentDriveControls {
     } finally {
       setRecovering(false);
     }
-  }, [persist]);
+  }, [clearPersistTimer, persist, setBackgroundOn, watchPosition]);
 
   useEffect(() => {
     void refreshRecoverable();
   }, [refreshRecoverable]);
 
-  // Foreground-only: pause when leaving active. No background entitlement used.
+  // Without background GPS, leaving the foreground interrupts the recording (old behaviour).
+  // With it, the background task keeps feeding fixes and nothing is interrupted.
   useEffect(() => {
     const listener = AppState.addEventListener('change', nextState => {
       if (nextState !== 'active' && stateRef.current.session.status === 'recording') {
+        if (backgroundRef.current) {
+          void persist(stateRef.current);
+          return;
+        }
         releaseWatch();
         clearPersistTimer();
         const next = markInterrupted(stateRef.current);
@@ -252,6 +312,7 @@ export function usePersistentDrive(): PersistentDriveControls {
     summary,
     privateSpeedMps: state.privateSpeedMps,
     recovering,
+    background,
     start,
     pause,
     resume,
