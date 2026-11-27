@@ -37,6 +37,7 @@ export const catalogPhotos: Partial<Record<string, Pick<CuratedRun, 'cover' | 'p
     cover: require('../../assets/runs/catalog-h04.jpg'),
     photo: {"author": "", "source": "", "license": "", "caption": "Pigeon Point Light Station."} ,
   },
+  CR12: { cover: require('../../assets/runs/catalog-h05.jpg'), photo: {author: 'Elaine with Grey Cats from California, USA', license: 'CC BY-SA 2.0', source: 'https://commons.wikimedia.org/wiki/File:Shark_Tooth_Rock_%26_Davenport_Beach.jpg', caption: 'Davenport Beach along the coastal corridor.'} },
   H05: {
     cover: require('../../assets/runs/catalog-h05.jpg'),
     photo: {"author": "Elaine with Grey Cats from California, USA", "source": "https://commons.wikimedia.org/wiki/File:Shark_Tooth_Rock_%26_Davenport_Beach.jpg", "license": "CC BY-SA 2.0", "caption": "Davenport Beach and Shark Tooth Rock."} ,
