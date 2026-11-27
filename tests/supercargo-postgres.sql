@@ -17,7 +17,10 @@ INSERT INTO public.vehicles (id, owner_member_id, year, make, model, color) VALU
 INSERT INTO public.supercargo_catalog (id, make, model, built, built_source, first_year, tier, score) VALUES
  ('porsche-918-spyder','Porsche','918 Spyder',918,'Porsche: 918 units',2013,'numbered',40),
  ('ferrari-laferrari','Ferrari','LaFerrari',499,'Ferrari: 499 coupes',2013,'allocated',50),
- ('one-off','Coachbuilt','One-off',1,'Maker',2020,'singular',100);
+ ('one-off','Coachbuilt','One-off',1,'Maker',2020,'singular',100)
+-- The catalog seed (supabase/seed/supercargo_catalog.sql) may already hold these ids; the fixture wins here.
+ON CONFLICT (id) DO UPDATE SET make = EXCLUDED.make, model = EXCLUDED.model, built = EXCLUDED.built,
+  built_source = EXCLUDED.built_source, first_year = EXCLUDED.first_year, tier = EXCLUDED.tier, score = EXCLUDED.score;
 INSERT INTO public.supercargo_settings (member_id, enabled, credit_public) VALUES
  ('11111111-1111-4111-8111-111111111111', true, false),
  ('22222222-2222-4222-8222-222222222222', true, true);
@@ -364,9 +367,11 @@ BEGIN
   PERFORM public.supercargo_stock_envelopes('skyline-vista', now(), now() + interval '1 day', 50, 1::smallint);
   PERFORM public.supercargo_stock_envelopes('skyline-vista', now(), now() + interval '1 day', 50, 1::smallint);
   PERFORM public.supercargo_stock_envelopes('skyline-vista', now(), now() + interval '1 day', 50, 1::smallint);
-  SELECT count(*) FILTER (WHERE catalog_id = 'one-off'), count(*) FILTER (WHERE catalog_id = 'porsche-918-spyder'),
-         count(*) FILTER (WHERE catalog_id = 'ferrari-laferrari')
-    INTO f, o, s FROM public.supercargo_envelopes WHERE opens_at > now() - interval '1 minute';
+  -- Compare by tier so the check holds with or without the catalog seed loaded.
+  SELECT count(*) FILTER (WHERE e.catalog_id = 'one-off'), count(*) FILTER (WHERE c.tier = 'numbered'),
+         count(*) FILTER (WHERE c.tier = 'allocated')
+    INTO f, o, s FROM public.supercargo_envelopes e JOIN public.supercargo_catalog c ON c.id = e.catalog_id
+   WHERE e.opens_at > now() - interval '1 minute';
   IF f < 5 OR o <= s THEN RAISE EXCEPTION 'FAIL: envelope draw featured=% numbered=% allocated=%', f, o, s; END IF;
   RAISE NOTICE 'PASS: envelopes drawn by rarity with the featured car (featured %, numbered %, allocated % of 200)', f, o, s;
 
