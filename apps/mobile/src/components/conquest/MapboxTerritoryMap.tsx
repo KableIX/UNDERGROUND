@@ -3,7 +3,12 @@ import { cameraPins, snapshot, type Box } from '../../map-layers/cameras';
 import { drawZones, zoneLabel, type Zone } from '../../map-layers/history';
 import { FinishBanner } from './FinishBanner';
 import { useSession } from '../../session/SessionContext';
-import { saveResult } from '../../drive/result-store';
+import { recordAttempt, saveResult } from '../../drive/result-store';
+import { computeRunAnalytics, coarseStartLabel, runProgressPct, type RunAbortReason } from '@underground/domain';
+import type { SessionEngineState } from '@underground/drive-tracking';
+import { onDriveFixes } from '../../drive/background-location';
+import { RunEndSheet } from '../../drive/RunEndSheet';
+import { FinishPhotoPanel } from '../../drive/FinishPhotoPanel';
 import { runFix, type RunFix } from '../../drive/finish-proof';
 import type { Fix } from '../../drive/route-navigation';
 import { RouteConditions } from './RouteConditions';
@@ -56,6 +61,12 @@ type Props = {
   activity?: 'Run' | 'Cruise';
   previewOnly?: boolean;
   verifyStart?: () => Promise<boolean>;
+  /** End a Run early with a reason; logs the attempt and progress. */
+  onRunAbort?: (reason: RunAbortReason, progressM: number, routeLengthM: number) => Promise<void>;
+  /** Shown under a completed Run (finish photos). */
+  finishPanel?: import('react').ReactNode;
+  /** Background GPS on: recording continues with the phone locked. */
+  backgroundGps?: boolean;
   historyZones?: Zone[];
   approachLeg?: boolean;
   signalGap?: { entryIndex: number; exitIndex: number };
@@ -156,6 +167,21 @@ function RecordedNavigation(props: NavigationProps) {
   const participant = useRef(member);
   const closed = useRef(false);
   const status = drive.state.session.status;
+  const [finished, setFinished] = useState<{ attempt: string; member: string; finishedAtMs: number } | null>(null);
+  const routeEnd = props.fitCoordinates[props.fitCoordinates.length - 1];
+  /** Private analytics for the attempt, from real fixes only. */
+  function attemptBase(ended: SessionEngineState) {
+    const { session, samples } = ended;
+    return {
+      attempt: session.id,
+      route: props.selectedSlug!,
+      startedAtMs: session.startedAtMs ?? Date.now(),
+      endedAtMs: session.endedAtMs ?? Date.now(),
+      vehicleId: session.vehicleId,
+      startLabel: coarseStartLabel(samples[0]),
+      analytics: computeRunAnalytics({ samples, activeMs: session.activeDurationMs, distanceM: session.distanceM, startedAtMs: session.startedAtMs }),
+    };
+  }
   async function begin() {
     if (drive.recovering || ['recording','paused','interrupted'].includes(status)) {
       throw new Error('Finish your existing trip in the recorder before starting another.');
@@ -174,18 +200,40 @@ function RecordedNavigation(props: NavigationProps) {
       await saveResult(owner, {kind: 'CRUISE', route});
       return;
     }
+    let ended = drive.state;
     if (!closed.current) {
-      await drive.end();
+      ended = await drive.end();
       closed.current = true;
     }
     if (props.resultKind === 'RUN' && owner && route) {
       const duration = finishMs - trace[0]![3];
       if (duration <= 0) throw Error('No valid finish time.');
-      await saveResult(owner, {kind:'RUN', route, attempt:drive.state.session.id, duration, trace});
+      await saveResult(owner, {kind:'RUN', route, attempt:ended.session.id, duration, trace});
+      const base = attemptBase(ended);
+      await recordAttempt(owner.memberId, {
+        ...base, outcome: 'completed', abortReason: null, progressM: base.analytics.distanceM, progressPct: 100,
+        finishedAtMs: finishMs, durationMs: duration,
+        finish: routeEnd ? { longitude: routeEnd[0], latitude: routeEnd[1] } : null,
+      });
+      setFinished({ attempt: ended.session.id, member: owner.memberId, finishedAtMs: finishMs });
     }
   }
+  async function abort(reason: RunAbortReason, progressM: number, routeLengthM: number) {
+    const owner = participant.current;
+    const route = props.selectedSlug;
+    const ended = closed.current ? drive.state : await drive.end();
+    closed.current = true;
+    if (props.resultKind !== 'RUN' || !owner || !route || !ended.session.startedAtMs) return;
+    await recordAttempt(owner.memberId, {
+      ...attemptBase(ended), outcome: 'aborted', abortReason: reason, progressM,
+      progressPct: runProgressPct(progressM, routeLengthM), finishedAtMs: null, durationMs: null, finish: null,
+    });
+  }
   return <ActiveRouteNav {...props} onRouteComplete={finish} vehicleControl={<GarageVehicleSelect garage={garage}/>}
-    elapsedMs={drive.summary?.durationMs} onDriveStart={begin} onDriveFinish={cruise ? undefined : drive.end} interrupted={status === 'interrupted' || status === 'paused'} resumeTrip={drive.resume}/>;
+    elapsedMs={drive.summary?.durationMs} onDriveStart={begin} onDriveFinish={cruise ? undefined : async () => { await drive.end(); }}
+    interrupted={status === 'interrupted' || status === 'paused'} resumeTrip={drive.resume}
+    onRunAbort={props.resultKind === 'RUN' ? abort : undefined} backgroundGps={drive.background}
+    finishPanel={finished ? <FinishPhotoPanel member={finished.member} attempt={finished.attempt} finishedAtMs={finished.finishedAtMs} /> : null}/>;
 }
 
 function ActiveRouteNav(props: Props & { fitCoordinates: [number, number][]; quit: () => void }) {
@@ -219,6 +267,37 @@ function ActiveRouteNav(props: Props & { fitCoordinates: [number, number][]; qui
       setProgress(previous => advanceRoute(points, distances, previous, position, Date.now(), props.signalGap));
     }
   }, [runStarted, props.interrupted, position, status, points, distances, props.signalGap, props.resultKind]);
+  // While the phone is locked, fixes arrive from the background task instead of the map watch.
+  // Feed every fix in each batch to the finish proof and route progress (duplicates are ignored).
+  const live = useRef({ runStarted, interrupted: props.interrupted, kind: props.resultKind, points, distances, signalGap: props.signalGap });
+  live.current = { runStarted, interrupted: props.interrupted, kind: props.resultKind, points, distances, signalGap: props.signalGap };
+  useEffect(() => onDriveFixes(fixes => {
+    const l = live.current;
+    if (!l.runStarted || l.interrupted) return;
+    for (const f of fixes) {
+      if (f.timestampMs < startedAt.current) continue;
+      const fix: Fix = { longitude: f.longitude, latitude: f.latitude, accuracyM: f.accuracyM, timestamp: f.timestampMs };
+      if (l.kind === 'RUN' && fix.accuracyM !== null && fix.accuracyM >= 0 && fix.accuracyM <= 50 &&
+        Date.now() - fix.timestamp <= 15000 && fix.timestamp > (proof.current[proof.current.length - 1]?.[3] ?? Infinity)) {
+        proof.current.push(runFix(fix));
+      }
+      setProgress(previous => advanceRoute(l.points, l.distances, previous, fix, Date.now(), l.signalGap));
+    }
+  }), []);
+  const [ending, setEnding] = useState<'closed' | 'open' | 'saving'>('closed');
+  async function endRun(reason: RunAbortReason) {
+    if (!props.onRunAbort) return;
+    setEnding('saving');
+    try {
+      await props.onRunAbort(reason, progress.meters, total ?? 0);
+      finished.current = true;
+      setEnding('closed');
+      quit();
+    } catch {
+      setEnding('open');
+      Alert.alert('Run not saved', 'Try again.');
+    }
+  }
   const reliable = status === 'granted' && position && position.timestamp >= startedAt.current &&
     now - position.timestamp < 15000 && position.accuracyM !== null && position.accuracyM >= 0 && position.accuracyM <= 50;
   const here = reliable && position ? position : null;
@@ -334,6 +413,9 @@ function ActiveRouteNav(props: Props & { fitCoordinates: [number, number][]; qui
           {!runStarted && props.vehicleControl}
           {runStarted && props.interrupted && <Pressable accessibilityRole="button" style={styles.begin} onPress={() => void props.resumeTrip?.()}><Text style={styles.startText}>Resume recording</Text></Pressable>}
           {!runStarted && atStart && <Pressable accessibilityRole="button" style={styles.begin} onPress={startRun}><Text style={styles.startText}>Start {activity}</Text></Pressable>}
+          {runStarted && progress.phase !== 'finished' && !!props.onRunAbort && <Pressable accessibilityRole="button" style={styles.quitNav}
+            onPress={() => setEnding('open')}><Text style={styles.guidance}>End run</Text></Pressable>}
+          {progress.phase === 'finished' && saveState === 'saved' && props.finishPanel}
           <Pressable accessibilityRole="button" accessibilityHint="Toggle navigation controls" accessibilityState={{ expanded: controlsOpen }}
             style={styles.progressRow} onPress={() => setControlsOpen(open => !open)}>
             {runStarted ? <Text style={styles.progressText}>{Math.min(progress.phase === 'finished' ? 100 : 99, Math.floor(100 * progress.meters / (total || 1)))}%   /   {navDistance(Math.max(0,total - progress.meters))} remaining</Text>
@@ -361,7 +443,9 @@ function ActiveRouteNav(props: Props & { fitCoordinates: [number, number][]; qui
                 </Pressable>)}
               </ScrollView>}
             </>}
-            <Text style={styles.navLabel}>Keep the app open for GPS tracking.</Text>
+            <Text style={styles.navLabel}>{props.backgroundGps
+              ? 'GPS keeps recording with the phone locked.'
+              : runStarted ? 'Keep the app open. Allow location Always to record with the phone locked.' : 'Allow location Always to record with the phone locked.'}</Text>
             <Pressable accessibilityRole="button" style={styles.quitNav} onPress={() => {
               if (saveState === 'saving') return;
               if (progress.phase === 'finished' && saveState === 'failed') {
@@ -373,6 +457,7 @@ function ActiveRouteNav(props: Props & { fitCoordinates: [number, number][]; qui
                 Alert.alert('Leave Cruise?', 'This Cruise will remain incomplete.', [{text:'Keep cruising'}, {text:'Leave', onPress:quit}]);
                 return;
               }
+              if (props.onRunAbort) { setEnding('open'); return; }
               Alert.alert('End this drive?', 'Your trip so far will be saved.', [
                 { text: 'Keep driving', style: 'cancel' },
                 { text: 'End and save', onPress: async () => { await props.onDriveFinish?.(); quit(); } },
@@ -383,6 +468,8 @@ function ActiveRouteNav(props: Props & { fitCoordinates: [number, number][]; qui
       </View>
     </View>
     {runStarted && progress.phase === 'finished' && <FinishBanner />}
+    <RunEndSheet visible={ending !== 'closed'} busy={ending === 'saving'} progressPct={runProgressPct(progress.meters, total ?? 0)}
+      onCancel={() => setEnding('closed')} onEnd={reason => void endRun(reason)} />
   </View>;
 }
 
