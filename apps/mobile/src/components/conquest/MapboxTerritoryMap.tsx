@@ -1,3 +1,4 @@
+import { useSpeedLimit } from '../../lib/use-speed-limit';
 import { MapLayersButton, useLayers, useRouteHistory } from '../../map-layers/controls';
 import { cameraPins, snapshot, type Box } from '../../map-layers/cameras';
 import { drawZones, zoneLabel, type Zone } from '../../map-layers/history';
@@ -194,6 +195,7 @@ function ActiveRouteNav(props: Props & { fitCoordinates: [number, number][]; qui
   const { height } = useWindowDimensions();
   const [controlsOpen, setControlsOpen] = useState(false);
   const { position, status, retry } = useMapLocation(true);
+  const speedLimit = useSpeedLimit(position, status === 'granted');
   const startedAt = useRef(Date.now());
   const [now, setNow] = useState(Date.now);
   const [runStarted, setRunStarted] = useState(false);
@@ -316,7 +318,17 @@ function ActiveRouteNav(props: Props & { fitCoordinates: [number, number][]; qui
           {props.resultKind === 'CRUISE' && (atStart || progress.phase === 'finished') &&
             <RunClock cruise phase={progress.phase === 'finished' ? 'finished' : 'ready'} elapsedMs={0} />}
           <Text style={styles.guidance}>{instruction}</Text>
-          {controlsOpen && <MapLayersButton />}
+          <View style={{flexDirection:'row',alignItems:'center',gap:12}}>
+            <View style={{backgroundColor:'#FFF',borderRadius:5,borderWidth:2,borderColor:'#222',padding:6,minWidth:60,alignItems:'center'}}>
+              <Text style={{color:'#111',fontSize:10}}>SPEED LIMIT</Text>
+              <Text style={{color:'#111',fontSize:22,fontWeight:'700'}}>{speedLimit===null?'?':Math.round(speedLimit)}</Text>
+            </View>
+            <View style={{flex:1}}>
+              <Text style={{color:'#E7C892'}}>{speedLimit===null?'Speed limit unavailable':'Map data ? MPH'}</Text>
+              <Text style={{fontSize:11,color:'#ADB7BE'}}>Obey posted signs. Map limits may differ.</Text>
+            </View>
+          </View>
+          <MapLayersButton />
           {!!props.selectedSlug && progress.phase !== 'finished' &&
             <RouteConditions key={props.selectedSlug} route={props.selectedSlug} fix={here}
               locationMeters={conditionMeters} meters={progress.meters} started={runStarted} now={now} />}
@@ -692,7 +704,7 @@ const styles = StyleSheet.create({
   begin: { backgroundColor: '#A1F572', alignItems: 'center', padding: 14, borderRadius: 6 },
   voiceControls: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 24 },
   voiceControl: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
-  startNav: { position: 'absolute', bottom: 24, right: 12, paddingHorizontal: 20, paddingVertical: 13, borderRadius: 6, backgroundColor: '#A1F572' },
+  startNav: { position: 'absolute', bottom: 24, right: 12, paddingHorizontal: 20, paddingVertical: 13, borderRadius: 10, backgroundColor: '#AFFF70', borderWidth: 1, borderColor: '#D0FFA9', shadowColor: '#83FF29', shadowOpacity: 0.95, shadowRadius: 15, shadowOffset: {width:0,height:0}, elevation: 12 },
   startText: { color: '#091308', fontSize: 17, fontFamily: 'BarlowCondensed_700Bold' },
   navDock: { position: 'absolute', left: 12, right: 12, gap: 5 },
   floatingTime: { alignItems: 'center', paddingVertical: 3 },
