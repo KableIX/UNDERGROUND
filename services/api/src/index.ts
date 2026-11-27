@@ -5,6 +5,9 @@ import { createServer } from 'node:http';
 import { MemoryStore } from '@underground/persistence';
 import { loadEnv } from './env';
 import { identifySpot } from './routes/spotted';
+import { failClosedRedaction, handleSupercargo } from './routes/supercargo';
+import { createHttpRedaction } from './routes/supercargo-blur';
+import { createSupabaseSupercargoStore } from './supercargo-store';
 import { getHealth } from './routes/health';
 import { planFounderProvision } from './routes/founder';
 import { postChallenge } from './routes/challenge-http';
@@ -34,6 +37,12 @@ const runStore = createRunStore();
 const memoryStore = new MemoryStore();
 const memberGateway = createSupabaseMemberGateway(env);
 const integrity = loadIntegrityConfig(process.env, env.APP_ENV);
+// SupercarGO stays dark unless explicitly enabled with its own secret.
+const supercargoStore = process.env.SUPERCARGO_ENABLED === '1' ? createSupabaseSupercargoStore(env) : null;
+// Blurring runs in services/blur. Without it, nothing is ever published.
+const supercargoRedaction = process.env.SUPERCARGO_BLUR_URL
+  ? createHttpRedaction(process.env.SUPERCARGO_BLUR_URL, process.env.SUPERCARGO_BLUR_TOKEN ?? '')
+  : failClosedRedaction;
 
 console.info(
   JSON.stringify({
@@ -82,6 +91,34 @@ const server = createServer(async (req, res) => {
   if (req.url === '/v1/routes/architecture' && req.method === 'GET') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify(handleRouteArchitecture()));
+    return;
+  }
+
+  if (req.url?.startsWith('/v1/supercargo/') && req.method === 'POST') {
+    if (!supercargoStore) {
+      res.writeHead(503, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'supercargo_not_enabled' }));
+      return;
+    }
+    const auth = await authenticateMember(req.headers.authorization, memberGateway);
+    if (!auth.ok) {
+      res.writeHead(auth.status, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: auth.error }));
+      return;
+    }
+    try {
+      const path = new URL(req.url, 'http://local').pathname;
+      const result = await handleSupercargo(path, auth.session.memberId, await readJsonBody(req, 1200 * 1024), {
+        store: supercargoStore,
+        nonceSecret: process.env.SUPERCARGO_NONCE_SECRET ?? '',
+        redaction: supercargoRedaction,
+      });
+      res.writeHead(result.status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      res.end(JSON.stringify(result.body));
+    } catch {
+      res.writeHead(503, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'supercargo_unavailable' }));
+    }
     return;
   }
 

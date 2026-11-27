@@ -31,3 +31,5 @@ export * from './capture-workflow';
 export * from './authz';
 export * from './trip';
 export * from './run-log';
+export * from './supercargo';
+export * from './supercargo-catalog';

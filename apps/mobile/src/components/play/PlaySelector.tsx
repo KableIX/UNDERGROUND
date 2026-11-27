@@ -309,6 +309,11 @@ function CatalogBrowser() {
             detail="Your car spotting collection"
             onPress={() => router.push('/spotted')}
           />
+          <Choice
+            title="SupercarGO"
+            detail="Sightings, envelopes and the Ledger"
+            onPress={() => router.push('/(tabs)/supercargo')}
+          />
         </>
       )}
     </ScrollView>

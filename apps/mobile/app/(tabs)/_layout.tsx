@@ -32,6 +32,7 @@ function HeaderActions() {
 const tabIcons = {
   index: 'map-marker',
   conquest: 'steering',
+  supercargo: 'radar',
   garage: 'garage-variant',
   friends: 'account-group',
   rankings: 'trophy-outline',
@@ -90,6 +91,14 @@ export default function TabsLayout() {
           title: 'DRIVE',
           headerShown: false,
           tabBarAccessibilityLabel: 'Drive: regions, conquests and club drives',
+        }}
+      />
+      <Tabs.Screen
+        name="supercargo"
+        options={{
+          title: 'SUPERCARGO',
+          headerShown: false,
+          tabBarAccessibilityLabel: 'SupercarGO: sightings, the Ledger and the Exchange',
         }}
       />
       <Tabs.Screen
