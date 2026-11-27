@@ -16,6 +16,7 @@ import {
   type RunPipelineState,
 } from '@underground/domain';
 import { applyCapture } from './capture';
+import { evaluateGpsRouteProof, type RouteProof } from './route-proof';
 import type { CaptureCommand, OwnershipSlice, TerritorySlice } from './types';
 
 export type ServerRunState = {
@@ -45,6 +46,8 @@ export function serverAdvanceRun(input: {
   occurredAt: string;
   appEnv: 'development' | 'staging' | 'production';
   evidence?: RunEvidenceBundle;
+  /** Mandatory for any production capture/claim: never trust client-provided verdict flags. */
+  gpsProof?: RouteProof;
   allowSimulationAccept?: boolean;
   districtKind: DistrictKind;
   territory: TerritorySlice;
@@ -82,6 +85,21 @@ export function serverAdvanceRun(input: {
         story: null,
         errors: ['evidence_required'],
       };
+    }
+    const productionClaim = run.evidenceSource === 'production' &&
+      input.appEnv === 'production' && allowsProductionOwnership(input.districtKind);
+    if (productionClaim) {
+      // Fail closed: approved photo evidence alone is not proof of route traversal.
+      const verdict = input.gpsProof ? evaluateGpsRouteProof(input.gpsProof) : null;
+      if (!verdict || verdict.status !== 'passed') {
+        return {
+          run,
+          ownershipLedger: [...input.ownershipLedger],
+          cloutLedger: [...input.cloutLedger],
+          story: null,
+          errors: verdict ? ['gps_route_not_verified', ...verdict.reasons] : ['gps_proof_required'],
+        };
+      }
     }
     const review = reviewEvidenceBundle(input.evidence, {
       allowSimulationAccept: Boolean(input.allowSimulationAccept),

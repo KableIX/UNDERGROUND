@@ -10,6 +10,7 @@ import {
 } from '../../../tests/fixtures/evidence-bundles';
 import { siliconValleyDevTerritories } from '../../../tests/fixtures/silicon-valley-dev-territories';
 import { appendCloutLedgerEntry } from '@underground/domain';
+import { validRouteProof } from './fixtures/valid-route-proof';
 
 const approved: TerritorySlice = {
   territoryDefinitionId: '11111111-1111-4111-8111-111111111199',
@@ -45,6 +46,7 @@ describe('integration: server-authoritative pipeline', () => {
   it('rejects bad finish-line evidence and does not write ownership/newswire', () => {
     const result = serverAdvanceRun({
       run: baseRun({ runId: mockRejectedFinishZoneEvidence.runId }),
+      gpsProof: validRouteProof,
       to: 'ACCEPTED',
       idempotencyKey: 'int-reject-1',
       occurredAt: '2026-11-04T11:00:00.000Z',
@@ -143,6 +145,7 @@ describe('integration: server-authoritative pipeline', () => {
   it('accepts production evidence, emits newswire once, prevents duplicate CLOUT', () => {
     const first = serverAdvanceRun({
       run: baseRun(),
+      gpsProof: validRouteProof,
       to: 'ACCEPTED',
       idempotencyKey: 'int-ok-1',
       occurredAt: '2026-11-04T11:00:00.000Z',

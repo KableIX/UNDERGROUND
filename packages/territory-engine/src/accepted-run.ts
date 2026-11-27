@@ -12,6 +12,7 @@ import {
   type RunPipelineState,
 } from '@underground/domain';
 import { applyCapture } from './capture';
+import { evaluateGpsRouteProof, type RouteProof } from './route-proof';
 import type { CaptureCommand, OwnershipSlice, TerritorySlice } from './types';
 
 export type AcceptedRunArtifacts = {
@@ -30,6 +31,8 @@ export type AcceptedRunArtifacts = {
  */
 export function materializeAcceptedRun(input: {
   currentState: RunPipelineState;
+  /** Trusted backend GPS trace and reviewed route geometry, required for production writes. */
+  gpsProof?: RouteProof;
   event: {
     runId: string;
     from: RunPipelineState;
@@ -53,6 +56,25 @@ export function materializeAcceptedRun(input: {
     storyId: string;
   };
 }): AcceptedRunArtifacts {
+  // An ACCEPTED event is not itself evidence that a real route was driven.
+  // Protect the lower-level ledger materialization path as well as serverAdvanceRun.
+  if (
+    input.event.to === 'ACCEPTED' &&
+    input.event.evidenceSource === 'production' &&
+    input.appEnv === 'production'
+  ) {
+    const verdict = input.gpsProof ? evaluateGpsRouteProof(input.gpsProof) : null;
+    if (!verdict || verdict.status !== 'passed') {
+      return {
+        runState: input.currentState,
+        ownershipWriteAllowed: false,
+        ownershipLedger: [...input.ownershipLedger],
+        cloutLedger: [...input.cloutLedger],
+        story: null,
+        capture: null,
+      };
+    }
+  }
   const processed = processRunEvent({
     currentState: input.currentState,
     event: input.event,

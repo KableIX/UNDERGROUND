@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { materializeAcceptedRun } from '../src/accepted-run';
 import type { TerritorySlice } from '../src/types';
 import { SIM_CAMERA_EVIDENCE } from '../../../tests/fixtures/sim-evidence';
+import { validRouteProof } from './fixtures/valid-route-proof';
 
 const approved: TerritorySlice = {
   territoryDefinitionId: '11111111-1111-4111-8111-111111111101',
@@ -63,6 +64,7 @@ describe('materializeAcceptedRun', () => {
   it('on production ACCEPTED appends ownership, CLOUT, and newswire story', () => {
     const result = materializeAcceptedRun({
       currentState: 'EVIDENCE_REVIEW',
+      gpsProof: validRouteProof,
       event: {
         runId: '22222222-2222-4222-8222-222222222202',
         from: 'EVIDENCE_REVIEW',
