@@ -1,0 +1,11 @@
+[Unit]
+Description=UNDERGROUND daily DB maintenance, about 03:30 Pacific
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 America/Los_Angeles
+RandomizedDelaySec=15min
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

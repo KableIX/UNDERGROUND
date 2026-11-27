@@ -1,0 +1,13 @@
+[Unit]
+Description=UNDERGROUND weekly SupercarGO marks settlement for the week just ended
+
+[Service]
+Type=oneshot
+WorkingDirectory=/data/underground-git
+Nice=10
+CPUQuota=25%
+MemoryMax=256M
+TimeoutStartSec=15min
+# The limits cap the client side (sudo, docker CLI). The SQL itself runs inside the
+# Supabase DB container. Do not put secrets in this unit.
+ExecStart=/data/underground-git/scripts/atlas/underground-db-maintenance.sh weekly
