@@ -11,6 +11,7 @@ Reached from AngelFire with `wsl ssh god@10.0.0.93` (Windows `ssh` is refused).
 - Host: Atlas, Ubuntu 22.04, user `god`, Linux 6.8.0-90-generic.
 - Node: v22.22.2 (`/usr/bin/node`). npm: 10.9.7. `corepack` is at `/usr/bin/corepack`. `pnpm` was not on `PATH`.
 - App tree: `/data/underground` is a monorepo copy (apps, packages, services, supabase, tests, `node_modules`) dated Nov 25, 2026. It is **not** a git checkout.
+- **Current deploy (Nov 27, 2026):** the API runs from the git checkout `/data/underground-git` (main) as the **user** unit `~/.config/systemd/user/underground-api.service` (`systemctl --user restart underground-api`). It sets `UNDERGROUND_ROOT=/data/underground-git`; the unit template in `scripts/atlas/underground-api.service` now points there. `/data/underground` is only the Expo copy of `apps/mobile`.
 - Local helper tree: `/data/underground-local-backend/supabase`.
 - Tools and a DB unit: `/data/underground-tools/`, including `underground-db-local-only.service` and `/data/underground-start.sh`.
 - Env file (do not commit, do not print): `/home/god/.config/underground/api.env`.
