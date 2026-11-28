@@ -1,0 +1,14 @@
+[Unit]
+Description=UNDERGROUND INTEL official data shadow collector
+After=network-online.target
+[Service]
+Type=simple
+WorkingDirectory=/data/underground/services/intel
+ExecStart=/usr/bin/python3 /data/underground/services/intel/collector.py
+Restart=on-failure
+RestartSec=30
+CPUQuota=100%
+MemoryMax=512M
+NoNewPrivileges=true
+[Install]
+WantedBy=default.target

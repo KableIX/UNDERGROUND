@@ -3,7 +3,7 @@
  *
  * - `memory`: in-process store (default in CI / no Docker). Authz-tested; NOT durable.
  * - `local-postgis`: docker-compose PostGIS + migrations (durable local).
- * - `supabase`: cloud Supabase when URL + service role present (not provisioned here).
+ * - `supabase`: Supabase (cloud or the Atlas local stack) when URL + service role present.
  */
 
 export type PersistenceMode = 'memory' | 'local-postgis' | 'supabase';
@@ -30,7 +30,7 @@ export function resolvePersistenceMode(env: {
       durable: true,
       postgisAvailable: true,
       supabaseConfigured: true,
-      notes: 'Cloud Supabase + PostGIS; gameplay writes via service role API',
+      notes: 'Supabase + PostGIS (URL and service role configured); gameplay writes via service role API',
     };
   }
   if (env.DATABASE_URL) {

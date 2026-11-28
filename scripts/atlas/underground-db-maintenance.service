@@ -1,0 +1,14 @@
+[Unit]
+Description=UNDERGROUND daily DB maintenance (run-data retention + SupercarGO purge)
+Documentation=https://github.com/KableIX/UNDERGROUND/blob/main/docs/run-data-retention.md
+
+[Service]
+Type=oneshot
+WorkingDirectory=/data/underground-git
+Nice=10
+CPUQuota=25%
+MemoryMax=256M
+TimeoutStartSec=15min
+# The limits cap the client side (sudo, docker CLI). The SQL itself runs inside the
+# Supabase DB container. Do not put secrets in this unit.
+ExecStart=/data/underground-git/scripts/atlas/underground-db-maintenance.sh daily

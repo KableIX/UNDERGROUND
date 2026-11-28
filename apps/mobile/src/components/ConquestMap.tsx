@@ -1,7 +1,8 @@
+import {goldTouch,UndergroundBrand} from './GoldTouch';
 import { MapLayersButton } from '../map-layers/controls';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { buildSimGpsReplay, checkpointsAlongReplay } from '@underground/territory-engine';
@@ -241,10 +242,9 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
 
       {mapMode === 'explore' && <>
         <View pointerEvents="none" style={[styles.brandOverlay, { top: insets.top + 8 }]}>
-          <Image accessibilityLabel="UNDERGROUND" resizeMode="contain" style={{ width: 165, height: 32 }}
-            source={require('../../assets/brand/underground-lockup-silver.png')} />
+          <UndergroundBrand />
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="My profile" style={[styles.mapProfile,{top:insets.top + 6}]} onPress={() => router.push('/(tabs)/profile')}>
+        <Pressable accessibilityRole="button" accessibilityLabel="My profile" style={({pressed})=>[styles.mapProfile,{top:insets.top + 6},pressed && goldTouch]} onPress={() => router.push('/(tabs)/profile')}>
           <MaterialCommunityIcons name="account-circle-outline" color="#E3EBEB" size={20} /><Text style={styles.mapProfileText}>My profile</Text>
         </Pressable>
         <View style={styles.mapControls}>
@@ -256,11 +256,11 @@ export function ConquestMap({ initialMode = 'conquest' }: { initialMode?: MapMod
 
           </View>}
           <Pressable accessibilityRole="button" accessibilityLabel="Map options" accessibilityState={{ expanded: menuOpen }}
-            style={styles.roundButton} onPress={() => setMenuOpen(open => !open)}>
+            style={({pressed})=>[styles.roundButton,(pressed||menuOpen)&&goldTouch]} onPress={() => setMenuOpen(open => !open)}>
             <MaterialCommunityIcons name="layers-outline" size={21} color="#E3EBEB" />
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={mapLocation.status === 'denied' ? 'Enable location in Settings' : 'Recenter on my location'}
-            style={styles.roundButton} onPress={locateMe}>
+            style={({pressed})=>[styles.roundButton,pressed && goldTouch]} onPress={locateMe}>
             <MaterialCommunityIcons name="crosshairs-gps" size={23} color="#E3EBEB" />
           </Pressable>
         </View>
@@ -307,7 +307,7 @@ function ModeChip({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
+    <Pressable accessibilityRole="button" accessibilityState={{selected:active}} onPress={onPress} style={({pressed})=>[styles.chip,(active||pressed)&&goldTouch]}>
       <Text variant="caption" gold={active} style={!active ? { color: shell.muted } : undefined}>
         {label}
       </Text>
@@ -370,6 +370,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
+    borderRadius: 22,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderWidth: StyleSheet.hairlineWidth,

@@ -1,3 +1,4 @@
+import {goldTouch} from '../../src/components/GoldTouch';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Pressable, View } from 'react-native';
@@ -13,7 +14,7 @@ function HeaderActions() {
         onPress={() => router.push('/newswire')}
         accessibilityRole="button"
         accessibilityLabel="Open Newswire activity"
-        style={{ paddingHorizontal: 10, paddingVertical: 8 }}
+        style={({pressed})=>[{paddingHorizontal:10,paddingVertical:8,borderRadius:20},pressed && goldTouch]}
       >
         <Text variant="caption" gold>NEWS</Text>
       </Pressable>
@@ -21,7 +22,7 @@ function HeaderActions() {
         onPress={() => router.push('/(tabs)/profile')}
         accessibilityRole="button"
         accessibilityLabel="Open my profile"
-        style={{ paddingHorizontal: 10, paddingVertical: 8 }}
+        style={({pressed})=>[{paddingHorizontal:10,paddingVertical:8,borderRadius:20},pressed && goldTouch]}
       >
         <Text variant="caption" gold>MY PROFILE</Text>
       </Pressable>
@@ -32,6 +33,7 @@ function HeaderActions() {
 const tabIcons = {
   index: 'map-marker',
   conquest: 'steering',
+  supercargo: 'radar',
   garage: 'garage-variant',
   friends: 'account-group',
   rankings: 'trophy-outline',
@@ -45,8 +47,15 @@ export default function TabsLayout() {
         tabBarIcon: ({ color, focused }) => {
           const name = tabIcons[route.name as keyof typeof tabIcons];
           return name ? <MaterialCommunityIcons name={name} size={25} color={color}
-            style={focused ? { textShadowColor: '#379F94', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 6 } : undefined} /> : null;
+            style={focused ? { textShadowColor: '#C5A572', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 6 } : undefined} /> : null;
         },
+        tabBarButton: ({style,children,onPress,onLongPress,accessibilityLabel,accessibilityState,testID,disabled}) => (
+          <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={accessibilityState}
+            testID={testID} disabled={disabled ?? false} onPress={onPress} onLongPress={onLongPress}
+            style={({pressed})=>[style,{borderRadius:22,borderWidth:1,borderColor:'transparent'},(pressed||accessibilityState?.selected)&&goldTouch]}>
+            {children}
+          </Pressable>
+        ),
         tabBarLabelPosition: 'below-icon',
         headerStyle: { backgroundColor: shell.background },
         headerTintColor: shell.accent,
@@ -65,7 +74,7 @@ export default function TabsLayout() {
           paddingBottom: Math.max(4, bottom),
           paddingTop: 6,
         },
-        tabBarActiveTintColor: '#88F2E3',
+        tabBarActiveTintColor: '#F0D49C',
         tabBarInactiveTintColor: '#ADB7BE',
         tabBarLabelStyle: {
           fontFamily: 'BarlowCondensed_700Bold',
@@ -90,6 +99,14 @@ export default function TabsLayout() {
           title: 'DRIVE',
           headerShown: false,
           tabBarAccessibilityLabel: 'Drive: regions, conquests and club drives',
+        }}
+      />
+      <Tabs.Screen
+        name="supercargo"
+        options={{
+          title: 'SUPERCARGO',
+          headerShown: false,
+          tabBarAccessibilityLabel: 'SupercarGO: sightings, the Ledger and the Exchange',
         }}
       />
       <Tabs.Screen

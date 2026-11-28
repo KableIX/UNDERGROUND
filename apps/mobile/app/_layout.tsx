@@ -9,6 +9,7 @@ import { DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold } from '@expo-g
 import { BarlowCondensed_500Medium, BarlowCondensed_600SemiBold, BarlowCondensed_700Bold } from '@expo-google-fonts/barlow-condensed';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { SessionProvider, useSession } from '../src/session/SessionContext';
+import { ResponsibleUseGate } from '../src/session/ResponsibleUse';
 import { shell } from '../src/theme/shell';
 
 // iOS may relaunch the app in the background to deliver run GPS; the task must exist at load.
@@ -45,7 +46,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }, [state.status, segments, router]);
 
-  return <>{children}</>;
+  return <ResponsibleUseGate>{children}</ResponsibleUseGate>;
 }
 
 function RootNavigator() {
@@ -91,6 +92,7 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         {/* Trip History standalone stack — see docs/TRIP_HISTORY_NAV_INTEGRATION.md */}
         <Stack.Screen name="trips" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="supercargo" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="runs" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="conquests" options={{ headerShown: false, animation: 'slide_from_right' }} />
       </Stack>

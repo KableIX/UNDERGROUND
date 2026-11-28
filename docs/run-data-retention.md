@@ -33,6 +33,10 @@ GPS points, checkpoints and attempts it trimmed. It refuses a window shorter tha
 
 - **No pg_cron**: run it daily from the API host with the service role, e.g. a systemd timer or cron
   entry on Atlas that calls `select * from public.purge_raw_run_data();` via `psql` or the Supabase RPC.
+- **Atlas (local Supabase, no pg_cron)**: `scripts/atlas/underground-db-maintenance.timer` (systemd user unit)
+  runs `purge_raw_run_data()` and `supercargo_purge()` daily at about 03:30 Pacific, and
+  `underground-db-settle-marks.timer` runs `supercargo_settle_marks()` Mondays 00:20 UTC. Logs:
+  `journalctl --user -u underground-db-maintenance`.
 
 Check it ran: `select * from cron.job_run_details order by start_time desc limit 5;`
 

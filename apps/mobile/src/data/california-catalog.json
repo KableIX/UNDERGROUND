@@ -1157,25 +1157,47 @@
     "description": "Leave Sea Walk Drive with the Pacific on your left. The Gualala River marks the crossing into Mendocino County, where Highway 1 threads the coves above Anchor Bay. In Point Arena the highway briefly becomes Main Street. Beyond town, turn toward the ocean for the last miles across the headland on Lighthouse Road.",
     "survey": "Review fog, pavement and pullout clearance. Start and finish staging require field checks. The route ends on the public approach before the lighthouse visitor grounds."
   },
-{
-  "id": "EB01",
-  "status": "official",
-  "slug": "jacobs-pass",
-  "title": "Jacob’s Pass",
-  "tier": 3,
-  "category": "RUN",
-  "district": "East Bay",
-  "region": "San Francisco Bay",
-  "shortlist": false,
-  "sequence": [
-    "Palomares Road at Palo Verde Road, Castro Valley",
-    "Palomares Canyon",
-    "Palomares Road at Niles Canyon Road / Highway 84"
-  ],
-  "description": "Leave Castro Valley behind on Palomares Road. Climb through wooded hills, cross the ridge, then follow the creekside bends down to Niles Canyon. Jacob’s Pass is the backroad connection between Palo Verde Road and Highway 84.",
-  "survey": "Narrow sections, blind bends and cyclists. Check for gravel or storm debris, and use a legal pull-off for regrouping. The route ends at the Highway 84 junction; the junction is not a stopping area.",
-  "territory": "Castro Valley–Niles Canyon",
-  "environment": "RIDGE",
-  "informationUrl": "https://www.acpwa.org/"
-}
+  {
+    "id": "EB01",
+    "status": "official",
+    "slug": "jacobs-pass",
+    "title": "Jacob’s Pass",
+    "tier": 3,
+    "category": "RUN",
+    "district": "East Bay",
+    "region": "San Francisco Bay",
+    "shortlist": false,
+    "sequence": [
+      "Palomares Road at Palo Verde Road, Castro Valley",
+      "Palomares Canyon",
+      "Palomares Road at Niles Canyon Road / Highway 84"
+    ],
+    "description": "Leave Castro Valley behind on Palomares Road. Climb through wooded hills, cross the ridge, then follow the creekside bends down to Niles Canyon. Jacob’s Pass is the backroad connection between Palo Verde Road and Highway 84.",
+    "survey": "Narrow sections, blind bends and cyclists. Check for gravel or storm debris, and use a legal pull-off for regrouping. The route ends at the Highway 84 junction; the junction is not a stopping area.",
+    "territory": "Castro Valley–Niles Canyon",
+    "environment": "RIDGE",
+    "informationUrl": "https://www.acpwa.org/"
+  },
+  {
+    "id": "CR12",
+    "slug": "highway-1-cruise",
+    "title": "Highway 1 Cruise",
+    "tier": null,
+    "category": "CRUISE",
+    "district": "Santa Cruz",
+    "region": "Monterey Bay",
+    "shortlist": false,
+    "sequence": [
+      "Moss Landing Harbor",
+      "Swanton Road",
+      "Pescadero",
+      "Half Moon Bay",
+      "Venice Beach (Half Moon Bay)"
+    ],
+    "description": "A northbound coastal club cruise from Moss Landing through Santa Cruz and Swanton, then Pescadero and Half Moon Bay to Venice Beach. Enjoy the Pacific views and regroup only at legal parking areas. No competitive timing.",
+    "survey": "Road-routed preview; confirm Swanton meetup, beach parking, closures and low-clearance access before departure. Stops are approximate public-road waypoints, not verified event staging locations.",
+    "territory": "Pacific Coast",
+    "environment": "COASTAL_HIGHWAY",
+    "informationUrl": "https://parks.ca.gov/?page_id=531"
+  }
 ]

@@ -20,7 +20,7 @@ export function britishVoices(voices: Voice[]) {
   return options.sort((a, b) => score(b) - score(a) || a.name.localeCompare(b.name) || a.identifier.localeCompare(b.identifier));
 }
 
-export type VoiceCue = { key: string; text: string };
+export type VoiceCue = { key: string; text: string; priority?: 'advisory' };
 type Turn = { index: number; instruction: string };
 
 export function spokenInstruction(raw: string) {
@@ -61,4 +61,16 @@ export function claimCue(seen: Set<string>, last: { key: string; time: number } 
   seen.add(key);
   if (key.endsWith('-ahead') && seen.has(key.replace(/-ahead$/, '-now'))) return false;
   return !(key.endsWith('-now') && last?.key === key.replace(/-now$/, '-ahead') && now - last.time < 5500);
+}
+
+// Lower-priority official weather messages are route-wide, never distance-to-hazard claims.
+export function weatherVoiceCue(alert:{id:string;title:string}|undefined, context:{started:boolean;reliable:boolean;following:boolean;toTurn:number;speedMps?:number|null;hasTurn:boolean}):VoiceCue|null {
+ if(!alert||!context.started||!context.reliable||!context.following)return null;
+ const speed=typeof context.speedMps==='number'&&Number.isFinite(context.speedMps)?Math.max(0,context.speedMps):15;
+ if(context.hasTurn&&(!Number.isFinite(context.toTurn)||context.toTurn<Math.max(600,speed*35)))return null;
+ return {key:'intel-weather:'+alert.id,text:'Official weather advisory for this route. '+alert.title+'. Follow official guidance.',priority:'advisory'};
+}
+
+export function advisoryCanPlay(last:{key:string;time:number}|null, now:number){
+ return last===null||now-last.time>=20000;
 }

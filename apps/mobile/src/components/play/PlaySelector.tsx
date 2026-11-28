@@ -1,3 +1,6 @@
+import {useIntelCatalog} from '../../lib/use-intel-weather';
+import {currentWeather,currentWeatherCheck,type IntelAssessment} from '../../lib/intel-weather';
+import {runAdvisories,winterNavigationPaused} from '../../data/route-advisories';
 import { DrivePhoto } from './DrivePhoto';
 import { useCallback, useState } from 'react';
 import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -101,22 +104,72 @@ function Choice({
   );
 }
 
+function RunIntelBadge({run,assessment,clock}:{run:CuratedRun;assessment:IntelAssessment|null;clock:number}){
+ const weather=currentWeather(assessment,clock);
+ const checked=currentWeatherCheck(assessment,clock);
+ const saved=runAdvisories(run.slug,run.catalog?.id,clock*1000);
+ const paused=winterNavigationPaused(run.catalog?.id,clock*1000);
+ const caution=weather.length>0||saved.length>0;
+ return <View style={{alignSelf:'flex-start',borderWidth:1,borderRadius:6,borderColor:paused?'#F19C86':caution?'#E8B96D':'#48545C',paddingHorizontal:8,paddingVertical:4}}>
+  <Text style={{fontSize:11,color:paused?'#F19C86':caution?'#E8B96D':'#AAB3B8'}}>{paused?'INTEL / SEASONAL RESTRICTION':caution?'INTEL / REVIEW '+(weather.length+saved.length)+' ADVISOR'+(weather.length+saved.length===1?'Y':'IES'):checked?'INTEL / WEATHER CHECKED - PARTIAL':'INTEL / CONDITIONS UNKNOWN'}</Text>
+ </View>;
+}
 export function SoloRunSelector() {
   return <CatalogBrowser />;
 }
 export function DriveMenu() {
-  return <CatalogBrowser />;
+  const [mode, setMode] = useState<'cruise' | 'conquest' | null>(null);
+  const intel=useIntelCatalog(mode==='cruise');
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const back = useCallback(() => {
+    if (!mode) return false;
+    setMode(null);
+    return true;
+  }, [mode]);
+  useFocusEffect(useCallback(() => {
+    const listener = BackHandler.addEventListener('hardwareBackPress', back);
+    return () => listener.remove();
+  }, [back]));
+  if (mode === 'conquest') return <CatalogBrowser conquestOnly onExit={back} />;
+  if (mode === 'cruise') return (
+    <ScrollView style={s.root} contentContainerStyle={[s.content, {paddingTop: insets.top + 12, paddingBottom: insets.bottom + 28}]}>
+      <Choice title="Back to Drive" onPress={back} />
+      <Text accessibilityRole="header" style={s.heading}>Cruise</Text>
+      <Text style={s.section}>Featured cruises</Text>
+      {entries.filter(row => row.run?.category === 'CRUISE' && row.state === 'CA').sort((a,b) => Number(b.run?.slug === 'highway-1-cruise') - Number(a.run?.slug === 'highway-1-cruise')).map(({run,art}) => run && (
+        <Pressable key={run.slug} accessibilityRole="button" accessibilityLabel={'View ' + run.title} style={s.route} onPress={() => router.push({pathname:'/runs/[slug]',params:{slug:run.slug}})}>
+          {art.cover && <DrivePhoto source={art.cover} />}
+          <View style={s.routeBody}><Text style={s.meta}>{run.catalog?.id} · CRUISE</Text><Text style={s.routeTitle}>{run.title}</Text><RunIntelBadge run={run} assessment={intel.data?.get(run.slug)??null} clock={intel.clock}/><Text style={s.note}>{run.sequence[0]} → {run.sequence[run.sequence.length-1]}</Text></View>
+        </Pressable>
+      ))}
+      <Choice title="Club Drives" detail="Saved drives and scheduled meetups" onPress={() => router.push('/club-drives')} />
+      <Choice title="Local events" onPress={() => router.push('/local-events')} />
+    </ScrollView>
+  );
+  return <ScrollView style={s.root} contentContainerStyle={[s.content,{paddingTop:insets.top+12,paddingBottom:insets.bottom+28}]}>
+    <Text accessibilityRole="header" style={s.heading}>Drive</Text>
+    <View style={s.books}>
+      <BookCover title="CRUISE" detail="Scenic and social drives" variant="state" selected art={{cover:require('../../../assets/runs/saratoga-club-cars.jpg')}} onPress={()=>setMode('cruise')} />
+      <BookCover title="CONQUEST" detail="Territories and challenges" variant="state" art={{cover:require('../../../assets/runs/conquest-cover.png')}} onPress={()=>setMode('conquest')} />
+    </View>
+  </ScrollView>;
 }
 
-function CatalogBrowser() {
+function CatalogBrowser({conquestOnly = false, onExit}: {conquestOnly?: boolean; onExit?: () => void} = {}) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { access } = useFloridaAccess(true);
   const [selectedBook, setSelectedBook] = useState<StateBook | null>(null);
   const [path, setPath] = useState<string[]>([]);
   const [browseCruises, setBrowseCruises] = useState(false);
+  const [browseRuns, setBrowseRuns] = useState(false);
   const book = selectedBook ?? (access === 'inside' ? 'FL' : 'CA');
   const goBack = useCallback(() => {
+    if (browseRuns) {
+      setBrowseRuns(false);
+      return true;
+    }
     if (browseCruises) {
       setBrowseCruises(false);
       return true;
@@ -126,7 +179,7 @@ function CatalogBrowser() {
       return true;
     }
     return false;
-  }, [browseCruises, path]);
+  }, [browseCruises, browseRuns, path]);
   useFocusEffect(
     useCallback(() => {
       const listener = BackHandler.addEventListener('hardwareBackPress', goBack);
@@ -136,15 +189,19 @@ function CatalogBrowser() {
   const depth = path.length;
   const level: Level | undefined = levels[depth];
   const rows = entries.filter(
-    (row) => row.state === book && path.every((name, i) => row[levels[i]] === name),
+    (row) => row.state === book && (!conquestOnly || row.run?.category !== 'CRUISE') && path.every((name, i) => row[levels[i]] === name),
   );
   const children = level ? groups(rows, level) : new Map<string, Entry[]>();
-  const cruises = depth === 2 ? rows.filter((row) => row.run?.category === 'CRUISE') : [];
-  const listed = browseCruises ? cruises : level ? [] : rows;
-  const title = browseCruises ? path[depth - 1] + ' Cruises' : path[depth - 1];
+  const cruises = rows.filter((row) => row.run?.category === 'CRUISE');
+  const runs = rows.filter((row) => row.run?.category === 'RUN');
+  const browsing = browseCruises || browseRuns;
+  const featured = cruises.find((row) => row.run?.slug === 'highway-1-cruise');
+  const listed = browseCruises ? cruises : browseRuns ? runs : level ? [] : rows;
+  const intel=useIntelCatalog(listed.length>0);
+  const title = browsing ? (depth ? path[depth - 1] : stateCovers[book].name) + (browseCruises ? ' Cruises' : ' Runs') : path[depth - 1];
   const hero = artwork(book, path, rows);
-  const backTitle = browseCruises
-    ? path[depth - 1]
+  const backTitle = browsing
+    ? (path[depth - 1] ?? 'Drive')
     : (path[depth - 2] ?? stateCovers[book].name + ' regions');
   const preview = book === 'FL' && access !== 'inside';
 
@@ -154,18 +211,24 @@ function CatalogBrowser() {
   }
   return (
     <ScrollView
-      key={[book, ...path, browseCruises ? 'cruises' : ''].join('/')}
+      key={[book, ...path, browseCruises ? 'cruises' : browseRuns ? 'runs' : ''].join('/')}
       style={s.root}
       contentContainerStyle={[
         s.content,
         { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 28 },
       ]}
     >
-      {depth === 0 ? (
+      {depth === 0 && !browsing ? (
         <>
           <Text accessibilityRole="header" style={s.heading}>
-            Drive
+            {conquestOnly ? 'Conquest' : 'Drive'}
           </Text>
+          {onExit && <Choice title="Back to Drive" onPress={onExit} />}
+          {!conquestOnly && <Choice title="Cruises" detail={count(cruises.length, 'scenic and social drive')} onPress={() => setBrowseCruises(true)} />}
+          {!conquestOnly && <Choice title="Runs" detail={count(runs.length, 'curated route')} onPress={() => setBrowseRuns(true)} />}
+          {featured?.run && <Choice title="Highway 1 Cruise" detail="Featured cruise · Moss Landing → Venice Beach (Half Moon Bay)" art={featured.art} onPress={() => router.push({ pathname: '/runs/[slug]', params: { slug: 'highway-1-cruise' } })} />}
+          <Choice title="Club Drives" detail="Saved drives and scheduled meetups" onPress={() => router.push('/club-drives')} />
+          <Text accessibilityRole="header" style={s.section}>Explore by location</Text>
           <View style={s.books}>
             {(['CA', 'FL'] as const).map((state) => (
               <BookCover
@@ -214,23 +277,23 @@ function CatalogBrowser() {
             title={title}
             art={hero}
             variant="header"
-            detail={count(browseCruises ? cruises.length : rows.length, 'drive')}
+            detail={count(browsing ? listed.length : rows.length, 'drive')}
           />
         </>
       )}
-      {!browseCruises && cruises.length > 0 && (
+      {!browsing && depth > 0 && depth < 3 && cruises.length > 0 && (
         <Choice
           title="Cruises"
           detail={count(cruises.length, 'local drive')}
           onPress={() => setBrowseCruises(true)}
         />
       )}
-      {!browseCruises && depth > 0 && level && (
+      {!browsing && depth > 0 && level && (
         <Text accessibilityRole="header" style={s.section}>
           {level === 'district' ? 'Districts' : 'Territories'}
         </Text>
       )}
-      {!browseCruises &&
+      {!browsing &&
         Array.from(children, ([name, group]) => {
           const art = artwork(book, [...path, name], group);
           return !depth ? (
@@ -289,6 +352,7 @@ function CatalogBrowser() {
             <View style={s.routeBody}>
               <Text style={s.meta}>{detail}</Text>
               <Text style={s.routeTitle}>{run.title}</Text>
+              <RunIntelBadge run={run} assessment={intel.data?.get(run.slug)??null} clock={intel.clock}/>
               <Text style={s.note}>{run.subtitle}</Text>
               <Text style={s.note}>
                 {run.sequence[0]} → {run.sequence[run.sequence.length - 1]}
@@ -297,17 +361,17 @@ function CatalogBrowser() {
           </Pressable>
         );
       })}
-      {!depth && (
+      {!depth && !browsing && (
         <>
-          <Choice
-            title="Club Drives"
-            detail="Saved drives and scheduled meetups"
-            onPress={() => router.push('/club-drives')}
-          />
           <Choice
             title="Spotted"
             detail="Your car spotting collection"
             onPress={() => router.push('/spotted')}
+          />
+          <Choice
+            title="SupercarGO"
+            detail="Sightings, envelopes and the Ledger"
+            onPress={() => router.push('/(tabs)/supercargo')}
           />
         </>
       )}

@@ -2,7 +2,7 @@ import { reserveGuidanceAudio } from '../profile/soundtrack-session';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { requireOptionalNativeModule } from 'expo-modules-core';
-import { britishVoices, claimCue, spokenInstruction, type Voice, type VoiceCue } from './navigation-voice';
+import { advisoryCanPlay, britishVoices, claimCue, spokenInstruction, type Voice, type VoiceCue } from './navigation-voice';
 
 import {clipPlayer,recordedPrompt} from './guidance-audio';
 const emma:Voice={name:'Emma',identifier:'underground.emma',language:'en-GB',quality:'Premium'};
@@ -70,8 +70,10 @@ export function useNavigationVoice(enabled: boolean, reliable: boolean, cue: Voi
     return () => { alive = false; listener.remove(); ++revision.current; void player.stop(); stop(output); };
   }, [enabled]);
 
-  const play = useCallback((text: string, voice = selected, key='sample', original?:string) => {
+  const play = useCallback((text: string, voice = selected, key='sample', original?:string, advisory=false) => {
     if (!enabled || !speaker || !foreground) return;
+    // Never substitute a generic turn prompt for an INTEL advisory.
+    if(advisory && (!speaker.speech || !(voice===emma.identifier?voices.some(v=>v.identifier!==emma.identifier):voice)))return;
     const current = ++revision.current;
     setError('');
     const failed = () => { if (current === revision.current) setError('Could not play guidance. Tap Test voice to retry.'); };
@@ -79,14 +81,14 @@ export function useNavigationVoice(enabled: boolean, reliable: boolean, cue: Voi
     const output = speaker;
     async function speak() {
       const deviceVoice=voice===emma.identifier?voices.find(v=>v.identifier!==emma.identifier)?.identifier:voice;
-      const asset=recordedPrompt(key,line,original,!deviceVoice);
+      const asset=advisory?undefined:recordedPrompt(key,line,original,!deviceVoice);
       if(voice===emma.identifier && asset!==undefined && output.audio){
         stop(output);
         try{await player.play(asset);return;}catch{if(current!==revision.current)return;}
       }
       await player.stop();
       if(current!==revision.current || !deviceVoice){failed();return;}
-      if (output.native) {
+      if (output.native && !advisory) {
         try { await output.native.speakNavigationPrompt(line, deviceVoice); return; }
         catch { if (current !== revision.current) return; }
       }
@@ -109,10 +111,11 @@ export function useNavigationVoice(enabled: boolean, reliable: boolean, cue: Voi
     }
     if (!cue) return;
     const time = Date.now();
+    if(cue.priority==='advisory' && (!advisoryCanPlay(last.current,time)||!speaker.speech||!(selected===emma.identifier?voices.some(v=>v.identifier!==emma.identifier):selected)))return;
     if (!claimCue(seen.current, last.current, cue.key, time)) return;
     last.current = { key: cue.key, time };
-    play(cue.text,selected,cue.key, /-(ahead|now|continue)$/.test(cue.key)?maneuver:undefined);
-  }, [enabled, speaker, scope, muted, foreground, reliable, cue?.key, cue?.text, play, selected, maneuver]);
+    play(cue.text,selected,cue.key, /-(ahead|now|continue)$/.test(cue.key)?maneuver:undefined,cue.priority==='advisory');
+  }, [enabled, speaker, scope, muted, foreground, reliable, cue?.key, cue?.text, cue?.priority, play, selected, maneuver, voices]);
 
   function choose(id: string) {
     setSelected(id);

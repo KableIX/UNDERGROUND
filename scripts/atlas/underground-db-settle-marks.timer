@@ -1,0 +1,11 @@
+[Unit]
+Description=UNDERGROUND weekly SupercarGO marks settlement, Mondays 00:20 UTC (same as the pg_cron job)
+
+[Timer]
+OnCalendar=Mon *-*-* 00:20:00 UTC
+RandomizedDelaySec=5min
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

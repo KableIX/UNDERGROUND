@@ -8,10 +8,12 @@ Wants=network-online.target
 Type=simple
 User=god
 Group=god
-WorkingDirectory=/data/underground
+WorkingDirectory=/data/underground-git
 EnvironmentFile=-/home/god/.config/underground/api.env
 Environment=UNDERGROUND_API_AUTOSTART=1
-ExecStart=/data/underground/scripts/atlas/start-underground-api.sh
+Environment=UNDERGROUND_ROOT=/data/underground-git
+Environment=PATH=/home/god/.local/bin:/usr/bin:/bin
+ExecStart=/data/underground-git/scripts/atlas/start-underground-api.sh
 Restart=on-failure
 RestartSec=5
 # Do not put secrets in this unit. Use the EnvironmentFile.

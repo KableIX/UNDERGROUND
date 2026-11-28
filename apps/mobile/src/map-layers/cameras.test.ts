@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {cameraPins,initialLayers,regionBox,snapshot} from './cameras';
+import {cameraPins,cameraDisplayPins,cameraViewportMode,cameraViewportNote,cameraShieldSize,cameraShieldSizeForAltitude,cameraSymbolScale,initialLayers,regionBox,snapshot} from './cameras';
 import {drawZones,zoneLabel} from './history';
 import {routeDistances,type RoutePoint} from '../drive/route-navigation';
 import saratoga from '../data/saratoga-club-route.json';
@@ -18,7 +18,7 @@ describe('California beta camera map',()=>{
   it('keeps camera types distinct and preserves city status when supplied',()=>{
     for(const source of ['sj','sf','oak','la','osm']){
       const p=Object.values(db.cells).flat().find(r=>r[3]===source)!;
-      const visible=cameraPins(db,square(p[0],p[1],0.012),{...initialLayers,speed:true});
+      const visible=cameraPins(db,square(p[0],p[1],0.012),{plate:false,speed:true,history:false});
       expect(visible.every(pin=>pin.kind==='speed')).toBe(true);
       const selected=visible.find(pin=>pin.id===source+'/'+p[4])!;
       expect(selected.detail).toContain(p[6] || 'Operating status unknown');
@@ -27,8 +27,50 @@ describe('California beta camera map',()=>{
   it('handles unavailable data and hides pins when zoomed out or both toggles are off',()=>{
     expect(cameraPins(null,square(-122,37,0.02),enabled)).toEqual([]);
     expect(cameraPins(db,square(-122,37,2),enabled)).toEqual([]);
-    expect(cameraPins(db,square(-122,37,0.02),initialLayers)).toEqual([]);
+    expect(cameraPins(db,square(-122,37,0.02),{plate:false,speed:false,history:false})).toEqual([]);
     expect(cameraPins(db,square(-80,27,0.02),enabled)).toEqual([]);
+  });
+  it('shows records in a city-scale view instead of the old street-only cutoff',()=>{
+    const b=square(-121.9677,37.3706,.15);
+    expect(cameraViewportMode(b)).toBe('city');
+    expect(cameraPins(db,b,enabled).length).toBeGreaterThan(100);
+    expect(cameraViewportMode(square(-121.9677,37.3706,.02))).toBe('street');
+    expect(cameraViewportMode(square(-121.9677,37.3706,2))).toBe('zoom');
+  });
+  it('increases marker size monotonically as horizontal map span narrows',()=>{
+    const widths=[.35,.14,.07,.035,.017,.008,.004,.002,.001];
+    const sizes=widths.map(width=>cameraShieldSize(square(-122,37,width)));
+    expect(sizes).toEqual([36,48,72,88,104,120,132,144,144]);
+    expect(sizes.every((size,i)=>i===0||size>=sizes[i-1]!)).toBe(true);
+  });
+  it('does not shrink when pitch changes the vertical extent',()=>{
+    const box=square(-122,37,.008);
+    expect(cameraShieldSize({...box,north:box.north+.1,south:box.south-.1})).toBe(cameraShieldSize(box));
+  });
+  it('uses smaller shields at higher native altitude and larger shields at street altitude',()=>{
+    const altitudes=[16000,4000,2000,1000,500,250,125,60];
+    const sizes=altitudes.map(cameraShieldSizeForAltitude);
+    expect(sizes).toEqual([32,32,64,96,128,160,192,192]);
+    expect(sizes.every((size,i)=>i===0||size!>=sizes[i-1]!)).toBe(true);
+    expect(cameraShieldSizeForAltitude(200)).toBeGreaterThan(cameraShieldSizeForAltitude(1200)!);
+    for(const value of [undefined,null,0,-1,NaN,Infinity,'100'])expect(cameraShieldSizeForAltitude(value)).toBeNull();
+  });
+  it('uses a strictly increasing native Mapbox zoom scale',()=>{
+    const stops=cameraSymbolScale.slice(3) as number[];
+    for(let i=2;i<stops.length;i+=2){
+      expect(stops[i]).toBeGreaterThan(stops[i-2]!);
+      expect(stops[i+1]).toBeGreaterThan(stops[i-1]!);
+    }
+    expect(stops[stops.length-1]).toBe(192/112);
+  });
+  it('bounds dense city rendering without inventing locations',()=>{
+    const b=square(-121.9677,37.3706,.35);
+    const all=cameraPins(db,b,enabled), shown=cameraDisplayPins(all,b);
+    expect(all.length).toBeGreaterThan(288);
+    expect(shown.length).toBeLessThanOrEqual(288);
+    expect(shown.every(p=>all.some(a=>a.id===p.id&&a.lon===p.lon&&a.lat===p.lat))).toBe(true);
+    expect(cameraViewportNote('city',all.length,shown.length,true)).toContain('zoom for more');
+    expect(cameraViewportNote('city',0,0,true)).toContain('No camera records');
   });
   it('replays the Saratoga road book without changing route geometry or guidance distances',()=>{
     const points=saratoga.geometry.coordinates as RoutePoint[];
