@@ -43,6 +43,7 @@ import {
 } from '../../src/supercargo/copy';
 import { currentFix } from '../../src/supercargo/location';
 import { firstQueryBounds, hoursUntilTradeable } from '../../src/supercargo/map';
+import { CarArt } from '../../src/supercargo/CarArt';
 import { SightingsLayer } from '../../src/supercargo/SightingsLayer';
 import { TierMark } from '../../src/supercargo/TierMark';
 import { Action, Caption, Rule, ui } from '../../src/supercargo/ui';
@@ -421,14 +422,17 @@ function LedgerSection({ tick }: { tick: number }) {
             <Text style={ui.body}>{tierNote(group.tier)}</Text>
           </View>
           {group.items.map((f) => (
-            <View key={f.id} style={[ui.card, f.tier === 'singular' && { borderColor: '#8F7A52' }]}>
-              <Text style={ui.cardTitle}>
-                {f.make} {f.model}
-              </Text>
-              <TierMark tier={f.tier} />
-              <Text style={ui.body}>
-                {f.origin === 'sighting' ? 'Seen' : 'Envelope'} · {new Date(f.acquired_at).toLocaleDateString()}
-              </Text>
+            <View key={f.id} style={[ui.card, s.folio, f.tier === 'singular' && { borderColor: '#8F7A52' }]}>
+              <View style={{ flex: 1, gap: 8 }}>
+                <Text style={ui.cardTitle}>
+                  {f.make} {f.model}
+                </Text>
+                <TierMark tier={f.tier} />
+                <Text style={ui.body}>
+                  {f.origin === 'sighting' ? 'Seen' : 'Envelope'} · {new Date(f.acquired_at).toLocaleDateString()}
+                </Text>
+              </View>
+              <CarArt catalogId={f.catalog_id} />
             </View>
           ))}
         </View>
@@ -559,6 +563,7 @@ const s = StyleSheet.create({
   segmentText: { fontFamily: 'DMSans_600SemiBold', fontSize: 12, letterSpacing: 1.4, color: '#8F8F92' },
   segmentTextOn: { color: '#F4F2ED' },
   line: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  folio: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   report: { fontFamily: 'DMSans_600SemiBold', fontSize: 11, letterSpacing: 1.4, color: '#8F8F92' },
   pair: { flexDirection: 'row', gap: 10 },
   captureBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingBottom: 12 },
