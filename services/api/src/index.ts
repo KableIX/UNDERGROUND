@@ -29,6 +29,8 @@ import { mutationGate } from './routes/mutation-gate';
 import { authenticateMember, createSupabaseMemberGateway } from './supabase-gateway';
 import { assessPhotoProof, attestChallenge, loadIntegrityConfig, registerDeviceKey } from './integrity/photo-proof';
 import { issueFinishNonce, nonceSecretUsable } from './integrity/finish-nonce';
+import { createSupabaseMessagesGateway } from './messages-gateway';
+import { createMessagesHandlers, type MessagesReply } from './routes/messages';
 
 const env = loadEnv();
 const handleEditorial = createEditorialHandler(env, process.env.NEWSWIRE_EDITORIAL_TOKEN_SHA256);
@@ -43,6 +45,7 @@ const supercargoStore = process.env.SUPERCARGO_ENABLED === '1' ? createSupabaseS
 const supercargoRedaction = process.env.SUPERCARGO_BLUR_URL
   ? createHttpRedaction(process.env.SUPERCARGO_BLUR_URL, process.env.SUPERCARGO_BLUR_TOKEN ?? '')
   : failClosedRedaction;
+const messages = createMessagesHandlers(createSupabaseMessagesGateway(env));
 
 console.info(
   JSON.stringify({
@@ -230,6 +233,44 @@ const server = createServer(async (req, res) => {
       res.writeHead(502, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify({ ok: false, error: req.url === '/v1/route-finishes' || req.url?.startsWith('/v1/run-') ? 'route_result_unavailable' : req.url?.startsWith('/v1/attest/') ? 'integrity_unavailable' : 'garage_backend_unavailable' }));
     }
+    return;
+  }
+
+  // Messages: direct messages and club chat. The member comes from the verified token only.
+  if (req.url?.startsWith('/v1/messages')) {
+    const auth = await authenticateMember(req.headers.authorization, memberGateway);
+    if (!auth.ok) {
+      res.writeHead(auth.status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      res.end(JSON.stringify({ ok: false, error: auth.error }));
+      return;
+    }
+    const me = auth.session.memberId;
+    const url = new URL(req.url, 'http://localhost');
+    const parts = url.pathname.split('/').filter(Boolean); // v1, messages, ...
+    let reply: MessagesReply = { status: 404, body: { ok: false, error: 'not_found' } };
+    try {
+      if (req.method === 'GET' && url.pathname === '/v1/messages/threads') {
+        reply = await messages.listThreads(me);
+      } else if (req.method === 'GET' && parts[2] === 'threads' && parts.length === 4) {
+        reply = await messages.listMessages(me, parts[3] ?? '', url.searchParams.get('limit'), url.searchParams.get('before'));
+      } else if (req.method === 'POST' && parts[2] === 'threads' && parts.length === 4) {
+        reply = await messages.sendMessage(me, parts[3] ?? '', await readJsonBody(req));
+      } else if (req.method === 'POST' && parts[2] === 'threads' && parts[4] === 'read' && parts.length === 5) {
+        reply = await messages.markRead(me, parts[3] ?? '');
+      } else if (req.method === 'POST' && url.pathname === '/v1/messages/open/direct') {
+        reply = await messages.openDirect(me, await readJsonBody(req));
+      } else if (req.method === 'POST' && url.pathname === '/v1/messages/open/club') {
+        reply = await messages.openClub(me, await readJsonBody(req));
+      } else if (req.method === 'POST' && url.pathname === '/v1/messages/block') {
+        reply = await messages.block(me, await readJsonBody(req));
+      } else if (req.method === 'POST' && url.pathname === '/v1/messages/report') {
+        reply = await messages.report(me, await readJsonBody(req));
+      }
+    } catch {
+      reply = { status: 400, body: { ok: false, error: 'invalid_request' } };
+    }
+    res.writeHead(reply.status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    res.end(JSON.stringify(reply.body));
     return;
   }
 

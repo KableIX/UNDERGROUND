@@ -4,6 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Text } from '@underground/ui';
 import { useSession } from '../../session/SessionContext';
 import { getMobileSupabaseClient } from '../../session/supabase-session';
+import { MessagesError, messageText, messagesApi } from '../../messages/api';
 
 type Invite={id:string;purpose:'lead'|'roster';name:string|null};
 type Club={id:string;name:string;role:string;badge:string;territory:string;roster:{number:string;name:string;role:string}[]};
@@ -43,6 +44,12 @@ export function ClubHub(){
   function answer(i:Invite,accept:boolean){
     void act(async()=>{await rpc('answer_club_access',{ticket:i.id,accept,club_name:name,territory,emblem:badge,market});await refresh();});
   }
+  // One shared room per club. Only current members can open it; the server checks.
+  async function openChat(c:Club){
+    if(busy)return;setBusy(true);setError('');
+    try{const {threadId}=await messagesApi.openClub(c.id);router.push({pathname:'/messages/[threadId]',params:{threadId,title:c.name}});}
+    catch(e){setError(e instanceof MessagesError?messageText(e.message):'Could not open club chat.');}finally{setBusy(false);}
+  }
   function inviteForm(target:string,title:string){
     if(compose!==target)return <ClubButton label={title} onPress={()=>{setCompose(target);setEmail('');setSent('');}}/>;
     const message=target==='lead'?'You’re invited to create your club on UNDERGROUND.':'You’re invited to join '+(hub?.clubs.find(c=>c.id===target)?.name ?? 'our club')+' on UNDERGROUND.';
@@ -74,6 +81,7 @@ export function ClubHub(){
       {hub?.clubs.map(c=><View key={c.id} style={s.card}>
         <Text gold>{[c.badge,c.name].filter(Boolean).join(' · ')}</Text><Text>{c.territory}</Text>
         {c.roster.map(r=><Text key={r.number}>{r.name} · {r.role}</Text>)}
+        <ClubButton label="Club chat" disabled={busy} onPress={()=>void openChat(c)}/>
         {['owner','officer'].includes(c.role)&&inviteForm(c.id,'Invite driver')}
       </View>)}
       {hub&&!hub.clubs.length&&!hub.invites.length&&<Text>No club invitations yet.</Text>}

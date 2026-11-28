@@ -23,6 +23,7 @@ export * from './rankings';
 export * from './invite';
 export * from './notification';
 export * from './dm';
+export * from './messages';
 export * from './guestbook';
 export * from './rewards';
 export * from './route-plan';
