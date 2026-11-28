@@ -33,8 +33,9 @@ function bundle(source: 'production' | 'simulation'): RunEvidenceBundle {
 
 describe('verified capture workflow', () => {
   it('lists full stage order', () => {
-    expect(CAPTURE_WORKFLOW_ORDER).toHaveLength(12);
-    expect(CAPTURE_WORKFLOW_ORDER[0]).toBe('odometer_start_photo');
+    expect(CAPTURE_WORKFLOW_ORDER).toHaveLength(11);
+    expect(CAPTURE_WORKFLOW_ORDER[0]).toBe('gps_recording');
+    expect(CAPTURE_WORKFLOW_ORDER).not.toContain('odometer_start_photo');
     expect(CAPTURE_WORKFLOW_ORDER.at(-1)).toBe('archive');
   });
 
@@ -96,5 +97,25 @@ describe('verified capture workflow', () => {
       pipelineState: 'RECORDING',
     });
     expect(result.blockedAt).toBe('checkpoints');
+  });
+
+  it('completes without a start odometer photo', () => {
+    const result = evaluateCaptureWorkflow({
+      runId: RUN,
+      memberId: MEMBER,
+      territoryDefinitionId: TERRITORY,
+      districtKind: 'development',
+      evidenceSource: 'simulation',
+      productionCapturesEnabled: false,
+      bundle: { ...bundle('simulation'), startOdometer: undefined },
+      checkpointsReached: 2,
+      checkpointsRequired: 2,
+      finishZoneOk: true,
+      parkingWindowOk: true,
+      pipelineState: 'RECORDING',
+    });
+    expect(result.blockedAt).toBeNull();
+    expect(result.archived).toBe(true);
+    expect(result.stagesCompleted).not.toContain('odometer_start_photo');
   });
 });

@@ -23,11 +23,13 @@ create or replace function public.dm_threads_touch()
   security definer
   set search_path = public
 as $$
+begin
   update public.dm_threads
      set last_message_at = new.created_at,
          last_message_preview = left(regexp_replace(new.body, '\s+', ' ', 'g'), 160)
    where id = new.thread_id;
   return new;
+end;
 $$;
 revoke execute on function public.dm_threads_touch() from public, anon, authenticated;
 
@@ -76,49 +78,50 @@ create table if not exists public.message_reports (
 
 -- Reading or posting straight to the database follows the same rule as the API: a direct thread is
 -- open to the two people in it, and a club thread only while the member still belongs to the club.
-drop policy if exists dm_messages_select_participant on public.dm_messages;
-create policy dm_messages_select_participant on public.dm_messages
-  for select using (
-    exists (
+-- The helper is security definer so the club-membership check can read dm_threads even though that
+-- table has RLS enabled and no select policy of its own (an in-policy subquery would otherwise
+-- see zero rows and the check would collapse to allow).
+create or replace function public.can_access_chat_thread(target uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    public.current_member_id() is not null
+    and exists (
       select 1 from public.dm_thread_participants p
-       where p.thread_id = dm_messages.thread_id
+       where p.thread_id = target
          and p.member_id = public.current_member_id()
     )
-    and coalesce((
-      select exists (
+    and (
+      not exists (
+        select 1 from public.dm_threads t
+         where t.id = target and t.kind = 'club'
+      )
+      or exists (
         select 1
-          from public.club_memberships cm
-          join public.dm_threads t on t.club_id = cm.club_id
-         where t.id = dm_messages.thread_id
+          from public.dm_threads t
+          join public.club_memberships cm on cm.club_id = t.club_id
+         where t.id = target
+           and t.kind = 'club'
            and cm.member_id = public.current_member_id()
       )
-        from public.dm_threads t
-       where t.id = dm_messages.thread_id
-         and t.kind = 'club'
-    ), true)
-  );
+    )
+$$;
+revoke all on function public.can_access_chat_thread(uuid) from public, anon;
+grant execute on function public.can_access_chat_thread(uuid) to authenticated;
+
+drop policy if exists dm_messages_select_participant on public.dm_messages;
+create policy dm_messages_select_participant on public.dm_messages
+  for select using (public.can_access_chat_thread(thread_id));
 
 drop policy if exists dm_messages_insert_sender on public.dm_messages;
 create policy dm_messages_insert_sender on public.dm_messages
   for insert with check (
     sender_id = public.current_member_id()
-    and exists (
-      select 1 from public.dm_thread_participants p
-       where p.thread_id = dm_messages.thread_id
-         and p.member_id = public.current_member_id()
-    )
-    and coalesce((
-      select exists (
-        select 1
-          from public.club_memberships cm
-          join public.dm_threads t on t.club_id = cm.club_id
-         where t.id = dm_messages.thread_id
-           and cm.member_id = public.current_member_id()
-      )
-        from public.dm_threads t
-       where t.id = dm_messages.thread_id
-         and t.kind = 'club'
-    ), true)
+    and public.can_access_chat_thread(thread_id)
   );
 
 -- Service role only: every read and write goes through the API, which checks membership.

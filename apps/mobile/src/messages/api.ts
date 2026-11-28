@@ -72,6 +72,11 @@ export const messagesApi = {
       method: 'POST',
       body: JSON.stringify({ withMemberId }),
     }),
+  openDirectByNumber: (memberNumber: string) =>
+    request<{ threadId: string }>('/v1/messages/open/direct', {
+      method: 'POST',
+      body: JSON.stringify({ memberNumber }),
+    }),
   openClub: (clubId: string) =>
     request<{ threadId: string }>('/v1/messages/open/club', { method: 'POST', body: JSON.stringify({ clubId }) }),
   block: (memberId: string) =>

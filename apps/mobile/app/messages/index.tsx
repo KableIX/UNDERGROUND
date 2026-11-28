@@ -4,7 +4,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { type ChatThread } from '@underground/domain';
 import { Screen, Text } from '@underground/ui';
 import { MessagesError, messageText, messagesApi } from '../../src/messages/api';
-import { findMemberPage } from '../../src/profile/store';
 import { useSession } from '../../src/session/SessionContext';
 import { shell } from '../../src/theme/shell';
 
@@ -69,16 +68,14 @@ export default function MessagesScreen() {
     const wanted = number.trim();
     if (!/^\d{6}$/.test(wanted) || !memberId || busy) return;
     setBusy(true);
-    let otherId: string;
     try {
-      otherId = await findMemberPage(memberId, wanted);
+      const { threadId } = await messagesApi.openDirectByNumber(wanted);
+      router.push({ pathname: '/messages/[threadId]', params: { threadId, title: `Member ${wanted}` } });
     } catch (e) {
-      Alert.alert('No member found', e instanceof Error ? e.message : undefined);
-      return;
+      Alert.alert('Could not open a message', e instanceof MessagesError ? messageText(e.message) : 'Please try again.');
     } finally {
       setBusy(false);
     }
-    await openDirect(otherId, `Member ${wanted}`);
   }
 
   function row(thread: ChatThread) {

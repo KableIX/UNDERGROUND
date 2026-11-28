@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
+  canStartDirectMessage,
   canUseThread,
   countUnread,
   previewOf,
@@ -41,6 +42,8 @@ export interface MessagesGateway {
   ): Promise<ChatMessage[] | 'forbidden'>;
   sendMessage(memberId: string, threadId: string, body: string): Promise<ChatMessage | 'forbidden' | 'blocked'>;
   openDirectThread(memberId: string, otherMemberId: string): Promise<OpenThreadResult>;
+  /** Look up any member by number. Profile visibility is not required. */
+  findMemberByNumber(memberNumber: string): Promise<string | null>;
   openClubThread(memberId: string, clubId: string): Promise<OpenThreadResult>;
   markRead(memberId: string, threadId: string): Promise<void>;
   blockMember(memberId: string, blockedId: string): Promise<void>;
@@ -267,16 +270,32 @@ export function createSupabaseMessagesGateway(env: RuntimeEnv): MessagesGateway 
       };
     },
 
+    async findMemberByNumber(memberNumber) {
+      const { data, error } = await admin
+        .from('members')
+        .select('id')
+        .eq('member_number', memberNumber)
+        .maybeSingle();
+      if (error) return unavailable('member_lookup_unavailable');
+      return data ? (data.id as string) : null;
+    },
+
     async openDirectThread(memberId, otherMemberId) {
-      if (memberId === otherMemberId) return 'self';
       const { data: other, error: otherError } = await admin
         .from('members')
         .select('id')
         .eq('id', otherMemberId)
         .maybeSingle();
       if (otherError) return unavailable('member_lookup_unavailable');
-      if (!other) return 'not_found';
-      if (await blockedBetween(memberId, otherMemberId)) return 'blocked';
+      // Any existing member is eligible. Do not consult profile page visibility.
+      const blocked = other ? await blockedBetween(memberId, otherMemberId) : false;
+      const decision = canStartDirectMessage({
+        memberId,
+        otherMemberId,
+        otherExists: Boolean(other),
+        blocked,
+      });
+      if (decision !== 'ok') return decision;
       // Reuse the direct thread that already holds exactly these two people.
       const { data: mine, error: mineError } = await admin
         .from('dm_thread_participants')

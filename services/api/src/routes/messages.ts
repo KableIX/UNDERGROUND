@@ -12,7 +12,10 @@ import type { MessagesGateway } from '../messages-gateway';
 export type MessagesReply = { status: number; body: unknown };
 
 const UuidSchema = z.string().uuid();
-const OpenDirectSchema = z.object({ withMemberId: z.string().uuid() });
+const OpenDirectSchema = z.union([
+  z.object({ withMemberId: z.string().uuid() }).strict(),
+  z.object({ memberNumber: z.string().regex(/^\d{6}$/) }).strict(),
+]);
 const OpenClubSchema = z.object({ clubId: z.string().uuid() });
 const BlockSchema = z.object({ memberId: z.string().uuid() });
 const ReportSchema = z.object({ messageId: z.string().uuid(), reason: ReportReasonSchema });
@@ -108,7 +111,14 @@ export function createMessagesHandlers(
       if (!gateway) return notConfigured();
       const parsed = OpenDirectSchema.safeParse(raw);
       if (!parsed.success) return fail(400, 'invalid_request');
-      return run(async () => opened(await gateway.openDirectThread(memberId, parsed.data.withMemberId)));
+      return run(async () => {
+        const otherId =
+          'withMemberId' in parsed.data
+            ? parsed.data.withMemberId
+            : await gateway.findMemberByNumber(parsed.data.memberNumber);
+        if (!otherId) return fail(404, 'member_not_found');
+        return opened(await gateway.openDirectThread(memberId, otherId));
+      });
     },
 
     async openClub(memberId, raw) {

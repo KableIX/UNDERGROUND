@@ -5,6 +5,7 @@ import { createMessagesHandlers } from '../src/routes/messages';
 
 const me = '11111111-1111-4111-8111-111111111111';
 const friend = '22222222-2222-4222-8222-222222222222';
+const hidden = '66666666-6666-4666-8666-666666666666';
 const outsider = '33333333-3333-4333-8333-333333333333';
 const thread = '44444444-4444-4444-8444-444444444444';
 const hello: ChatMessage = {
@@ -48,7 +49,13 @@ function fakeGateway() {
     async openDirectThread(memberId, other) {
       if (other === me) return 'self';
       if (other === outsider) return 'not_found';
+      if (state.blocked.has(other) || state.blocked.has(memberId)) return 'blocked';
       return { threadId: thread };
+    },
+    async findMemberByNumber(memberNumber) {
+      if (memberNumber === '000002') return friend;
+      if (memberNumber === '000099') return hidden;
+      return null;
     },
     async openClubThread(memberId) {
       return state.clubMembers.has(memberId) ? { threadId: thread } : 'forbidden';
@@ -134,6 +141,18 @@ describe('message routes', () => {
     expect((await handlers.openDirect(me, { withMemberId: me })).status).toBe(422);
     expect((await handlers.openDirect(me, { withMemberId: outsider })).status).toBe(404);
     expect((await handlers.openDirect(me, { memberId: friend })).status).toBe(400);
+  });
+
+  it('opens a DM with any member, including one whose profile page is not visible', async () => {
+    const handlers = createMessagesHandlers(fakeGateway().gateway);
+    const byId = await handlers.openDirect(me, { withMemberId: hidden });
+    expect(byId.status).toBe(200);
+    expect((byId.body as { threadId: string }).threadId).toBe(thread);
+    const byNumber = await handlers.openDirect(me, { memberNumber: '000099' });
+    expect(byNumber.status).toBe(200);
+    expect((await handlers.openDirect(me, { memberNumber: '000002' })).status).toBe(200);
+    expect((await handlers.openDirect(me, { memberNumber: '000000' })).status).toBe(404);
+    expect((await handlers.openDirect(me, { memberNumber: '12' })).status).toBe(400);
   });
 
   it('opens club chat only for club members', async () => {

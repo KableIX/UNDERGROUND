@@ -28,8 +28,8 @@ export const CaptureWorkflowStageSchema = z.enum([
 
 export type CaptureWorkflowStage = z.infer<typeof CaptureWorkflowStageSchema>;
 
+/** Live stage order. The start odometer photo step is retired and is no longer required. */
 export const CAPTURE_WORKFLOW_ORDER: readonly CaptureWorkflowStage[] = [
-  'odometer_start_photo',
   'gps_recording',
   'checkpoints',
   'finish_zone',
@@ -91,11 +91,7 @@ export function evaluateCaptureWorkflow(
     archived: false,
   });
 
-  if (!fixture.bundle.startOdometer.photoStoragePath) {
-    return fail('odometer_start_photo', 'missing_start_odometer');
-  }
-  stagesCompleted.push('odometer_start_photo');
-
+  // Start odometer photos are retired. GPS proves the run; finish photos stay required later.
   if (fixture.pipelineState === 'CREATED') {
     return fail('gps_recording', 'gps_not_started');
   }

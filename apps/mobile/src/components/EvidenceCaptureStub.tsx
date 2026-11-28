@@ -2,16 +2,17 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '@underground/ui';
 import { shell } from '../theme/shell';
 
-/** Mobile stubs for start/end odometer + finish-line photo capture UI. */
+/** The old territory-capture flow demanded a start odometer photo. That step is retired. */
 export function EvidenceCaptureStub() {
   return (
     <View style={styles.root}>
       <Text variant="caption" gold>
         EVIDENCE CAPTURE STUBS
       </Text>
-      <Text style={styles.item}>1. Start odometer photo</Text>
-      <Text style={styles.item}>2. End odometer photo</Text>
-      <Text style={styles.item}>3. Finish-line photo (finish zone)</Text>
+      <Text style={styles.item}>Start odometer photos are no longer required.</Text>
+      <Text style={styles.item}>1. GPS recording</Text>
+      <Text style={styles.item}>2. Finish-line photo (finish zone)</Text>
+      <Text style={styles.item}>3. End odometer photo (optional)</Text>
       <Text variant="caption" style={styles.meta}>
         SERVER AUTHORITATIVE · MOCK PATHS IN TESTS ONLY
       </Text>
