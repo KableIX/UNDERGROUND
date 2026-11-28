@@ -1,10 +1,10 @@
 import type {IntelWeather} from '../../lib/intel-weather';
 import { CameraMarkerDetails } from './IntelMarker';
 import {cameraImages} from '../../map-layers/camera-images';
-import { cameraPins, regionBox, snapshot, cameraViewportMode, cameraDisplayPins, cameraViewportNote, cameraShieldSize, type CameraPin } from '../../map-layers/cameras';
+import { cameraPins, regionBox, snapshot, cameraViewportMode, cameraDisplayPins, cameraViewportNote, cameraShieldSize, cameraShieldSizeForAltitude, type CameraPin } from '../../map-layers/cameras';
 import { useLayers } from '../../map-layers/controls';
 import { type drawZones, zoneLabel } from '../../map-layers/history';
-import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import type { MapLighting } from '../../lib/map-lighting';
 import type { Region } from 'react-native-maps';
 import { useStreetDetail } from './use-street-detail';
@@ -67,7 +67,7 @@ export function WorldMapFallback({
   const [ready, setReady] = useState(false);
   const lastFocus = useRef<{ revision: number; points: typeof fitCoordinates; streetView?: boolean } | null>(null);
   const highlightRef = useRef<HighlightControls>(null);
-  const mapRef = useRef<{ pointForCoordinate: (coordinate: { latitude: number; longitude: number }) => Promise<{ x: number; y: number }>; setCamera: (camera: Record<string, unknown>) => void; animateToRegion: (region: Region, duration: number) => void; fitToCoordinates: (points: { longitude: number; latitude: number }[], options: Record<string, unknown>) => void } | null>(null);
+  const mapRef = useRef<{ getCamera?: () => Promise<{altitude?: number}>; pointForCoordinate: (coordinate: { latitude: number; longitude: number }) => Promise<{ x: number; y: number }>; setCamera: (camera: Record<string, unknown>) => void; animateToRegion: (region: Region, duration: number) => void; fitToCoordinates: (points: { longitude: number; latitude: number }[], options: Record<string, unknown>) => void } | null>(null);
   const routePoints = useMemo(() => fitCoordinates?.map(([longitude, latitude]) => ({ longitude, latitude })), [fitCoordinates]);
   const selected = territories.find(t => t.slug === selectedSlug);
   const endpoints = fitCoordinates?.length ? { start: fitCoordinates[0], finish: fitCoordinates[fitCoordinates.length - 1] } : selected ? startFinishForTerritory(selected) : null;
@@ -151,7 +151,52 @@ export function WorldMapFallback({
   const allCameraPins=useMemo(()=>cameraPins(cameraData,box,settings),[cameraData,settings,box]);
   const pins=useMemo(()=>cameraDisplayPins(allCameraPins,box),[allCameraPins,box]);
   const cameraNote=cameraViewportNote(cameraViewportMode(box),allCameraPins.length,pins.length,!!cameraData);
-  const shieldSize=cameraShieldSize(box,pins.length);
+  const [gestureShieldSize,setGestureShieldSize]=useState<number|null>(null);
+  const [nativeShieldSize,setNativeShieldSize]=useState<number|null>(null);
+  const scaleSampler=useRef({active:false,epoch:0,busy:false,queued:false,timer:null as ReturnType<typeof setTimeout>|null});
+  const sampleCameraScale=useCallback(()=>{
+    const sampler=scaleSampler.current;
+    if(Platform.OS!=='ios'||!sampler.active||!mapRef.current?.getCamera)return;
+    sampler.queued=true;
+    if(sampler.busy||sampler.timer!==null)return;
+    const epoch=sampler.epoch;
+    sampler.timer=setTimeout(()=>{
+      sampler.timer=null;
+      if(!sampler.active||sampler.epoch!==epoch)return;
+      const map=mapRef.current;
+      if(!map?.getCamera)return;
+      sampler.busy=true;
+      sampler.queued=false;
+      void Promise.resolve().then(()=>map.getCamera!()).then(camera=>{
+        if(!sampler.active||sampler.epoch!==epoch)return;
+        const size=cameraShieldSizeForAltitude(camera.altitude);
+        if(size!==null)setNativeShieldSize(size);
+      }).catch(()=>{
+        // Keep the last valid native size; on startup the region is the fallback.
+      }).finally(()=>{
+        if(sampler.epoch!==epoch)return;
+        sampler.busy=false;
+        if(sampler.queued)sampleCameraScale();
+      });
+    },100);
+  },[]);
+  useEffect(()=>{
+    if(!ready||Platform.OS!=='ios')return;
+    const sampler=scaleSampler.current;
+    sampler.active=true;
+    sampler.epoch++;
+    sampler.busy=false;
+    sampler.queued=false;
+    sampleCameraScale();
+    return ()=>{
+      sampler.active=false;
+      sampler.epoch++;
+      if(sampler.timer!==null)clearTimeout(sampler.timer);
+      sampler.timer=null;
+    };
+  },[ready,sampleCameraScale]);
+  // Native altitude wins; geographic span is only a startup/non-iOS fallback.
+  const shieldSize=nativeShieldSize??gestureShieldSize??cameraShieldSize(box);
   const shieldHeight=Math.round(shieldSize*122/112);
   const [cameraDetail,setCameraDetail]=useState<CameraPin|null>(null);
   const visibleDrives = useMemo(() => {
@@ -195,10 +240,16 @@ export function WorldMapFallback({
       <MapView
         ref={mapRef}
         onMapReady={() => setReady(true)}
-        onRegionChange={() => highlightRef.current?.refresh()}
+        onRegionChange={(next: Region) => {
+          highlightRef.current?.refresh();
+          setGestureShieldSize(cameraShieldSize(regionBox(next)));
+          sampleCameraScale();
+        }}
         onRegionChangeComplete={(next: Region) => {
           highlightRef.current?.refresh();
           setViewport(next);
+          setGestureShieldSize(cameraShieldSize(regionBox(next)));
+          sampleCameraScale();
           onCenterChange(next);
         }}
         style={StyleSheet.absoluteFill}
@@ -223,8 +274,8 @@ export function WorldMapFallback({
           strokeColor={line.road ? '#DC9049' : '#546B80'} strokeWidth={line.road ? 2.4 : 1.1} />)}
         {historyLines.map(z=><Polyline key={'checks-'+z.start_m} coordinates={z.coords.map(([longitude,latitude])=>({longitude,latitude}))}
           strokeColor="#B89356C2" strokeWidth={13} tappable onPress={()=>Alert.alert('Recurring speed checks',zoneLabel(z))}/>)}
-        {pins.map(p=><Marker key={p.id} identifier={p.id} coordinate={{latitude:p.lat,longitude:p.lon}}
-          anchor={{x:.5,y:.96}} title={p.title} description={p.detail} onPress={()=>setCameraDetail(p)}>
+        {pins.map(p=><Marker key={p.id+':'+shieldSize} identifier={p.id} coordinate={{latitude:p.lat,longitude:p.lon}}
+          style={{width:shieldSize,height:shieldHeight}} anchor={{x:.5,y:.96}} centerOffset={Platform.OS==='ios'?{x:0,y:-Math.round(shieldHeight*.46)}:undefined} title={p.title} description={p.detail} onPress={()=>setCameraDetail(p)}>
           <View style={{width:shieldSize,height:shieldHeight,alignItems:'center',justifyContent:'center'}}>
             <View style={{position:'absolute',bottom:3,width:9,height:9,borderRadius:5,borderWidth:1,borderColor:'#101820',backgroundColor:p.kind==='speed'?'#FFBF56':'#8DDBFF'}}/>
             <Image source={cameraImages[p.marker]} resizeMode="contain" style={{width:shieldSize,height:shieldHeight}}/>
@@ -316,7 +367,7 @@ export function WorldMapFallback({
       {ready && lighting.daylight < 1 && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: 1 - lighting.daylight }]}>
         <BeaconHighlights map={mapRef} ref={highlightRef} pins={highlights} />
       </View>}
-      {(settings.plate || settings.speed) && <View pointerEvents="none" style={{position:'absolute',left:8,bottom:26}}><Text style={{fontSize:11,color:'#D3F4FF',backgroundColor:'#131a22',padding:3}}>{cameraNote}</Text><Text style={{fontSize:9,color:'#ddd',backgroundColor:'#131a22'}}>© OpenStreetMap contributors · CA city data</Text></View>}
+      {(settings.plate || settings.speed) && <View pointerEvents="none" style={{position:'absolute',left:8,bottom:26}}><Text style={{fontSize:11,color:'#D3F4FF',backgroundColor:'#131a22',padding:3}}>{cameraNote}{__DEV__&&pins.length>0?(" / "+shieldSize+" pt"+(nativeShieldSize!==null?" native":" region")):""}</Text><Text style={{fontSize:9,color:'#ddd',backgroundColor:'#131a22'}}>© OpenStreetMap contributors · CA city data</Text></View>}
       {badge && !fitCoordinates ? <View pointerEvents="none" style={styles.badge}>
         <Text variant="caption" gold>{badge} · APPLE MAPS</Text>
       </View> : null}

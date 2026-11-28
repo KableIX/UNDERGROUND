@@ -2,8 +2,8 @@ import json,sqlite3,tempfile,unittest
 from pathlib import Path
 from shapely.geometry import Point,LineString,Polygon
 import collector as C
-from assess import road_candidates,assess,fresh_source,weather_segments
-from api import public_route
+from assess import road_candidates,assess,fresh_source,weather_segments,route_inventory,route_line,DATA
+from api import public_route,public_index
 from test_collector_511 import NOW,FIX,lcs_payload
 
 class Assessment(unittest.TestCase):
@@ -44,7 +44,7 @@ class Assessment(unittest.TestCase):
   self.assertEqual(len(list(road_candidates(self.db,health,NOW))),2)
  def test_weather_freshness(self):
   event={'kind':'weather','title':'Flood warning','source':'nws-CA','expires':NOW+10000}
-  data={'generated_at':NOW,'health':{'nws-CA':{'ok':True,'checked_at':NOW}},'routes':{'test':{'candidates':[event]}}}
+  data={'generated_at':NOW,'health':{'nws-CA':{'ok':True,'checked_at':NOW}},'weather_snapshots':{'nws-CA':NOW},'routes':{'test':{'state':'CA','geometry_status':'mapped','candidates':[event]}}}
   self.assertEqual(public_route(data,'test',NOW)['status'],'CAUTION')
   data['health']['nws-CA']['checked_at']=NOW-901
   self.assertEqual(public_route(data,'test',NOW)['status'],'UNKNOWN')
@@ -66,8 +66,48 @@ class WeatherOverlay(unittest.TestCase):
   self.assertEqual(weather_segments(line,polygon.buffer(-0.01).envelope.intersection(Point(-120,36))),[])
  def test_preview_expires_on_source_or_snapshot_deadline(self):
   event={'id':'test-weather','kind':'weather','title':'Flood warning','source':'nws-CA','expires':NOW+10000,'severity':'Severe','segments':[]}
-  data={'generated_at':NOW,'health':{'nws-CA':{'ok':True,'checked_at':NOW-800}},'routes':{'test':{'candidates':[event]}}}
+  data={'generated_at':NOW,'health':{'nws-CA':{'ok':True,'checked_at':NOW-800}},'weather_snapshots':{'nws-CA':NOW},'routes':{'test':{'state':'CA','geometry_status':'mapped','candidates':[event]}}}
   out=public_route(data,'test',NOW)
   self.assertEqual(out['weather'][0]['expires'],NOW+100)
   self.assertEqual(out['weather'][0]['severity'],'Severe')
   self.assertEqual(public_route(data,'test',NOW+101)['status'],'UNKNOWN')
+
+
+class RunInventory(unittest.TestCase):
+ def test_all_catalog_and_legacy_routes_use_saved_geometry(self):
+  routes=route_inventory(DATA)
+  self.assertEqual(len(routes),113)
+  self.assertTrue(all(route_line(r['coordinates']) is not None for r in routes.values()))
+  self.assertEqual(sum(r['state']=='FL' for r in routes.values()),47)
+  self.assertEqual(sum(r['state']=='CA' for r in routes.values()),66)
+  self.assertEqual(routes['jacobs-pass']['coordinates'],json.loads((DATA/'jacobs-pass-route.json').read_text())['coordinates'])
+  local=json.loads((DATA/'silicon-valley-road-routes.json').read_text())
+  for slug in ('saratoga-highway-9','page-mill-road','sierra-road','mount-hamilton-road','santa-clara-cupertino'):
+   self.assertEqual(routes[slug]['coordinates'],local[slug]['coordinates'])
+  self.assertEqual(routes['jenner-to-point-arena']['coordinates'],routes['sonoma-coastal-crown']['coordinates']+routes['point-arena-passage']['coordinates'][1:])
+  self.assertEqual(routes['saratoga-club-loop']['coordinates'],json.loads((DATA/'saratoga-club-route.json').read_text())['geometry']['coordinates'])
+ def test_invalid_geometry_never_assessed(self):
+  for points in ([],[[0,0]],[[0,0],[0,0]],[[0,91],[0,90]],[[0,0],[float('nan'),0]]):
+   self.assertIsNone(route_line(points))
+ def test_source_check_expiry_and_catalog_privacy(self):
+  alert={'kind':'weather','source':'nws-CA','title':'Flood warning','expires':NOW+500}
+  road={'kind':'roadwork','source':'511-bayarea','title':'private shadow candidate','expires':NOW+500}
+  data={'generated_at':NOW,'health':{'nws-CA':{'ok':True,'checked_at':NOW}},
+        'weather_snapshots':{'nws-CA':NOW-850},
+        'routes':{'a':{'state':'CA','geometry_status':'mapped','candidates':[alert,road]},
+                  'b':{'state':'FL','geometry_status':'mapped','candidates':[alert]},
+                  'c':{'state':'CA','geometry_status':'unmapped','candidates':[alert]}}}
+  a=public_route(data,'a',NOW)
+  self.assertEqual(a['weather_check']['state'],'fresh')
+  self.assertEqual(a['weather'][0]['expires'],NOW+50)
+  self.assertEqual(public_route(data,'a',NOW+51)['weather'],[])
+  self.assertEqual(public_route(data,'b',NOW)['weather'],[])
+  self.assertEqual(public_route(data,'c',NOW)['weather'],[])
+  index=public_index(data,NOW)
+  self.assertNotIn('private shadow candidate',json.dumps(index))
+  self.assertNotIn('segments',json.dumps(index))
+  self.assertEqual(index['routes']['a']['weather_check']['expires'],NOW+50)
+ def test_missing_snapshot_is_unknown_even_if_health_ok(self):
+  data={'generated_at':NOW,'health':{'nws-CA':{'ok':True,'checked_at':NOW}},
+        'routes':{'a':{'state':'CA','geometry_status':'mapped','candidates':[]}}}
+  self.assertEqual(public_route(data,'a',NOW)['weather_check']['state'],'unknown')

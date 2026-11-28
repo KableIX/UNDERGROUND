@@ -1,3 +1,4 @@
+import {IntelRouteStatus} from '../src/components/play/IntelRouteStatus';
 import { FittedPhoto } from '../src/components/FittedPhoto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -186,6 +187,7 @@ function DriveBrief({ route, guests }: { route: Route; guests?: Guest[] }) {
     <Text style={s.heading}>{route.title}</Text>
     <Text style={s.label}>{(route.distance_m / 1609.344).toFixed(1)} mi{guide ? `    /    ${Math.floor(guide.drivingMinutes / 60)} hr ${guide.drivingMinutes % 60} min driving` : ''}{loop ? '    /    Loop' : ''}</Text>
     <Text style={s.muted}>Meet / {route.meet}</Text>
+    <IntelRouteStatus slug={guide?'saratoga-club-loop':null} state={guide?'CA':undefined} coordinates={route.coordinates}/>
     {guide && <FittedPhoto source={saratogaPhoto.cover} accessibilityLabel={saratogaPhoto.photo.caption} radius={6} />}
     <Text style={s.h2}>Description</Text>
     {guide ? <>

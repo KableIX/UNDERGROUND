@@ -1,3 +1,6 @@
+import {useIntelCatalog} from '../../lib/use-intel-weather';
+import {currentWeather,currentWeatherCheck,type IntelAssessment} from '../../lib/intel-weather';
+import {runAdvisories,winterNavigationPaused} from '../../data/route-advisories';
 import { DrivePhoto } from './DrivePhoto';
 import { useCallback, useState } from 'react';
 import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -101,11 +104,22 @@ function Choice({
   );
 }
 
+function RunIntelBadge({run,assessment,clock}:{run:CuratedRun;assessment:IntelAssessment|null;clock:number}){
+ const weather=currentWeather(assessment,clock);
+ const checked=currentWeatherCheck(assessment,clock);
+ const saved=runAdvisories(run.slug,run.catalog?.id,clock*1000);
+ const paused=winterNavigationPaused(run.catalog?.id,clock*1000);
+ const caution=weather.length>0||saved.length>0;
+ return <View style={{alignSelf:'flex-start',borderWidth:1,borderRadius:6,borderColor:paused?'#F19C86':caution?'#E8B96D':'#48545C',paddingHorizontal:8,paddingVertical:4}}>
+  <Text style={{fontSize:11,color:paused?'#F19C86':caution?'#E8B96D':'#AAB3B8'}}>{paused?'INTEL / SEASONAL RESTRICTION':caution?'INTEL / REVIEW '+(weather.length+saved.length)+' ADVISOR'+(weather.length+saved.length===1?'Y':'IES'):checked?'INTEL / WEATHER CHECKED - PARTIAL':'INTEL / CONDITIONS UNKNOWN'}</Text>
+ </View>;
+}
 export function SoloRunSelector() {
   return <CatalogBrowser />;
 }
 export function DriveMenu() {
   const [mode, setMode] = useState<'cruise' | 'conquest' | null>(null);
+  const intel=useIntelCatalog(mode==='cruise');
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const back = useCallback(() => {
@@ -126,7 +140,7 @@ export function DriveMenu() {
       {entries.filter(row => row.run?.category === 'CRUISE' && row.state === 'CA').sort((a,b) => Number(b.run?.slug === 'highway-1-cruise') - Number(a.run?.slug === 'highway-1-cruise')).map(({run,art}) => run && (
         <Pressable key={run.slug} accessibilityRole="button" accessibilityLabel={'View ' + run.title} style={s.route} onPress={() => router.push({pathname:'/runs/[slug]',params:{slug:run.slug}})}>
           {art.cover && <DrivePhoto source={art.cover} />}
-          <View style={s.routeBody}><Text style={s.meta}>{run.catalog?.id} · CRUISE</Text><Text style={s.routeTitle}>{run.title}</Text><Text style={s.note}>{run.sequence[0]} → {run.sequence[run.sequence.length-1]}</Text></View>
+          <View style={s.routeBody}><Text style={s.meta}>{run.catalog?.id} · CRUISE</Text><Text style={s.routeTitle}>{run.title}</Text><RunIntelBadge run={run} assessment={intel.data?.get(run.slug)??null} clock={intel.clock}/><Text style={s.note}>{run.sequence[0]} → {run.sequence[run.sequence.length-1]}</Text></View>
         </Pressable>
       ))}
       <Choice title="Club Drives" detail="Saved drives and scheduled meetups" onPress={() => router.push('/club-drives')} />
@@ -183,6 +197,7 @@ function CatalogBrowser({conquestOnly = false, onExit}: {conquestOnly?: boolean;
   const browsing = browseCruises || browseRuns;
   const featured = cruises.find((row) => row.run?.slug === 'highway-1-cruise');
   const listed = browseCruises ? cruises : browseRuns ? runs : level ? [] : rows;
+  const intel=useIntelCatalog(listed.length>0);
   const title = browsing ? (depth ? path[depth - 1] : stateCovers[book].name) + (browseCruises ? ' Cruises' : ' Runs') : path[depth - 1];
   const hero = artwork(book, path, rows);
   const backTitle = browsing
@@ -337,6 +352,7 @@ function CatalogBrowser({conquestOnly = false, onExit}: {conquestOnly?: boolean;
             <View style={s.routeBody}>
               <Text style={s.meta}>{detail}</Text>
               <Text style={s.routeTitle}>{run.title}</Text>
+              <RunIntelBadge run={run} assessment={intel.data?.get(run.slug)??null} clock={intel.clock}/>
               <Text style={s.note}>{run.subtitle}</Text>
               <Text style={s.note}>
                 {run.sequence[0]} → {run.sequence[run.sequence.length - 1]}

@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@underground/ui';
 import type { CuratedRun } from '../../data/curated-runs';
-import { cedarGroveRoadReport, cedarGroveWinterClosure, routeAdvisories, winterNavigationPaused } from '../../data/route-advisories';
+import { cedarGroveRoadReport, cedarGroveWinterClosure, runAdvisories, winterNavigationPaused } from '../../data/route-advisories';
 import { shell } from '../../theme/shell';
 import { RouteRecords } from './RouteRecords';
 import { DriveRouteMap } from './DriveRouteMap';
@@ -35,7 +35,7 @@ export function MappedRunPreview({ run, route }: Props) {
     return () => { subscription.remove(); if (timer !== undefined) clearTimeout(timer); };
   }, [id, now]);
   const paused = winterNavigationPaused(id, now);
-  const notices = run.slug === 'jenner-to-point-arena' ? [...routeAdvisories('N04', now), ...routeAdvisories('N06', now)] : routeAdvisories(id ?? '', now);
+  const notices = runAdvisories(run.slug,id,now);
   const [startLng, startLat] = coordinates[0];
   const [endLng, endLat] = coordinates[coordinates.length - 1];
   const loop = Math.abs(startLng - endLng) < 0.0001 && Math.abs(startLat - endLat) < 0.0001;
@@ -60,6 +60,8 @@ export function MappedRunPreview({ run, route }: Props) {
         </View>
         <Text style={styles.accent}>{run.catalog?.id ? run.catalog.id + ' · ' : ''}{status}{run.catalog?.tier ? ' · TIER ' + run.catalog.tier + '/5' : ''}</Text>
         <Text style={styles.distance}>{(route.distanceMeters / 1609.344).toFixed(1)} mi · {loop ? 'Loop' : 'One way'}</Text>
+        <IntelRouteStatus slug={run.slug} state={isFlorida?'FL':'CA'} coordinates={route.coordinates}
+          notices={notices} seasonalClosure={paused} accessNote={run.accessNote} clearanceNote={run.clearanceNote}/>
         {run.category !== 'TEST' && <RouteRecords route={run.slug} cruise={run.category === 'CRUISE'} />}
         <Text style={styles.copy}>{run.subtitle}</Text>
         <Text style={styles.note}>{Math.round(route.durationSeconds / 60)} min estimated driving · {sequence.length} stops</Text>
@@ -87,14 +89,6 @@ export function MappedRunPreview({ run, route }: Props) {
           <Text style={styles.copy}>{i===0 ? 'Start · ' : i===run.sequence.length-1 ? 'Finish · ' : ''}{point}</Text>
           {(i===0 || i===run.sequence.length-1) && <Text style={styles.note}>{i===0 ? startLat.toFixed(5)+', '+startLng.toFixed(5) : endLat.toFixed(5)+', '+endLng.toFixed(5)}</Text>}
         </View></View>)}
-        <IntelRouteStatus slug={run.slug} />
-        <Text style={styles.label}>Road conditions</Text>
-        <Text style={styles.copy}>{run.accessNote}</Text>
-        <Text style={styles.note}>{notices.length?'Saved bulletins below. Open the traffic report for current conditions.':'Live road conditions have not been checked for this drive.'}</Text>
-        {!!run.clearanceNote && <Text style={styles.note}>{run.clearanceNote}</Text>}
-        {notices.map(n => <Pressable key={n.text} accessibilityRole="link" onPress={() => void Linking.openURL(n.source)}>
-          <Text style={styles.copy}>{n.text}</Text><Text style={styles.credit}>Caltrans bulletin · {n.date}</Text>
-        </Pressable>)}
         {run.catalog?.informationUrl && run.catalog.informationUrl !== 'https://fl511.com/' && <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(run.catalog!.informationUrl!)}>
           <Text style={styles.credit}>Visitor information for this drive</Text>
         </Pressable>}

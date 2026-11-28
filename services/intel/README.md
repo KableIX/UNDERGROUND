@@ -29,3 +29,10 @@ Normalized active Caltrans and approved 511 road-hazard events are correlated in
 
 ## Limited weather presentation
 The API supplies only fresh NWS alert polygons clipped to the saved route, with severity and source/snapshot-bounded expiry. Missing polygons are not inferred from alert text. Caltrans and 511 road incidents and their route matches remain shadow-only with road identity unverified. No change to the published=0 database constraint.
+
+
+## All-run pre-drive briefings
+
+The route inventory mirrors the 61 California and 47 Florida catalog entries, includes the three legacy mapped drives, the combined Jenner to Point Arena route, and the Saratoga club loop. All 113 assessments use existing saved geometry; no route geometry, GPS timing, CLOUT or completion rules are changed. Unmapped/private custom routes fail closed rather than inventing a road match.
+
+The tailnet preview API supports GET /v1/routes (one compact catalog response, no geometry) and GET /v1/routes/<slug> (route detail). Both expose only fresh official NWS polygon matches and a separate weather-source check deadline; source health, snapshot freshness, route geometry and assessment freshness must all pass. An empty list is not evidence of clear conditions. Road incident matching stays shadow-only, published=0, and no incident candidates are exposed. The app combines this limited weather preview with existing dated official bulletins and road authority links. Its offline camera context uses the existing California snapshot only, without new data acquisition or any operation/road-identity claim. It is not included in readiness scoring. Florida fixed-camera coverage and municipal reuse review remain outstanding.

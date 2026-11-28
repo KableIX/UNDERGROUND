@@ -4,7 +4,7 @@ import { CompactIntelMarker, CameraMarkerDetails } from './IntelMarker';
 import {cameraImages} from '../../map-layers/camera-images';
 import { useSpeedLimit } from '../../lib/use-speed-limit';
 import { MapLayersButton, useLayers, useRouteHistory } from '../../map-layers/controls';
-import { cameraPins, snapshot, cameraViewportMode, cameraDisplayPins, cameraViewportNote, cameraShieldSize, type Box, type CameraPin } from '../../map-layers/cameras';
+import { cameraPins, snapshot, cameraViewportMode, cameraDisplayPins, cameraViewportNote, cameraSymbolScale, type Box, type CameraPin } from '../../map-layers/cameras';
 import { drawZones, zoneLabel, type Zone } from '../../map-layers/history';
 import { FinishBanner } from './FinishBanner';
 import { useSession } from '../../session/SessionContext';
@@ -528,7 +528,6 @@ function TerritorySurface({
   const allCameraPins=useMemo(()=>cameraPins(cameraData,view,settings),[cameraData,settings,view]);
   const pins=useMemo(()=>cameraDisplayPins(allCameraPins,view),[allCameraPins,view]);
   const cameraNote=cameraViewportNote(cameraViewportMode(view),allCameraPins.length,pins.length,!!cameraData);
-  const shieldSize=cameraShieldSize(view,pins.length);
   const [cameraDetail,setCameraDetail]=useState<CameraPin|null>(null);
   const historyLines=useMemo(()=>!approachLeg && fitCoordinates && historyZones ? drawZones(fitCoordinates,historyZones) : [],[approachLeg,fitCoordinates,historyZones]);
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
@@ -807,7 +806,7 @@ function TerritorySurface({
           <CircleLayer id="ca-camera-halo" style={{circleColor:['match',['get','kind'],'speed','#FFBF56','#8DDBFF'],circleRadius:9,circleOpacity:.23,circleBlur:.45}}/>
           <CircleLayer id="ca-camera-dots" style={{circleColor:['match',['get','kind'],'speed','#FFBF56','#8DDBFF'],circleRadius:4.5,circleStrokeWidth:1.25,circleStrokeColor:'#101820'}}/>
           {Images && <SymbolLayer id="ca-camera-shields" style={{
-            iconImage:['get','marker'],iconSize:shieldSize/112,
+            iconImage:['get','marker'],iconSize:cameraSymbolScale,
             iconAnchor:'bottom',iconAllowOverlap:false,iconIgnorePlacement:true,iconPitchAlignment:'viewport',iconRotationAlignment:'viewport',
           }}/>}
         </ShapeSource>
