@@ -9,7 +9,6 @@ export function CinematicBackdrop({ children, entrance = false }: { children: Re
   return (
     <View style={styles.root}>
       <Image
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         source={require('../../../assets/brand/garage.jpg')}
         style={[styles.photo, entrance && { opacity: 1 }]}
         resizeMode="cover"

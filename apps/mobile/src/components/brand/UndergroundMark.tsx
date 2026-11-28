@@ -23,7 +23,6 @@ export function UndergroundMark({
   return (
     <View style={styles.root} accessibilityLabel="UNDERGROUND">
       <Image
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         source={require('../../../assets/brand/underground-mark.png')}
         style={hero ? styles.markHero : styles.markCompact}
         resizeMode="contain"

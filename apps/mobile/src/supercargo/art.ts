@@ -1,6 +1,5 @@
 import type { ImageSourcePropType } from 'react-native';
 
-/* eslint-disable @typescript-eslint/no-require-imports */
 // Ledger artwork bundled with the app (512x384 WebP, ~20-40 KB each). The render
 // is for cars the member holds; the silhouette (black fill, faint gold outline)
 // is for catalog cars they have not spotted yet. Keyed by catalog id; keep in step

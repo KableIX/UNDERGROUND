@@ -71,7 +71,6 @@ const originalRuns: readonly CuratedRun[] = [
     geometryStatus: 'not_surveyed',
     accessNote: 'Only public, lawful road approaches. Verify turn legality and intersection checkpoints.',
     clearanceNote: 'Urban surface roads; pavement, turns, traffic and vehicle clearance must be checked in person.',
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     cover: require('../../assets/runs/nvidia-campus.jpg'),
     photo: {
       author: 'Coolcaesar',
@@ -97,7 +96,6 @@ const originalRuns: readonly CuratedRun[] = [
     mapped: { ...mappedRoads.HMB, proposedValue: null },
     accessNote: 'Use Highway 1 through the Tom Lantos Tunnels. Confirm coastal visibility and staging before departure.',
     clearanceNote: 'Highway segment appears promising; closures and road surface still require validation.',
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     cover: require('../../assets/runs/coast-halfmoon.jpg'),
     photo: {
       author: 'Firstcultural',
@@ -121,7 +119,6 @@ const originalRuns: readonly CuratedRun[] = [
     geometryStatus: 'not_surveyed',
     accessNote: 'Current highway only; coastal restrictions, fog and congestion must be checked.',
     clearanceNote: 'Do not assume uninterrupted safe clearance without drive-through inspection.',
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     cover: require('../../assets/runs/pescadero-coast.jpg'),
     photo: {
       author: 'Fietsbel',
@@ -146,7 +143,6 @@ const originalRuns: readonly CuratedRun[] = [
     mapped: { ...mappedRoads.NAPA, proposedValue: null },
     accessNote: 'Survey public staging at both ends and check traffic at vineyard entrances.',
     clearanceNote: 'Vineyard-road surface, shoulders, weather and traffic require validation.',
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     cover: require('../../assets/runs/silverado-trail.jpg'),
     photo: {
       author: 'Stan Shebs',
@@ -170,7 +166,6 @@ const originalRuns: readonly CuratedRun[] = [
     geometryStatus: 'not_surveyed',
     accessNote: 'Private toll scenic road; admission and daylight gate hours apply. Not part of the nine-county Bay Area.',
     clearanceNote: 'Slow scenic touring only; verify current gate policies and road suitability.',
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     cover: require('../../assets/runs/17-mile-drive.jpg'),
     photo: {
       author: 'Amadscientist',

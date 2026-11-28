@@ -232,7 +232,6 @@ function Album({ member, number }: { member: string; number: string }) {
           {entry.map((item) => (
             <View key={item.id} style={s.card}>
               <Image
-                // eslint-disable-next-line @typescript-eslint/no-require-imports
                 source={require('../assets/brand/underground-lockup-silver.png')}
                 accessibilityLabel="UNDERGROUND"
                 style={{ width: 145, height: 32, margin: 12, resizeMode: 'contain' }}

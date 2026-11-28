@@ -39,5 +39,18 @@ export default [
       'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
     },
   },
+  {
+    // The mobile app loads its bundled photos, audio and fonts with require(): one file each, with
+    // no export to import, and the bundler resolves them at build time. Only those are allowed,
+    // and only inside the app. require() of anything else, such as a phone feature loaded at the
+    // moment it is used, stays an error.
+    files: ['apps/mobile/**/*.{ts,tsx,js,jsx}'],
+    rules: {
+      '@typescript-eslint/no-require-imports': [
+        'error',
+        { allow: ['\\.(png|jpe?g|webp|gif|mp3|wav|m4a|aac|ttf|otf|woff2?)$'] },
+      ],
+    },
+  },
   eslintConfigPrettier,
 ];

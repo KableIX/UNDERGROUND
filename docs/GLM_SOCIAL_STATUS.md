@@ -2,6 +2,41 @@
 
 Running notes for the reviewer, newest entry first. Nothing from this branch has reached `main`.
 
+## 2026-11-28: slice 3, lint: the agreed exception, and what it left
+
+**Changed**
+
+- `eslint.config.js`: one added block, scoped to `apps/mobile/**`. There, `require()` is allowed when the path being loaded ends in a photo, audio or font file. I scoped it by what is loaded rather than by a list of files, which is narrower: it cannot cover a `require()` of anything else, even inside the photo files.
+- `apps/mobile/src/profile/store.ts`: the two `require()` calls left in the one file I had touched (photo picker, photo resizing) now use a lazy `import()`.
+- `apps/mobile/tsconfig.json`: one line, `"module": "ESNext"`, so the type checker accepts a lazy `import()`. Expo's base config leaves it unset and TypeScript falls back to a module kind without that syntax. Type-check only: the app's build tooling already handles it.
+- Ten `eslint-disable` comments removed in six files. Each sat in front of a photo `require()`, so the exception made it unnecessary and the linter warned about it. Nine single-line comments and one block comment; nothing else changed in those files (`spotted.tsx`, `ActiveRunDashboard.tsx`, `CinematicBackdrop.tsx`, `UndergroundMark.tsx`, `curated-runs.ts` ×5, `supercargo/art.ts`).
+
+**The numbers**
+
+- Before: 608 lint messages. 607 were `require()`. Of those, 590 load a photo, audio or font file and 17 load a phone feature at the moment it is used. The last one is a `console.log` warning in `scripts/supercargo/catalog-seed-sql.ts`.
+- After: 16 messages. The exception removed exactly the 590 and nothing else. My two fixes removed 2. What remains is in code I have not touched:
+  - `profile/Soundtrack.tsx` (3), `profile/drafts.ts` (1), `profile/preview-store.ts` (1), `profile/ProfileEditor.tsx` (1)
+  - `garage/cover.ts` (1), `garage/GarageStage.tsx` (1), `components/GarageCarPhoto.tsx` (1)
+  - `drive/guidance-audio.ts` (1), `drive/result-store.ts` (1), `drive/use-navigation-voice.ts` (2)
+  - `lib/use-florida-access.ts` (1), `components/feed/LocalEventFeed.tsx` (1)
+  - and the one `console.log` warning.
+- 0 messages in `apps/members-web`, `packages/domain`, `eslint.config.js` and `apps/mobile/src/profile/store.ts`.
+
+**Why a lazy `import()` and not a normal import**
+
+The app loads phone features at the moment they are used on purpose; its own code says "In-page audio needs the audio-enabled iOS build". A normal import at the top of the file would load the photo picker when the app starts, so on a phone build without that module the app would stop opening instead of only photo picking failing. I checked the app's toolchain before relying on the lazy form: its Babel setup leaves `import()` as it is, and its bundler (Metro 0.81.5) turns it into its own load-on-demand call that runs at the moment of the call and returns the module the same way a normal import does.
+
+**Checks** (AngelFire)
+
+- `pnpm typecheck`: passes in all 7 packages.
+- Tests, one package at a time: domain 131, drive-tracking 17, persistence 7, territory-engine 34, mobile 295, api 81. All passing.
+- Lint: as in the numbers above.
+
+**Not verified**
+
+- Not on a phone. Picking a profile photo should be tried once on a device; that is the only behaviour these two fixes touch.
+- Whole-repo `pnpm lint` still fails, on the 15 above and the one warning. I left them because they are outside the code I touched. They are the same kind of call and would take the same fix.
+
 ## 2026-11-28: slice 2, the dev members website
 
 **Changed** (in `apps/members-web`, with its tests in `packages/domain`)

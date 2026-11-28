@@ -81,7 +81,9 @@ export async function savePage(
 export async function pickPhoto(
   kind: 'cover' | 'avatar' | 'journal' | 'featured',
 ) {
-  const picker = require('expo-image-picker') as typeof import('expo-image-picker');
+  // Loaded when the member picks a photo, not when the app starts, so a build without the photo
+  // picker still opens.
+  const picker = await import('expo-image-picker');
   const result = await picker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
   if (result.canceled) return null;
   const asset = result.assets[0];
@@ -92,7 +94,8 @@ export async function prepareProfilePhoto(
   asset: { uri: string; width: number; height: number },
   kind: 'cover' | 'avatar' | 'journal' | 'featured',
 ) {
-  const photo = require('expo-image-manipulator') as typeof import('expo-image-manipulator');
+  // Loaded here, for the same reason as the picker.
+  const photo = await import('expo-image-manipulator');
   const edge = kind === 'avatar' ? 720 : kind === 'journal' ? 960 : 1440;
   const width = Math.max(1, Math.round(asset.width * Math.min(1, edge / Math.max(asset.width, asset.height))));
   let resized = await photo.manipulateAsync(

@@ -22,7 +22,6 @@ export function ActiveRunDashboard({ visible, drive, temporary, busy, onClose, o
         accessibilityLabel="UNDERGROUND"
         accessible
         resizeMode="contain"
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         source={require('../../assets/brand/underground-lockup-silver.png')}
         style={s.brandHeader}
       />
