@@ -1,5 +1,6 @@
 import { getMobileSupabaseClient, isLiveAuthConfigured } from '../session/supabase-session';
-import { restoreSettings, validatePage, type Connections, type Page, type Settings } from './page';
+import { pageFromServer } from '@underground/domain';
+import { validatePage, type Connections, type Page, type Settings } from './page';
 import { previewDatabase, previewConnections, previewRequest, previewRespond, readPreview, savePreview } from './preview-store';
 
 function client() {
@@ -17,11 +18,12 @@ function handle(error: { code?: string; message: string }) {
   return new Error(error.message || 'Could not reach your member page.');
 }
 export async function getPage(viewer: string, target: string): Promise<Page> {
-  if (!isLiveAuthConfigured()) return readPreview(viewer, target);
+  // Either way the page is checked once more against the shared schema before anything is drawn from it.
+  if (!isLiveAuthConfigured()) return pageFromServer(await readPreview(viewer, target));
   let { data, error } = await client().rpc('read_custom_member_page', { target });
   if (error?.code === 'PGRST202') ({ data, error } = await client().rpc('read_designed_member_page', { target }));
   if (error) throw handle(error);
-  return { ...data, settings: restoreSettings(data.member.name, data.settings) };
+  return pageFromServer(data);
 }
 export async function findMemberPage(viewer: string, number: string): Promise<string> {
   if (!/^\d{6}$/.test(number)) throw new Error('Enter a six-digit member number.');

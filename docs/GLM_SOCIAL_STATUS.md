@@ -2,6 +2,42 @@
 
 Running notes for the reviewer, newest entry first. Nothing from this branch has reached `main`.
 
+## 2026-11-28: slice 1, one shared definition for pages and themes
+
+**Changed**
+
+- `packages/domain/src/member-page.ts` (new). The member page, its theme tokens and its rules moved
+  out of the app so there is one definition, as the brief requires. Tokens: sections, wallpaper
+  presets, heading styles, panel styles, cover sizes, accents, audiences, section formats, photo
+  framing, car classes. Rules: defaults, restoring an older page, save-time checks, link
+  allow-lists, who may visit a page, what a visitor receives. Plus a garage page document (each
+  car with specs, mods, photos and class).
+- `packages/domain/tests/member-page.test.ts` (new), 22 tests: every allowed token; unknown
+  tokens; out-of-range values; injection attempts (script URLs, remote or SVG photos, a color
+  carrying CSS, handles, links); layout; save checks; refusing a page on read; visitor rules;
+  garage rules.
+- `apps/mobile/src/profile/page.ts` and `audience.ts` are now thin wrappers over the shared
+  definition. No behavior change.
+- `apps/mobile/src/profile/store.ts`: a page is checked once more when it is read, before
+  anything is drawn from it. A page that breaks the schema now shows "This page could not be
+  shown." instead of being drawn.
+- One rule got stricter: profile links may not contain spaces, quotes, angle brackets or
+  backslashes. The database already refused spaces.
+
+**Checks** (AngelFire)
+
+- `pnpm typecheck`: passes in all 7 packages.
+- Tests: domain 118, mobile 295, api 81, all passing.
+- Lint on the changed files: clean, apart from two `require()` lines in `store.ts` that predate
+  this branch (part of the lint-gate question below).
+
+**Not verified**
+
+- Not seen on a phone, including the new refusal path on read.
+- Nothing here changes the database. The app still saves straight to the database RPCs, which
+  check every value in SQL; the shared schema and the SQL rules were written to match, and the
+  22 tests exercise the schema, not the SQL.
+
 ## 2026-11-28: starting point
 
 **Changed**
