@@ -1,0 +1,7 @@
+{
+  "note": "FAKE fixture data for the dev site. No real members.",
+  "members": [
+    { "id": "fixture-1", "displayName": "Fixture Driver One", "theme": { "version": 1, "palette": "obsidian-gold" }, "garage": ["fixture-car-a", "fixture-car-b"] },
+    { "id": "fixture-2", "displayName": "Fixture Driver Two", "theme": { "version": 1, "palette": "midnight-red" }, "garage": ["fixture-car-c"] }
+  ]
+}

@@ -1,0 +1,5 @@
+body { margin: 0; background: #0b0b0d; color: #f2efe8; font-family: system-ui, sans-serif; }
+.dev-banner { background: #c9a227; color: #111; padding: 6px 12px; font-size: 13px; font-weight: 600; }
+main { max-width: 720px; margin: 0 auto; padding: 24px 16px; }
+h1 { letter-spacing: 0.2em; }
+li { margin: 8px 0; }
