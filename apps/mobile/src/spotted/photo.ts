@@ -59,7 +59,20 @@ export async function suggestModel(photo: { uri: string; width: number; height: 
     const result = await response.json();
     if (!result.suggestion?.make || !result.suggestion?.model)
       throw new Error('No clear match. Enter the make and model.');
-    return result.suggestion as { make: string; model: string };
+    // confidence and candidates are the vision model's own estimate; older APIs send neither.
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : null);
+    const candidates = Array.isArray(result.candidates)
+      ? (result.candidates as Array<{ make?: unknown; model?: unknown; confidence?: unknown }>)
+          .filter((c) => typeof c?.make === 'string' && typeof c?.model === 'string' && c.make && c.model)
+          .slice(0, 3)
+          .map((c) => ({ make: String(c.make), model: String(c.model), confidence: num(c.confidence) }))
+      : [];
+    return {
+      make: String(result.suggestion.make),
+      model: String(result.suggestion.model),
+      confidence: num(result.confidence),
+      candidates,
+    };
   } finally {
     clearTimeout(timeout);
   }

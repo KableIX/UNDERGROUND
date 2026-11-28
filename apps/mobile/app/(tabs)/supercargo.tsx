@@ -44,6 +44,9 @@ import {
 import { currentFix } from '../../src/supercargo/location';
 import { firstQueryBounds, hoursUntilTradeable } from '../../src/supercargo/map';
 import { CarArt } from '../../src/supercargo/CarArt';
+import { FoilFilm, FoilFrame } from '../../src/supercargo/Foil';
+import { finishFor } from '../../src/supercargo/scan';
+import { useReduceMotion } from '../../src/supercargo/useReduceMotion';
 import { SightingsLayer } from '../../src/supercargo/SightingsLayer';
 import { TierMark } from '../../src/supercargo/TierMark';
 import { Action, Caption, Rule, ui } from '../../src/supercargo/ui';
@@ -336,6 +339,7 @@ function MapSection({ tick, onMessage }: { tick: number; onMessage: (m: string) 
 }
 
 function LedgerSection({ tick }: { tick: number }) {
+  const reduceMotion = useReduceMotion();
   const [folios, setFolios] = useState<Folio[] | null>(null);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [clubs, setClubs] = useState<ClubMarks[]>([]);
@@ -422,18 +426,21 @@ function LedgerSection({ tick }: { tick: number }) {
             <Text style={ui.body}>{tierNote(group.tier)}</Text>
           </View>
           {group.items.map((f) => (
-            <View key={f.id} style={[ui.card, s.folio, f.tier === 'singular' && { borderColor: '#8F7A52' }]}>
-              <View style={{ flex: 1, gap: 8 }}>
-                <Text style={ui.cardTitle}>
-                  {f.make} {f.model}
-                </Text>
-                <TierMark tier={f.tier} />
-                <Text style={ui.body}>
-                  {f.origin === 'sighting' ? 'Seen' : 'Envelope'} · {new Date(f.acquired_at).toLocaleDateString()}
-                </Text>
+            <FoilFrame key={f.id} finish={finishFor(f.tier)}>
+              <View style={[ui.card, s.folio, { borderWidth: 0 }, finishFor(f.tier) === 'holo' && { backgroundColor: '#14110C' }]}>
+                <View style={{ flex: 1, gap: 8 }}>
+                  <Text style={ui.cardTitle}>
+                    {f.make} {f.model}
+                  </Text>
+                  <TierMark tier={f.tier} />
+                  <Text style={ui.body}>
+                    {f.origin === 'sighting' ? 'Seen' : 'Envelope'} · {new Date(f.acquired_at).toLocaleDateString()}
+                  </Text>
+                </View>
+                <CarArt catalogId={f.catalog_id} />
               </View>
-              <CarArt catalogId={f.catalog_id} />
-            </View>
+              <FoilFilm finish={finishFor(f.tier)} reduceMotion={reduceMotion} sparkle={false} />
+            </FoilFrame>
           ))}
         </View>
       ))}

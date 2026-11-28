@@ -87,10 +87,40 @@ export function submitSighting(body: {
   make: string;
   model: string;
 }) {
-  return api<{ ok: boolean; tier: SupercargoTier; visibility: string; reason: string | null; publishAt: string | null; folio: boolean; atMeet?: boolean }>(
+  return api<{ ok: boolean; id?: string; message?: string; tier: SupercargoTier; visibility: string; reason: string | null; publishAt: string | null; folio: boolean; atMeet?: boolean }>(
     '/v1/supercargo/sightings',
     { ...body, source: 'camera' },
   );
+}
+
+/** The member's own sighting row (RLS: spotter only). Cell center only, never the point. */
+export async function readMySighting(id: string) {
+  const { data } = await db()
+    .from('supercargo_sightings')
+    .select('id, catalog_id, tier, credited, visibility, captured_at, cell_lat, cell_lng, photo_path')
+    .eq('id', id)
+    .maybeSingle();
+  return (data ?? null) as {
+    id: string;
+    catalog_id: string | null;
+    tier: SupercargoTier;
+    credited: boolean;
+    visibility: string;
+    captured_at: string;
+    cell_lat: number;
+    cell_lng: number;
+    photo_path: string | null;
+  } | null;
+}
+
+/** How many credited sightings of this catalog car the member has, this one included. */
+export async function countMySpots(catalogId: string) {
+  const { count, error } = await db()
+    .from('supercargo_sightings')
+    .select('id', { count: 'exact', head: true })
+    .eq('catalog_id', catalogId)
+    .eq('credited', true);
+  return error ? null : count ?? null;
 }
 
 export function claimEnvelope(envelope: string, fix: { lat: number; lng: number; accuracyM: number; at: string }) {
