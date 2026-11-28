@@ -58,6 +58,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         isAndroidBackgroundLocationEnabled: false,
       }],
       'expo-task-manager',
+      // SupercarGO scan: live viewfinder, tilt-following foil, haptics, card as an image.
+      // These are native: they arrive with a new development build (see docs/SUPERCARGO_NATIVE_BUILD.md).
+      // The JS loads each one defensively, so the previous build keeps working without them.
+      ['expo-camera', { cameraPermission: 'UNDERGROUND uses the camera to scan the car you spot and for run finish photos and garage media you choose.', microphonePermission: false, recordAudioAndroid: false }],
+      ['expo-sensors', { motionPermission: 'UNDERGROUND uses motion so the foil on your cards catches the light as you tilt your phone.' }],
     ],
     extra: {
       ...(config.extra ?? {}),

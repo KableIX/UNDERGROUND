@@ -3,6 +3,7 @@ import { Animated, Easing, Image, Platform, Pressable, ScrollView, Share, StyleS
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { CameraView } from 'expo-camera';
 import type { SupercargoCatalogEntry, SupercargoTier } from '@underground/domain';
 import { useSession } from '../../src/session/SessionContext';
 import { saveSpot } from '../../src/spotted/collection';
@@ -11,10 +12,12 @@ import { CarArt } from '../../src/supercargo/CarArt';
 import { captureNonce, countMySpots, photoUrl, readMySighting, submitSighting } from '../../src/supercargo/client';
 import { sightingOutcome, supercargoCopy, tierLabel, tierNote } from '../../src/supercargo/copy';
 import { currentFix } from '../../src/supercargo/location';
+import { haptic, loadCamera, loadViewShot } from '../../src/supercargo/native';
 import {
   areaLabel,
   catalogById,
   confidenceCue,
+  finishFor,
   matchCatalog,
   needsChoice,
   productionLine,
@@ -27,7 +30,9 @@ import {
 import { Brackets, ScanOverlay } from '../../src/supercargo/ScanOverlay';
 import { GoldButton, LineButton, RaritySeal, SpotCard } from '../../src/supercargo/SpotCard';
 import { ui } from '../../src/supercargo/ui';
+import { useFoilMotion } from '../../src/supercargo/useFoilMotion';
 import { useReduceMotion } from '../../src/supercargo/useReduceMotion';
+import { LiveFinder } from '../../src/supercargo/Viewfinder';
 
 type Shot = { original: string; uri: string; width: number; height: number; base64: string; capturedAt: string; nonce: string; fix: Awaited<ReturnType<typeof currentFix>> };
 type Phase = 'ready' | 'scanning' | 'reveal' | 'card';
@@ -48,24 +53,44 @@ const GOLD = '#E7C892';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
-/** Camera only. A library photo can be kept in Spotted, but it is never logged here. */
+type Fix = Awaited<ReturnType<typeof currentFix>>;
+
+/** Re-encode a fresh photo: smaller, and with every EXIF field, location included, dropped. */
+async function packShot(asset: { uri: string; width: number; height: number }, nonce: string, fixBefore: Fix, capturedAt: string): Promise<Shot> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const tools = require('expo-image-manipulator') as typeof import('expo-image-manipulator');
+  const fix = await currentFix().catch(() => fixBefore);
+  const resize = asset.width >= asset.height ? { width: Math.min(1280, asset.width) } : { height: Math.min(1280, asset.height) };
+  const out = await tools.manipulateAsync(asset.uri, [{ resize }], { format: tools.SaveFormat.JPEG, compress: 0.8, base64: true });
+  if (!out.base64) throw new Error('Could not read the photo.');
+  return { original: asset.uri, uri: out.uri, width: out.width, height: out.height, base64: out.base64, capturedAt, nonce, fix };
+}
+
+/** Fallback: the system camera. Camera only. A library photo can be kept in Spotted, but it is never logged here. */
 async function freshCapture(): Promise<Shot | null> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const picker = require('expo-image-picker') as typeof import('expo-image-picker');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const tools = require('expo-image-manipulator') as typeof import('expo-image-manipulator');
   if (!(await picker.requestCameraPermissionsAsync()).granted) throw new Error('Allow camera access in Settings.');
   const [{ nonce }, fixBefore] = await Promise.all([captureNonce(), currentFix()]);
   const result = await picker.launchCameraAsync({ mediaTypes: picker.MediaTypeOptions.Images, quality: 0.9, exif: false });
   if (result.canceled) return null;
   const capturedAt = new Date().toISOString();
-  const fix = await currentFix().catch(() => fixBefore);
-  const asset = result.assets[0]!;
-  const resize = asset.width >= asset.height ? { width: Math.min(1280, asset.width) } : { height: Math.min(1280, asset.height) };
-  // Re-encoding drops every EXIF field, location included.
-  const out = await tools.manipulateAsync(asset.uri, [{ resize }], { format: tools.SaveFormat.JPEG, compress: 0.8, base64: true });
-  if (!out.base64) throw new Error('Could not read the photo.');
-  return { original: asset.uri, uri: out.uri, width: out.width, height: out.height, base64: out.base64, capturedAt, nonce, fix };
+  return packShot(result.assets[0]!, nonce, fixBefore, capturedAt);
+}
+
+/** The live viewfinder (expo-camera). The nonce and a fix are warmed up while the camera opens. */
+type Warm = { nonce: string; fix: Fix; at: number };
+async function warmUp(): Promise<Warm> {
+  const [{ nonce }, fix] = await Promise.all([captureNonce(), currentFix()]);
+  return { nonce, fix, at: Date.now() };
+}
+async function liveCapture(cam: CameraView, warm: Warm | null): Promise<Shot> {
+  // A nonce is good for five minutes. Use the warm one for three, then ask again.
+  const ready = warm && Date.now() - warm.at < 180_000 ? warm : await warmUp();
+  const photo = await cam.takePictureAsync({ quality: 0.9, exif: false, skipProcessing: false });
+  const capturedAt = new Date().toISOString();
+  if (!photo) throw new Error('Could not take the photo. Try again.');
+  return packShot(photo, ready.nonce, ready.fix, capturedAt);
 }
 
 /** Neighborhood or town of the fuzzed cell center. Never the capture point. */
@@ -130,6 +155,11 @@ export default function Capture() {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [card, setCard] = useState<Card | null>(null);
+  // 'pending' while we check for the live camera; 'live' with expo-camera and permission; 'system' otherwise.
+  const [mode, setMode] = useState<'pending' | 'live' | 'system'>('pending');
+  const camRef = useRef<CameraView>(null);
+  const warm = useRef<Warm | null>(null);
+  const shareRef = useRef<View>(null);
   const lock = useRef(false);
   const scanSeq = useRef(0);
   const cardW = Math.min(width - 40, 420);
@@ -145,6 +175,9 @@ export default function Capture() {
       : confidenceCue(undefined);
   const revealStyle = useEntrance(phase === 'reveal' ? (current?.entry.id ?? 'none') : 'off', reduce);
   const cardStyle = useEntrance(phase === 'card' ? (card?.sightingId ?? 'card') : 'off', reduce);
+  // Foil follows the tilt of the phone where this build has motion sensors.
+  const motion = useFoilMotion(card ? finishFor(card.tier) : 'matte', phase === 'card' && !reduce);
+  const canShareImage = loadViewShot() !== null;
 
   async function act(work: () => Promise<void>) {
     if (lock.current) return;
@@ -162,6 +195,8 @@ export default function Capture() {
   }
 
   function showReveal(found: Candidate[], note: string, byHand = false) {
+    const first = found[0] ? matchCatalog(found[0].make, found[0].model) : null;
+    haptic('reveal', first?.tier ?? 'open');
     setCands(found);
     setScanNote(note);
     setMake(found[0]?.make ?? '');
@@ -193,6 +228,7 @@ export default function Capture() {
     await sleep(Math.max(0, (reduce ? 250 : 1800) - (Date.now() - started)));
     if (scanSeq.current !== id) return;
     setLocked(true);
+    haptic('lock');
     await sleep(reduce ? 0 : 640);
     if (scanSeq.current !== id) return;
     showReveal(found, note);
@@ -205,14 +241,41 @@ export default function Capture() {
     });
   }
 
-  // Like a QR scanner: Log a sighting opens straight into the camera. This build has no
-  // live camera module (expo-camera), so it opens the system camera at once; the
-  // gold frame and shutter below are only the fallback after a cancel or an error.
+  function shutter() {
+    const cam = camRef.current;
+    if (!cam) return;
+    void act(async () => {
+      haptic('shutter');
+      const next = await liveCapture(cam, warm.current);
+      warm.current = null;
+      void scan(next);
+    });
+  }
+
+  // Like a QR scanner: Log a sighting opens straight into the camera. With expo-camera
+  // (a newer development build) that is a live viewfinder in the app. Without it, or
+  // without permission, it opens the system camera at once; the gold frame and
+  // shutter further down are only the fallback after a cancel or an error.
   const opened = useRef(false);
   useEffect(() => {
     if (opened.current) return;
     opened.current = true;
-    takePhoto();
+    void (async () => {
+      const cam = loadCamera();
+      if (cam) {
+        try {
+          if ((await cam.Camera.requestCameraPermissionsAsync()).granted) {
+            setMode('live');
+            void warmUp().then((w) => (warm.current = w)).catch(() => undefined);
+            return;
+          }
+        } catch {
+          // Fall through to the system camera.
+        }
+      }
+      setMode('system');
+      takePhoto();
+    })();
   }, []);
 
   function enterByHand() {
@@ -245,6 +308,7 @@ export default function Capture() {
       };
       setCard(base);
       setPhase('card');
+      haptic('card', r.tier);
       if (!r.id) return;
       // Fill in the rest from the member's own row: the blurred copy, the cell, the count.
       const row = await readMySighting(r.id).catch(() => null);
@@ -262,9 +326,24 @@ export default function Capture() {
   async function share() {
     if (!card) return;
     const text = shareMessage(card);
+    // First choice: the card itself as an image. The hidden copy has no place on it.
+    let image: string | null = null;
+    const shot = loadViewShot();
+    if (shot && shareRef.current) {
+      try {
+        // The off-screen copy loads its photo on its own: make sure it is in the cache and drawn first.
+        if (card.photoUri) await Image.prefetch(card.photoUri).catch(() => false);
+        await sleep(120);
+        image = await shot.captureRef(shareRef, { format: 'png', quality: 1, result: 'tmpfile' });
+      } catch {
+        image = null;
+      }
+    }
     try {
-      if (card.photoUri && Platform.OS === 'ios') {
-        // Only the blurred copy from the API is ever shared, never the original, and no place.
+      if (image) {
+        await Share.share(Platform.OS === 'ios' ? { url: image, message: text } : { message: text });
+      } else if (card.photoUri && Platform.OS === 'ios') {
+        // Older build: only the blurred copy from the API is ever shared, never the original, and no place.
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const FileSystem = require('expo-file-system') as typeof import('expo-file-system');
         const local = `${FileSystem.cacheDirectory}underground-spot-${card.sightingId ?? 'card'}.jpg`;
@@ -283,6 +362,10 @@ export default function Capture() {
     setCard(null);
     setPhase('ready');
     setMessage('');
+    if (mode === 'live') {
+      void warmUp().then((w) => (warm.current = w)).catch(() => undefined);
+      return;
+    }
     takePhoto();
   }
 
@@ -291,7 +374,26 @@ export default function Capture() {
   const showChoices = cands.length > 1 && (needsChoice(cands) || !picked || picked !== cands[0]);
   const hints = editing && make.trim() && !current ? similarInCatalog(make, model) : [];
 
+  if (phase === 'ready' && mode === 'pending') return <View style={{ flex: 1, backgroundColor: '#050506' }} />;
+  if (phase === 'ready' && mode === 'live')
+    return (
+      <LiveFinder
+        cameraRef={camRef}
+        busy={busy}
+        message={message}
+        reduceMotion={reduce}
+        onShutter={shutter}
+        onBack={() => router.back()}
+        onFailed={() => {
+          setMode('system');
+          takePhoto();
+        }}
+      />
+    );
+
+  const shareW = 360;
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView style={ui.screen} keyboardShouldPersistTaps="handled" contentContainerStyle={[ui.content, { paddingTop: inset.top + 12, paddingBottom: inset.bottom + 40 }]}>
       <Pressable accessibilityRole="button" onPress={() => router.back()} disabled={busy && phase !== 'card'}>
         <Text style={ui.back}>‹ SUPERCARGO</Text>
@@ -369,7 +471,7 @@ export default function Capture() {
               {cands.map((c) => {
                 const on = same(c.make, make) && same(c.model, model);
                 return (
-                  <Pressable key={c.make + c.model} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => { setMake(c.make); setModel(c.model); setEditing(false); }} style={[s.choice, on && s.choiceOn]}>
+                  <Pressable key={c.make + c.model} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => { haptic('select'); setMake(c.make); setModel(c.model); setEditing(false); }} style={[s.choice, on && s.choiceOn]}>
                     {c.match ? <CarArt catalogId={c.match.entry.id} width={72} /> : <View style={{ width: 72, height: 54, backgroundColor: '#000' }} />}
                     <View style={{ flex: 1, gap: 2 }}>
                       <Text style={s.choiceName}>
@@ -418,7 +520,7 @@ export default function Capture() {
       {phase === 'card' && card ? (
         <Animated.View style={[{ gap: 16 }, cardStyle]}>
           <Text style={s.kicker}>ADDED TO YOUR SPOTS</Text>
-          <SpotCard {...card} reduceMotion={reduce} width={cardW} />
+          <SpotCard {...card} reduceMotion={reduce} width={cardW} motion={motion} />
           {message ? <Text accessibilityLiveRegion="polite" style={[ui.body, { textAlign: 'center' }]}>{message}</Text> : null}
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={{ flex: 1 }}>
@@ -434,6 +536,13 @@ export default function Capture() {
         </Animated.View>
       ) : null}
     </ScrollView>
+    {/* Rendered off screen so SHARE can send the card as an image. Still foil, and no place on it. */}
+    {canShareImage && phase === 'card' && card ? (
+      <View ref={shareRef} collapsable={false} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: 'absolute', left: -5000, top: 0, width: shareW, backgroundColor: '#050506', padding: 12 }}>
+        <SpotCard {...card} area={null} reduceMotion width={shareW - 24} />
+      </View>
+    ) : null}
+    </View>
   );
 }
 

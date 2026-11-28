@@ -2,12 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { Finish } from './scan';
+import type { FoilMotion } from './useFoilMotion';
 
 /*
- * Card finishes. Holo: a full holographic gold foil that drifts slowly (this build
- * has no motion sensors, so it drifts instead of following tilt) with a foil border
- * and a few sparkles. Sheen: a foil edge and one soft light pass. Matte: neither.
- * Reduce Motion freezes every finish at a fixed angle.
+ * Card finishes. Holo: a full holographic gold foil with a foil border and a few
+ * sparkles. Sheen: a foil edge and one soft light pass. Matte: neither.
+ * With device motion (`motion`, from a build that has expo-sensors) the light band
+ * and a specular glow follow the tilt of the phone. Without it the foil drifts on
+ * its own. Reduce Motion freezes every finish at a fixed angle.
  */
 
 const HOLO_BORDER = ['#7A5A24', '#F7E4AE', '#B38638', '#FFF3D0', '#9C7432', '#E9CE8E', '#7A5A24'] as const;
@@ -112,14 +114,15 @@ function Spark({ x, y, size, delay, still }: { x: number; y: number; size: numbe
 }
 
 /** Light film laid over a finished card. Pointer events pass through. */
-export function FoilFilm({ finish, reduceMotion, sparkle = true }: { finish: Finish; reduceMotion: boolean; sparkle?: boolean }) {
+export function FoilFilm({ finish, reduceMotion, sparkle = true, motion = null }: { finish: Finish; reduceMotion: boolean; sparkle?: boolean; motion?: FoilMotion | null }) {
   const [width, setWidth] = useState(0);
   const holo = finish === 'holo';
-  const t = useLoop(finish !== 'matte' && !reduceMotion && width > 0, holo ? 5200 : 2400, holo);
+  const t = useLoop(finish !== 'matte' && !reduceMotion && !motion && width > 0, holo ? 5200 : 2400, holo);
   if (finish === 'matte') return null;
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
   const band = Math.max(1, width) * (holo ? 3 : 1.4);
-  const translateX = t.interpolate({ inputRange: [0, 1], outputRange: holo ? [-band * 0.62, 0] : [-band, width] });
+  const range = holo ? [-band * 0.62, -band * 0.02] : [-band, width];
+  const translateX = motion ? motion.band.interpolate({ inputRange: [-1, 1], outputRange: range }) : t.interpolate({ inputRange: [0, 1], outputRange: holo ? [-band * 0.62, 0] : [-band, width] });
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} onLayout={onLayout}>
       {holo ? (
@@ -133,6 +136,21 @@ export function FoilFilm({ finish, reduceMotion, sparkle = true }: { finish: Fin
       {width > 0 ? (
         <Animated.View style={{ position: 'absolute', top: '-30%', bottom: '-30%', left: 0, width: band, transform: [{ translateX }, { rotate: '-18deg' }] }}>
           <LinearGradient colors={holo ? HOLO_FILM : SHEEN_FILM} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
+        </Animated.View>
+      ) : null}
+      {motion && width > 0 ? (
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: width * 0.05,
+            width: width * 0.9,
+            opacity: motion.glow,
+            transform: [{ translateX: motion.band.interpolate({ inputRange: [-1, 1], outputRange: [-width * 0.55, width * 0.55] }) }],
+          }}
+        >
+          <LinearGradient colors={['rgba(255,246,220,0)', 'rgba(255,246,220,0.22)', 'rgba(255,246,220,0)']} start={{ x: 0, y: 0.25 }} end={{ x: 1, y: 0.75 }} style={StyleSheet.absoluteFill} />
         </Animated.View>
       ) : null}
       {holo && sparkle ? SPARKS.map((p, i) => <Spark key={i} {...p} still={reduceMotion} />) : null}

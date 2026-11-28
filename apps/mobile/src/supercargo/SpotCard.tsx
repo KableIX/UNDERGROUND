@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { SupercargoCatalogEntry, SupercargoTier } from '@underground/domain';
 import { goldTouch } from '../components/GoldTouch';
 import { CarArt } from './CarArt';
 import { tierLabel, tierNote, tierRank } from './copy';
 import { FoilFilm, FoilFrame } from './Foil';
+import type { FoilMotion } from './useFoilMotion';
 import { finishFor, productionLine, serial, spotDate, spotLine, yearLine } from './scan';
 
 const GOLD = '#C6B08B';
@@ -58,6 +59,8 @@ export type SpotCardProps = {
   spotNumber: number | null;
   reduceMotion: boolean;
   width: number;
+  /** Device-motion values: the foil follows the tilt and the card leans a little. */
+  motion?: FoilMotion | null;
 };
 
 /**
@@ -78,7 +81,15 @@ export function SpotCard(p: SpotCardProps) {
   const mine = spotLine(p.spotNumber, p.model);
   if (mine) rows.push(['Your spot', mine]);
 
+  const lean = p.motion
+    ? [
+        { perspective: 900 },
+        { rotateX: p.motion.rotX.interpolate({ inputRange: [-10, 10], outputRange: ['-10deg', '10deg'] }) },
+        { rotateY: p.motion.rotY.interpolate({ inputRange: [-10, 10], outputRange: ['-10deg', '10deg'] }) },
+      ]
+    : [];
   return (
+    <Animated.View style={{ width: p.width, alignSelf: 'center', transform: lean }}>
     <FoilFrame finish={finish} style={{ width: p.width, alignSelf: 'center' }}>
       <LinearGradient colors={finish === 'matte' ? ['#121316', '#0A0A0B'] : ['#1A150D', '#0B0B0C', '#0E0C09']} style={c.card}>
         <View style={c.head}>
@@ -121,8 +132,9 @@ export function SpotCard(p: SpotCardProps) {
         </View>
         <Text style={c.note}>{tierNote(p.tier)}</Text>
       </LinearGradient>
-      <FoilFilm finish={finish} reduceMotion={p.reduceMotion} />
+      <FoilFilm finish={finish} reduceMotion={p.reduceMotion} motion={p.motion ?? null} />
     </FoilFrame>
+    </Animated.View>
   );
 }
 
