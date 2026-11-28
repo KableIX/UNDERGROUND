@@ -18,7 +18,7 @@ export const FinishLinePhotoSchema = z.object({
 export const RunEvidenceBundleSchema = z.object({
   runId: z.string().uuid(),
   source: z.enum(['production', 'simulation']),
-  startOdometer: OdometerEvidenceSchema,
+  startOdometer: OdometerEvidenceSchema.optional(),
   endOdometer: OdometerEvidenceSchema,
   finishLinePhoto: FinishLinePhotoSchema,
 });
@@ -57,9 +57,6 @@ export function reviewEvidenceBundle(
     };
   }
 
-  if (!bundle.startOdometer.photoStoragePath) {
-    return { ok: false, decision: 'REJECTED', reason: 'missing_start_odometer' };
-  }
   if (!bundle.endOdometer.photoStoragePath) {
     return { ok: false, decision: 'REJECTED', reason: 'missing_end_odometer' };
   }
@@ -72,7 +69,7 @@ export function reviewEvidenceBundle(
 
   if (
     bundle.source === 'production' &&
-    (bundle.startOdometer.isPlaceholder ||
+    (bundle.startOdometer?.isPlaceholder ||
       bundle.endOdometer.isPlaceholder ||
       bundle.finishLinePhoto.isPlaceholder)
   ) {
@@ -84,7 +81,7 @@ export function reviewEvidenceBundle(
   }
 
   if (
-    bundle.startOdometer.readingMiles !== undefined &&
+    bundle.startOdometer?.readingMiles !== undefined &&
     bundle.endOdometer.readingMiles !== undefined &&
     bundle.endOdometer.readingMiles < bundle.startOdometer.readingMiles
   ) {

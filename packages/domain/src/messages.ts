@@ -53,6 +53,22 @@ export function canUseThread(
   return thread.participantIds.includes(memberId);
 }
 
+/**
+ * Starting a one-on-one DM is allowed with any other member on the platform.
+ * Profile page visibility is not a factor. Self-DMs and blocks are refused.
+ */
+export function canStartDirectMessage(input: {
+  memberId: string;
+  otherMemberId: string;
+  otherExists: boolean;
+  blocked: boolean;
+}): 'ok' | 'self' | 'not_found' | 'blocked' {
+  if (input.memberId === input.otherMemberId) return 'self';
+  if (!input.otherExists) return 'not_found';
+  if (input.blocked) return 'blocked';
+  return 'ok';
+}
+
 /** Trimmed message text, or null when empty or too long. */
 export function normalizeMessageBody(body: unknown): string | null {
   const parsed = MessageBodySchema.safeParse(body);

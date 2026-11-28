@@ -17,4 +17,13 @@ describe('reviewEvidenceBundle', () => {
       reviewEvidenceBundle(mockSimulationEvidence, { allowSimulationAccept: false }).ok,
     ).toBe(false);
   });
+
+  it('accepts production evidence without a start odometer photo', () => {
+    expect(
+      reviewEvidenceBundle(
+        { ...mockProductionEvidence, startOdometer: undefined },
+        { allowSimulationAccept: false },
+      ),
+    ).toEqual({ ok: true, decision: 'ACCEPTED' });
+  });
 });

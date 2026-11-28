@@ -3,6 +3,7 @@ import {
   MESSAGE_BODY_MAX,
   MESSAGE_RATE_LIMIT,
   allowMessageSend,
+  canStartDirectMessage,
   canUseThread,
   countUnread,
   normalizeMessageBody,
@@ -82,5 +83,30 @@ describe('unread floor', () => {
         { lastReadAt: '2026-11-26T10:00:00+00:00', since: '2026-11-01T09:00:00+00:00' },
       ]),
     ).toBe('2026-11-21T09:00:00+00:00');
+  });
+});
+
+describe('starting a direct message', () => {
+  it('allows any other existing member, including one whose profile is not visible', () => {
+    expect(
+      canStartDirectMessage({ memberId: me, otherMemberId: outsider, otherExists: true, blocked: false }),
+    ).toBe('ok');
+  });
+
+  it('refuses a message to yourself, a missing member, or someone in a block', () => {
+    expect(
+      canStartDirectMessage({ memberId: me, otherMemberId: me, otherExists: true, blocked: false }),
+    ).toBe('self');
+    expect(
+      canStartDirectMessage({
+        memberId: me,
+        otherMemberId: 'missing-member',
+        otherExists: false,
+        blocked: false,
+      }),
+    ).toBe('not_found');
+    expect(
+      canStartDirectMessage({ memberId: me, otherMemberId: friend, otherExists: true, blocked: true }),
+    ).toBe('blocked');
   });
 });
