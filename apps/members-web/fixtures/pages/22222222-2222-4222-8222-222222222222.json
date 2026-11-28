@@ -1,0 +1,58 @@
+{
+  "note": "FAKE fixture page for the dev site. Visible to accepted friends only.",
+  "member": { "id": "22222222-2222-4222-8222-222222222222", "number": "000002", "name": "PACIFIC", "founder": false },
+  "revision": 3,
+  "verifiedRuns": null,
+  "territories": null,
+  "friendCount": 2,
+  "clout": 640,
+  "vehicles": [
+    { "id": "44444444-4444-4444-8444-444444444404", "label": "2022 Lamborghini Huracán STO", "visibility": "friends" }
+  ],
+  "featuredFriends": [
+    { "id": "11111111-1111-4111-8111-111111111111", "name": "STARK" },
+    { "id": "55555555-5555-4555-8555-555555555555", "name": "MONTEREY" }
+  ],
+  "guestbook": [
+    { "id": "note-3", "author": "11111111-1111-4111-8111-111111111111", "name": "STARK", "body": "Best photos of the crest I have seen." }
+  ],
+  "settings": {
+    "displayName": "PACIFIC",
+    "status": "Behind the lens.",
+    "bio": "Photographer. I shoot cars where they live: garages, canyons, car parks at 6am.",
+    "home": "San Francisco",
+    "work": "Automotive photographer",
+    "linkedin": "https://www.linkedin.com/in/pacific-example",
+    "music": "",
+    "accent": "Ice",
+    "look": { "wallpaper": "Pacific", "heading": "Modern", "panels": "Solid", "coverSize": "Portrait", "hidden": ["journal", "guestbook"], "large": [] },
+    "entries": [],
+    "trackTitle": "",
+    "audience": "friends",
+    "custom": {
+      "handle": "",
+      "links": [],
+      "accentColor": "",
+      "panelColor": "#101820",
+      "wallpaper": null,
+      "labels": {},
+      "access": { "collection": "friends", "guestbook": "friends" },
+      "formats": {},
+      "avatarFrame": { "mode": "fill", "x": 0.5, "y": 0.5 },
+      "coverFrame": { "mode": "whole", "x": 0.5, "y": 0.5 },
+      "featureFrame": { "mode": "whole", "x": 0.5, "y": 0.5 },
+      "gallery": [],
+      "owned": [{ "id": "44444444-4444-4444-8444-444444444404", "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAABgEBAQEAAAAAAAAAAAAAAAAAAAIFEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AjgEN4AAAAAAAAAB//9k=", "frame": { "mode": "fill", "x": 0.5, "y": 0.5 } }],
+      "showClout": true,
+      "showRuns": false,
+      "showTerritories": false
+    },
+    "avatar": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAABgEBAQEAAAAAAAAAAAAAAAAAAAQGEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AmgFLPgAAAAAAAAAP/9k=",
+    "cover": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAABgEBAQEAAAAAAAAAAAAAAAAAAAIFEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AjgEN4AAAAAAAAAB//9k=",
+    "featuredCar": null,
+    "vehicleId": null,
+    "driveSlug": "",
+    "topEight": ["11111111-1111-4111-8111-111111111111", "55555555-5555-4555-8555-555555555555"],
+    "layout": ["about", "collection", "friends", "work", "music", "garage", "drive", "journal", "guestbook"]
+  }
+}

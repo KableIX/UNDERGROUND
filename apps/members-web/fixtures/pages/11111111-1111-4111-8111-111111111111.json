@@ -1,0 +1,88 @@
+{
+  "note": "FAKE fixture page for the dev site.",
+  "member": { "id": "11111111-1111-4111-8111-111111111111", "number": "000001", "name": "STARK", "founder": true },
+  "revision": 7,
+  "verifiedRuns": 12,
+  "territories": 3,
+  "friendCount": 2,
+  "clout": 1840,
+  "vehicles": [
+    { "id": "44444444-4444-4444-8444-444444444401", "label": "2005 Porsche Carrera GT", "visibility": "public" },
+    { "id": "44444444-4444-4444-8444-444444444402", "label": "2010 Audi R8 V10", "visibility": "friends" }
+  ],
+  "featuredFriends": [
+    { "id": "22222222-2222-4222-8222-222222222222", "name": "PACIFIC" },
+    { "id": "55555555-5555-4555-8555-555555555555", "name": "MONTEREY" }
+  ],
+  "guestbook": [
+    {
+      "id": "note-1",
+      "author": "22222222-2222-4222-8222-222222222222",
+      "name": "PACIFIC",
+      "body": "That crest run on Sunday was unreal. Next time I lead."
+    },
+    {
+      "id": "note-2",
+      "author": "55555555-5555-4555-8555-555555555555",
+      "name": "MONTEREY",
+      "body": "Thanks for the garage tour. The Carrera GT is even better in person."
+    }
+  ],
+  "settings": {
+    "displayName": "STARK",
+    "status": "Los Angeles. Sundays are for the crest.",
+    "bio": "Collector and weekend driver. Building the R8 one part at a time.\nAsk me about air-cooled 911s.",
+    "home": "Los Angeles",
+    "work": "Founder, UNDERGROUND",
+    "linkedin": "",
+    "music": "https://open.spotify.com/track/4bDVOqQGqW5n3WFmYyKzUH",
+    "accent": "Gold",
+    "look": {
+      "wallpaper": "Saratoga",
+      "heading": "Condensed",
+      "panels": "Glass",
+      "coverSize": "Wide",
+      "hidden": ["work"],
+      "large": ["garage"]
+    },
+    "entries": [
+      { "title": "Titanium exhaust day", "note": "The R8 finally sounds the way it should.", "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAABgEBAQEAAAAAAAAAAAAAAAAAAAQGEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AmgFLPgAAAAAAAAAP/9k=", "crew": true },
+      { "title": "Crest run with the crew", "note": "Six cars, zero traffic, one very good morning.", "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAABgEBAQEAAAAAAAAAAAAAAAAAAAIFEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AjgEN4AAAAAAAAAB//9k=" }
+    ],
+    "trackTitle": "On rotation in the garage",
+    "audience": "members",
+    "custom": {
+      "handle": "stark",
+      "links": ["https://example.com/underground-drive-notes"],
+      "accentColor": "#C6B08B",
+      "panelColor": "",
+      "wallpaper": null,
+      "labels": { "garage": "Poster car", "friends": "The crew", "journal": "R8 build log" },
+      "access": { "collection": "members", "guestbook": "members" },
+      "formats": { "collection": "gallery" },
+      "avatarFrame": { "mode": "fill", "x": 0.5, "y": 0.4 },
+      "coverFrame": { "mode": "fill", "x": 0.5, "y": 0.5 },
+      "featureFrame": { "mode": "fill", "x": 0.5, "y": 0.5 },
+      "gallery": [{ "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAAAwEBAQEAAAAAAAAAAAAAAAAAAAQFEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AkAx1oAAAAAAAAAD/2Q==", "frame": { "mode": "fill", "x": 0.5, "y": 0.5 } }],
+      "owned": [
+        { "id": "44444444-4444-4444-8444-444444444401", "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAAAwEBAQEAAAAAAAAAAAAAAAAAAAQFEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AkAx1oAAAAAAAAAD/2Q==", "frame": { "mode": "fill", "x": 0.5, "y": 0.5 } },
+        { "id": "44444444-4444-4444-8444-444444444402", "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAABgEBAQEAAAAAAAAAAAAAAAAAAAQGEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AmgFLPgAAAAAAAAAP/9k=", "frame": { "mode": "fill", "x": 0.5, "y": 0.5 } }
+      ],
+      "showClout": true,
+      "showRuns": true,
+      "showTerritories": true
+    },
+    "avatar": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAAAwEBAQEAAAAAAAAAAAAAAAAAAAQFEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AkAx1oAAAAAAAAAD/2Q==",
+    "cover": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABMAAEBAAAAAAAAAAAAAAAAAAAABgEBAQAAAAAAAAAAAAAAAAAAAAQQAQAAAAAAAAAAAAAAAAAAAAARAQAAAAAAAAAAAAAAAAAAAAD/wAARCAAgADADASIAAhEAAxEA/9oADAMBAAIRAxEAPwCRAWpAAAAAAAAAAH//2Q==",
+    "featuredCar": {
+      "name": "Carrera GT",
+      "story": "The car that got me into cars. Numbers-matching, 1,240 miles, and driven on every dry Sunday.",
+      "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAAAwEBAQEAAAAAAAAAAAAAAAAAAAQFEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AkAx1oAAAAAAAAAD/2Q==",
+      "linkedVehicleId": "44444444-4444-4444-8444-444444444401"
+    },
+    "vehicleId": "44444444-4444-4444-8444-444444444401",
+    "driveSlug": "highway-one-crest",
+    "topEight": ["22222222-2222-4222-8222-222222222222", "55555555-5555-4555-8555-555555555555"],
+    "layout": ["garage", "collection", "friends", "journal", "music", "about", "guestbook", "drive", "work"]
+  }
+}

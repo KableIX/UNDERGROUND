@@ -1,5 +1,47 @@
-body { margin: 0; background: #0b0b0d; color: #f2efe8; font-family: system-ui, sans-serif; }
+/* Shared shell: sign-in, member list, and the base every page builds on. */
+:root {
+  color-scheme: dark;
+  --brand: #c6b08b;
+  --brand-muted: #8f7a52;
+  --ink: #08090a;
+  --surface: #12141a;
+  --line: rgba(197, 165, 114, 0.22);
+  --text: #f2efe8;
+  --muted: #b7b7b8;
+  --veil: rgba(7, 11, 16, 0.79);
+  /* The app loads Barlow Condensed and Inter from Google at run time. Until the site ships the
+     font files, it uses the closest built-in faces, in the order the app names them. */
+  --narrow: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
+  --serif: Georgia, "Times New Roman", serif;
+  --sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: var(--ink); color: var(--text); font: 16px/1.5 var(--sans); }
+a { color: var(--brand); }
+img { max-width: 100%; }
 .dev-banner { background: #c9a227; color: #111; padding: 6px 12px; font-size: 13px; font-weight: 600; }
-main { max-width: 720px; margin: 0 auto; padding: 24px 16px; }
-h1 { letter-spacing: 0.2em; }
-li { margin: 8px 0; }
+.shell { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+.wordmark { font-family: var(--narrow); font-weight: 700; letter-spacing: 0.32em; font-size: 32px; margin: 8px 0 4px; }
+.lede { color: var(--muted); margin: 0 0 20px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+.sign-in { display: grid; gap: 12px; max-width: 360px; }
+.sign-in label { color: var(--brand); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; }
+.input {
+  font: inherit; color: var(--text); background: #0d0f13; border: 1px solid #3a3d45; border-radius: 6px;
+  min-height: 46px; padding: 0 12px;
+}
+.button {
+  font: inherit; font-weight: 600; min-height: 44px; padding: 0 18px; border-radius: 4px;
+  border: 1px solid var(--line); background: #1a1c24; color: var(--text); cursor: pointer;
+}
+.button.primary { background: var(--brand); border-color: var(--brand); color: #141518; }
+.button:disabled { cursor: default; opacity: 0.6; }
+.error { color: #f2cabd; margin: 0; min-height: 1.5em; }
+.hint { color: var(--muted); font-size: 14px; margin: 16px 0 0; }
+.section-title { color: var(--brand); font-family: var(--narrow); font-weight: 700; font-size: 24px; margin: 16px 0 8px; }
+.directory { margin-top: 8px; }
+.members { list-style: none; margin: 0; padding: 0; }
+.member { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
+.member > a:first-child { color: var(--text); font-weight: 600; }
+.meta { color: var(--muted); font-size: 14px; }
+.link { display: inline-block; min-height: 44px; line-height: 44px; color: #e4e3de; text-underline-offset: 3px; }

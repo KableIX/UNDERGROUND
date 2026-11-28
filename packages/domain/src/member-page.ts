@@ -220,6 +220,18 @@ export const MemberPageDocumentSchema = z.object({
   clout: z.number().nullable(),
   vehicles: z.array(PageVehicleSchema),
   featuredFriends: z.array(PageFriendSchema),
+  /** Notes on the wall, newest first, as the database returns them. Absent when not loaded. */
+  guestbook: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(64),
+        author: z.string().min(1).max(64),
+        name: z.string().min(1).max(64),
+        body: z.string().min(1).max(300),
+      }),
+    )
+    .max(60)
+    .optional(),
 });
 export type PageIdentity = z.infer<typeof PageIdentitySchema>;
 export type PageFriend = z.infer<typeof PageFriendSchema>;
@@ -506,6 +518,8 @@ export function projectPageForVisitor(
     s.work = '';
   }
   if (blocked.includes('journal')) s.entries = [];
+  // Wall notes travel with the document on the website; a blocked section must not carry them.
+  const guestbook = blocked.includes('guestbook') ? [] : page.guestbook;
   const visibleCars = page.vehicles.filter(
     (v) => v.visibility === 'public' || (v.visibility === 'friends' && viewer === 'friends'),
   );
@@ -524,6 +538,7 @@ export function projectPageForVisitor(
     clout: c.showClout ? page.clout : null,
     verifiedRuns: c.showRuns ? page.verifiedRuns : null,
     territories: c.showTerritories ? page.territories : null,
+    ...(guestbook === undefined ? {} : { guestbook }),
   };
 }
 

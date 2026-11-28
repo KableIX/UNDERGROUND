@@ -1,7 +1,14 @@
 {
-  "note": "FAKE fixture data for the dev site. No real members.",
+  "note": "FAKE fixture data for the dev site. No real members, cars or links.",
   "members": [
-    { "id": "fixture-1", "displayName": "Fixture Driver One", "theme": { "version": 1, "palette": "obsidian-gold" }, "garage": ["fixture-car-a", "fixture-car-b"] },
-    { "id": "fixture-2", "displayName": "Fixture Driver Two", "theme": { "version": 1, "palette": "midnight-red" }, "garage": ["fixture-car-c"] }
+    { "id": "11111111-1111-4111-8111-111111111111", "number": "000001", "name": "STARK", "founder": true },
+    { "id": "22222222-2222-4222-8222-222222222222", "number": "000002", "name": "PACIFIC", "founder": false },
+    { "id": "33333333-3333-4333-8333-333333333333", "number": "000003", "name": "VEGA", "founder": false },
+    { "id": "55555555-5555-4555-8555-555555555555", "number": "000004", "name": "MONTEREY", "founder": false }
+  ],
+  "friends": [
+    ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"],
+    ["11111111-1111-4111-8111-111111111111", "55555555-5555-4555-8555-555555555555"],
+    ["22222222-2222-4222-8222-222222222222", "55555555-5555-4555-8555-555555555555"]
   ]
 }

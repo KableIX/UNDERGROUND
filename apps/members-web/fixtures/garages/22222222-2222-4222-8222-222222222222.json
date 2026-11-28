@@ -1,0 +1,27 @@
+{
+  "note": "FAKE fixture garage for the dev site. One car, for friends only.",
+  "member": { "id": "22222222-2222-4222-8222-222222222222", "number": "000002", "name": "PACIFIC", "founder": false },
+  "cars": [
+    {
+      "id": "44444444-4444-4444-8444-444444444404",
+      "year": 2022,
+      "make": "Lamborghini",
+      "model": "Huracán STO",
+      "trim": null,
+      "color": "Verde Mantis",
+      "verification": "verified",
+      "visibility": "friends",
+      "carClass": "collector",
+      "specs": [
+        { "key": "paint", "label": "Paint", "value": "Verde Mantis" },
+        { "key": "engine", "label": "Engine and tune", "value": "5.2-liter V10, naturally aspirated" },
+        { "key": "transmission", "label": "Transmission", "value": "7-speed dual-clutch" },
+        { "key": "exhaust", "label": "Exhaust", "value": "Race exhaust" }
+      ],
+      "mods": [{ "title": "Race exhaust", "status": "installed" }],
+      "photos": [
+        { "src": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAABgEBAQEAAAAAAAAAAAAAAAAAAAIFEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AjgEN4AAAAAAAAAB//9k=", "caption": "At cars and coffee", "frame": { "mode": "fill", "x": 0.5, "y": 0.5 } }
+      ]
+    }
+  ]
+}

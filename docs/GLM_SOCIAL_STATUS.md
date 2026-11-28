@@ -2,6 +2,47 @@
 
 Running notes for the reviewer, newest entry first. Nothing from this branch has reached `main`.
 
+## 2026-11-28: slice 2, the dev members website
+
+**Changed** (in `apps/members-web`, with its tests in `packages/domain`)
+
+- Sign-in gate. `server.mjs` and the new `lib/dev-data.mjs` check a member session on every request. Without one nothing loads: no member list, no page, no garage. Dev sign-in takes a member number only, because the data is fake.
+- `member.html`: a member page built from the same document and tokens as the app's profile screen. Cover and avatar with the member's framing, heading style, panel style, accent and panel colors, cover shape, wallpaper, section order, the member's own section titles, section size, hidden sections, Top 8, build journal, the wall, links, the stats toggles, and a link to the garage.
+- `garage.html`: the member's garage, listing each car they show with photo, specifications, installed and planned modifications and class. Only a verified car carries a "Verified" mark.
+- Privacy is decided on the server before anything is sent. A friends-only page or garage is refused to anyone who is not a friend, sections a viewer may not see are removed, friends-only cars are removed, and the owner sees everything.
+- `public/schema.js`: the plain JavaScript copy of the member page rules (tokens, checks, visitor rules, link allow-lists). It exists because the site has no build step and no dependencies.
+- `public/dom.js` builds elements with `textContent` only. `public/theme.js` turns validated tokens into CSS variables. The content-security policy keeps `script-src 'self'` and `style-src 'self'`: no inline script or style anywhere.
+- Tests in `packages/domain/tests/member-page-web-parity.test.ts` (13):
+  - the token lists are identical;
+  - both versions accept and reject the same 50 settings cases (unknown tokens, out-of-range values, injection attempts);
+  - both accept and reject the same page and garage documents;
+  - both show every visitor the same thing for every fixture page and garage;
+  - links normalize identically;
+  - the server's own decisions: owner, friend, stranger, signed out, the sign-in answer, the member list.
+- Fake data: four members and two garages in `fixtures/`. Web copies of the two app wallpapers in `public/wallpapers/` (83 KB and 155 KB).
+
+**Checks** (AngelFire)
+
+- `pnpm typecheck`: passes in all 7 packages.
+- Tests, run one package at a time: domain 131, drive-tracking 17, persistence 7, territory-engine 34, mobile 295, api 81. All passing.
+- Lint on everything in `apps/members-web` and the other changed files: clean.
+- Run locally (Node 22) and driven in headless Edge at phone width as a member would: signed out, signed in through the real form, opened the member list, a profile, a garage, a friend's profile and a stranger's profile. Screenshots checked. No script errors and no content-policy violations. The only console entry was the 403 from deliberately opening a stranger's private page.
+- Against the running server, checking response bodies: signed-out requests get 401; an unknown member gets 404; a friend gets a friends-only page (200) and a stranger gets 403; garage cars filter owner 3, friend 2, stranger 1; after sign-out the session reads signed out.
+
+**Bugs the live run caught, now fixed and covered by tests**
+
+- A friend was refused a friends-only page and garage. The server passed "friend" where the rules expect "friends". No unit test covered the server's own decisions, which is why that test now exists.
+- The "am I signed in" check and the member list parsed the cookie twice, so a signed-in member looked signed out and could never have loaded the member list. My first live check only looked at status codes and missed it. The checks now read the answers.
+
+**Not verified**
+
+- Not seen on Atlas. I cannot deploy from here, so the deploy script was not run.
+- Not seen in Safari or on a real phone. Only headless Edge at a phone width.
+- Headings use built-in fonts. The app loads Barlow Condensed and Inter at run time, so the site's headings are close but not identical until the font files are shipped.
+- A favorite drive is left out, because the website has no run catalog. Music does not play on the website; it links out. The wall is read-only.
+- Nothing writes. The app saves through the database RPCs, which validate in SQL, and it checks with the shared schema before saving (slice 1). The brief also asks for validation "on write in the API": no HTTP write path exists yet. That comes with real sign-in and the live API.
+- Nothing here touches the database.
+
 ## 2026-11-28: slice 1, one shared definition for pages and themes
 
 **Changed**

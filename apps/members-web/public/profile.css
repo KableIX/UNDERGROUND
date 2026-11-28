@@ -1,0 +1,100 @@
+/* Member and garage pages. The page element carries the member's choices as CSS variables and
+   data attributes set from validated tokens, so the same choices look as they do in the app. */
+.page {
+  --accent: #e1bc82; /* Gold, the default */
+  --panel: transparent;
+  --cover-ratio: 2.25;
+  --heading: var(--narrow);
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+  background: #101114;
+}
+.page[data-heading="Classic"] { --heading: var(--serif); }
+.page[data-heading="Modern"] { --heading: var(--sans); }
+.page.has-wallpaper { background: transparent; }
+.wallpaper { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; }
+.wallpaper img { display: block; width: 100%; height: 100%; }
+/* The dark veil the app lays over a wallpaper so text stays readable. */
+.wallpaper::after { content: ""; position: absolute; inset: 0; background: var(--veil); }
+.sheet { max-width: 760px; margin: 0 auto; padding-bottom: 64px; }
+
+.cover { aspect-ratio: var(--cover-ratio); overflow: hidden; border-bottom: 2px solid var(--accent); background: #05070c; }
+.cover-photo { display: block; width: 100%; height: 100%; }
+.avatar {
+  width: 76px; height: 76px; margin-top: -30px; border-radius: 50%; border: 2px solid var(--accent);
+  overflow: hidden; background: #17191d; display: grid; place-items: center;
+}
+.avatar-photo { display: block; width: 100%; height: 100%; }
+.monogram { color: var(--accent); font-family: var(--narrow); font-weight: 700; font-size: 30px; }
+.identity, .garage-head { display: grid; justify-items: start; gap: 6px; padding: 16px 20px 0; }
+.member-number { margin: 0; color: var(--accent); font-size: 11px; font-weight: 600; letter-spacing: 0.16em; }
+.member-name { margin: 0; font-family: var(--heading); font-weight: 700; font-size: 43px; line-height: 1.1; }
+.handle, .home { margin: 0; color: #c7c7ca; font-size: 15px; }
+.status { margin: 4px 0; padding-left: 12px; border-left: 2px solid var(--accent); color: #f0efed; font-size: 17px; }
+.stats { display: flex; flex-wrap: wrap; gap: 16px; margin: 4px 0; }
+.stat { color: #b8bac0; font-size: 13px; }
+.sections { padding: 0 20px; }
+.section { display: grid; gap: 7px; margin-top: 21px; padding-top: 16px; border-top: 1px solid #45464b; }
+.section.large { gap: 14px; padding-top: 26px; padding-bottom: 10px; }
+.section-title { margin: 0; color: var(--accent); font-family: var(--heading); font-weight: 700; font-size: 24px; }
+.section.large .section-title { font-size: 32px; }
+/* Panel style. Lines is the plain rule above; Glass and Solid draw a card around each section. */
+.page[data-panels="Glass"] .section,
+.page[data-panels="Solid"] .section { padding: 14px; border: 1px solid var(--accent); border-radius: 8px; }
+.page[data-panels="Glass"] .section { background: rgba(23, 27, 34, 0.76); }
+.page[data-panels="Solid"] .section { background: #202329; }
+.page.has-panel .section { padding: 14px; background: var(--panel); }
+/* Section formats: compact is tighter, full runs wider than the column. */
+.section.format-compact { gap: 4px; margin-inline: 8px; padding: 6px; }
+.section.format-full { margin-inline: -12px; padding-inline: 12px; }
+
+.body { margin: 0; color: #e6e5e2; font-size: 16px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.feature { margin: 4px 0; color: #f1f0ed; font-family: var(--heading); font-weight: 700; font-size: 24px; }
+.muted { margin: 0; color: #b8bac0; font-size: 14px; }
+/* Photos sit in a fixed box; the member's framing decides whether the photo fills it or shows whole. */
+.photo { display: block; width: 100%; aspect-ratio: 4 / 3; border-radius: 8px; background: #05070c; }
+.stack { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.grid .photo { aspect-ratio: 1; }
+.car { display: grid; gap: 4px; }
+.entry { display: grid; gap: 5px; margin: 5px 0; }
+.top-eight { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.friend { border: 1px solid #4a4948; border-radius: 5px; }
+.friend-link { display: flex; gap: 8px; align-items: baseline; min-height: 44px; padding: 10px; color: var(--text); text-decoration: none; }
+.rank { color: var(--accent); font-size: 11px; font-weight: 600; letter-spacing: 0.16em; }
+.notes { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.note { padding-left: 12px; border-left: 2px solid var(--accent); }
+.note-author { margin: 0; color: var(--accent); font-size: 13px; }
+.note .body { margin-top: 2px; }
+.footer { padding: 24px 20px 0; }
+
+/* Garage page */
+.garage-car { display: grid; gap: 10px; margin: 18px 20px 0; padding: 18px 0; border-top: 1px solid var(--line); }
+.page[data-panels="Glass"] .garage-car,
+.page[data-panels="Solid"] .garage-car { padding: 14px; border: 1px solid var(--accent); border-radius: 8px; }
+.page[data-panels="Glass"] .garage-car { background: rgba(23, 27, 34, 0.76); }
+.page[data-panels="Solid"] .garage-car { background: #202329; }
+.garage-hero { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 10px; background: #05070c; }
+.car-title { margin: 0; font-family: var(--heading); font-weight: 700; font-size: 32px; line-height: 1.1; }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.badge {
+  padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted);
+  font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+}
+.badge.verified { border-color: var(--accent); background: var(--accent); color: #141518; font-weight: 700; }
+.specs { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+.specs dt { color: var(--brand-muted); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+.specs dd { margin: 0; color: #e6e5e2; overflow-wrap: anywhere; }
+.mods-title { margin: 6px 0 4px; color: var(--accent); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; }
+.mods-list { margin: 0; padding-left: 20px; color: #e6e5e2; }
+.gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.gallery-photo { display: block; width: 100%; aspect-ratio: 4 / 3; border-radius: 8px; background: #05070c; }
+.caption { margin: 4px 0 0; color: #b8bac0; font-size: 14px; }
+
+@media (max-width: 520px) {
+  .grid, .gallery { grid-template-columns: 1fr; }
+  .member-name { font-size: 36px; }
+  .specs { grid-template-columns: 1fr; gap: 2px; }
+  .specs dd { margin-bottom: 8px; }
+}

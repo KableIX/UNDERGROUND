@@ -1,0 +1,72 @@
+{
+  "note": "FAKE fixture garage for the dev site. One public car, one for friends, one private.",
+  "member": { "id": "11111111-1111-4111-8111-111111111111", "number": "000001", "name": "STARK", "founder": true },
+  "cars": [
+    {
+      "id": "44444444-4444-4444-8444-444444444401",
+      "year": 2005,
+      "make": "Porsche",
+      "model": "Carrera GT",
+      "trim": null,
+      "color": "GT Silver",
+      "verification": "verified",
+      "visibility": "public",
+      "carClass": "preserved",
+      "specs": [
+        { "key": "paint", "label": "Paint", "value": "GT Silver Metallic" },
+        { "key": "interior", "label": "Interior", "value": "Black leather" },
+        { "key": "transmission", "label": "Transmission", "value": "6-speed manual" },
+        { "key": "mileage", "label": "Mileage", "value": "1,240 miles" },
+        { "key": "wheels", "label": "Wheels", "value": "19-inch forged magnesium" },
+        { "key": "brakes", "label": "Brakes", "value": "Carbon-ceramic" }
+      ],
+      "mods": [],
+      "photos": [
+        { "src": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAAAwEBAQEAAAAAAAAAAAAAAAAAAAQFEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AkAx1oAAAAAAAAAD/2Q==", "caption": "Sunday, before the crest", "frame": { "mode": "fill", "x": 0.5, "y": 0.5 } },
+        { "src": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABMAAEBAAAAAAAAAAAAAAAAAAAABgEBAQAAAAAAAAAAAAAAAAAAAAQQAQAAAAAAAAAAAAAAAAAAAAARAQAAAAAAAAAAAAAAAAAAAAD/wAARCAAgADADASIAAhEAAxEA/9oADAMBAAIRAxEAPwCRAWpAAAAAAAAAAH//2Q==", "caption": null, "frame": { "mode": "fill", "x": 0.5, "y": 0.5 } }
+      ]
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444402",
+      "year": 2010,
+      "make": "Audi",
+      "model": "R8 V10",
+      "trim": "5.2 FSI quattro",
+      "color": "Jet Blue",
+      "verification": "verified",
+      "visibility": "friends",
+      "carClass": "daily",
+      "specs": [
+        { "key": "paint", "label": "Paint", "value": "Jet Blue Metallic" },
+        { "key": "interior", "label": "Interior", "value": "Black leather, red stitching" },
+        { "key": "transmission", "label": "Transmission", "value": "R tronic" },
+        { "key": "engine", "label": "Engine and tune", "value": "5.2-liter V10, stock" },
+        { "key": "exhaust", "label": "Exhaust", "value": "Titanium race exhaust" },
+        { "key": "suspension", "label": "Suspension", "value": "Sport springs" }
+      ],
+      "mods": [
+        { "title": "Titanium race exhaust", "status": "installed" },
+        { "title": "Sport springs", "status": "installed" },
+        { "title": "Carbon front splitter", "status": "pending" }
+      ],
+      "photos": [
+        { "src": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAABgEBAQEAAAAAAAAAAAAAAAAAAAQGEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AmgFLPgAAAAAAAAAP/9k=", "caption": "The blue one", "frame": { "mode": "fill", "x": 0.5, "y": 0.5 } },
+        { "src": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMQD/2wBDAAgICAkICQsLCwsLCw0MDQ0NDQ0NDQ0NDQ0ODg4REREODg4NDQ4OEBARERITEhERERETExQUFBgYFxccHB0iIin/xABNAAEBAAAAAAAAAAAAAAAAAAAABgEBAQEAAAAAAAAAAAAAAAAAAAIFEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAIAAwAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AjgEN4AAAAAAAAAB//9k=", "caption": "New exhaust fitted", "frame": { "mode": "fill", "x": 0.5, "y": 0.5 } }
+      ]
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444403",
+      "year": 1994,
+      "make": "Toyota",
+      "model": "Supra",
+      "trim": "Turbo",
+      "color": "Black",
+      "verification": "unverified",
+      "visibility": "private",
+      "carClass": null,
+      "specs": [{ "key": "mileage", "label": "Mileage", "value": "Project, not running" }],
+      "mods": [{ "title": "Full engine rebuild", "status": "pending" }],
+      "photos": []
+    }
+  ]
+}
