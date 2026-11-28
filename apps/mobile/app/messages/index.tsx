@@ -51,19 +51,6 @@ export default function MessagesScreen() {
     }, [memberId, load]),
   );
 
-  async function openDirect(otherId: string, title: string) {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const { threadId } = await messagesApi.openDirect(otherId);
-      router.push({ pathname: '/messages/[threadId]', params: { threadId, title } });
-    } catch (e) {
-      Alert.alert('Could not open a message', e instanceof MessagesError ? messageText(e.message) : 'Please try again.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function openByNumber() {
     const wanted = number.trim();
     if (!/^\d{6}$/.test(wanted) || !memberId || busy) return;
