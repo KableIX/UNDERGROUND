@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import {
   applyClubInvitationAction,
   listDirectoryMembers,
@@ -18,7 +19,7 @@ import { isLiveAuthConfigured } from '../../src/session/supabase-session';
 import { shell } from '../../src/theme/shell';
 
 export default function FriendsScreen() {
-
+  const router = useRouter();
   const [invite, setInvite] = useState<ClubInvitation>(pendingClubInvite);
   const [market, setMarket] = useState<'california' | 'miami'>('california');
 
@@ -33,6 +34,11 @@ export default function FriendsScreen() {
         <Text variant="title" gold>
           Friends
         </Text>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/messages')} style={styles.messagesLink}>
+          <Text variant="caption" gold>
+            MESSAGES
+          </Text>
+        </Pressable>
         <ClubHub />
         <FriendPages />
         <GoldRule />
@@ -117,6 +123,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 40,
   },
+  messagesLink: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
   meta: {
     marginTop: 6,
     color: shell.muted,
